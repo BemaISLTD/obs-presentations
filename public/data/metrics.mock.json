@@ -1,0 +1,32 @@
+{
+  "countdown": {
+    "durationSeconds": 600,
+    "stats": [
+      {
+        "label": "Active Campaigns",
+        "value": "24",
+        "detail": "Campaigns currently driving Loop Activity momentum."
+      },
+      {
+        "label": "Builders Engaged",
+        "value": "1,284",
+        "detail": "Builders and Participants active in the pre-show room."
+      },
+      {
+        "label": "Engagement Level",
+        "value": "High",
+        "detail": "Creative Value conversations are trending upward."
+      },
+      {
+        "label": "Growth This Quarter",
+        "value": "+32%",
+        "detail": "Quarter-over-quarter growth in recognized Loop Activity."
+      }
+    ],
+    "qr": {
+      "title": "Join the Builder queue",
+      "copy": "Scan to access today’s LoopCode, receive the opening resource bundle, and enter the Community of Rewarded Engagement.",
+      "codeLabel": "LoopCode: OPEN-01"
+    }
+  }
+}

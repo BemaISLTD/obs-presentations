@@ -1,0 +1,297 @@
+[
+  {
+    "id": "01",
+    "title": "Live Stream Starting Soon Countdown",
+    "description": "Countdown opener with real-time metrics, participation QR card, and chat prompts.",
+    "referenceImage": "/assets/storyboards/core/01_live_stream_starting_soon_countdown.png",
+    "keyTerms": ["Builder", "LoopLink", "LoopCode", "Qualified LoopLocks"]
+  },
+  {
+    "id": "02",
+    "title": "Welcome Music Visualizer",
+    "description": "Animated welcome state with waveform, equalizer bars, particles, and center pulse.",
+    "referenceImage": "/assets/storyboards/core/02_welcome_music_visualizer.png",
+    "keyTerms": ["Creative Value", "Loop Activity", "Community of Rewarded Engagement"]
+  },
+  {
+    "id": "03",
+    "title": "Host Standby Camera",
+    "description": "Standby composition with OBS overlay or boxed presenter frame.",
+    "referenceImage": "/assets/storyboards/core/03_host_standby_camera.png",
+    "keyTerms": ["Presenter Frame", "Recognized Impact", "Loop Activity"]
+  },
+  {
+    "id": "04",
+    "title": "Grand Opening Stinger",
+    "description": "Cinematic stinger scene with mission statements, particles, and light streaks.",
+    "referenceImage": "/assets/storyboards/core/04_grand_opening_stinger.png",
+    "keyTerms": ["Mutual Exchange", "Creative Value", "LoopLock"]
+  },
+  {
+    "id": "05",
+    "title": "Host Welcome and Agenda",
+    "description": "Agenda-driven welcome slide with editable card content and lower ticker.",
+    "referenceImage": "/assets/storyboards/core/05_host_welcome_and_agenda.png",
+    "keyTerms": ["Builder", "Participant", "Participation Assets", "Recognized Impact"],
+    "agenda": [
+      {
+        "label": "Welcome",
+        "title": "Open the room with Builder-first framing",
+        "copy": "Set expectations for the session and explain why participation creates Creative Value."
+      },
+      {
+        "label": "Overview",
+        "title": "Clarify Bema CORE in plain language",
+        "copy": "Introduce LoopLink, LoopCode, and LoopLock without drifting into outdated fundraising vocabulary."
+      },
+      {
+        "label": "Journey",
+        "title": "Show the participation path",
+        "copy": "Preview how Qualified LoopLocks, Loop Activity, and Recognized Impact fit together."
+      },
+      {
+        "label": "Action",
+        "title": "Prepare the audience for live enrollment",
+        "copy": "Transition into the live invitation and the mutual exchange call to action."
+      }
+    ]
+  },
+  {
+    "id": "06",
+    "title": "What Is Bema Hub",
+    "description": "Reference-ready placeholder until live implementation is added.",
+    "referenceImage": "/assets/storyboards/core/06_what_is_bema_hub.png",
+    "keyTerms": ["BemaHub"]
+  },
+  {
+    "id": "07",
+    "title": "What Is Bema CORE",
+    "description": "Reference-ready placeholder until live implementation is added.",
+    "referenceImage": "/assets/storyboards/core/07_what_is_bema_core.png",
+    "keyTerms": ["Bema CORE"]
+  },
+  {
+    "id": "08",
+    "title": "Impact Statistics Overview",
+    "description": "Reference-ready placeholder until live implementation is added.",
+    "referenceImage": "/assets/storyboards/core/08_impact_statistics_overview.png",
+    "keyTerms": ["Recognized Impact"]
+  },
+  {
+    "id": "09",
+    "title": "Programs Overview",
+    "description": "Reference-ready placeholder until live implementation is added.",
+    "referenceImage": "/assets/storyboards/core/09_programs_overview.png",
+    "keyTerms": ["Programs"]
+  },
+  {
+    "id": "10",
+    "title": "Participation Journey",
+    "description": "Reference-ready placeholder until live implementation is added.",
+    "referenceImage": "/assets/storyboards/core/10_participation_journey.png",
+    "keyTerms": ["Participation Journey"]
+  },
+  {
+    "id": "11",
+    "title": "EchoLoop Explained",
+    "description": "Reference-ready placeholder until live implementation is added.",
+    "referenceImage": "/assets/storyboards/core/11_echoloop_explained.png",
+    "keyTerms": ["EchoLoop"]
+  },
+  {
+    "id": "12",
+    "title": "Access Levels Vertical Climb",
+    "description": "Reference-ready placeholder until live implementation is added.",
+    "referenceImage": "/assets/storyboards/core/12_access_levels_vertical_climb.png",
+    "keyTerms": ["Access Levels"]
+  },
+  {
+    "id": "13",
+    "title": "Community Builder Tiers",
+    "description": "Reference-ready placeholder until live implementation is added.",
+    "referenceImage": "/assets/storyboards/core/13_community_builder_tiers.png",
+    "keyTerms": ["Builder"]
+  },
+  {
+    "id": "14",
+    "title": "Live Enrollment Invitation",
+    "description": "Reference-ready placeholder until live implementation is added.",
+    "referenceImage": "/assets/storyboards/core/14_live_enrollment_invitation.png",
+    "keyTerms": ["Enrollment"]
+  },
+  {
+    "id": "15",
+    "title": "Loop Activity and Recognized Impact",
+    "description": "Reference-ready placeholder until live implementation is added.",
+    "referenceImage": "/assets/storyboards/core/15_loop_activity_and_recognized_impact.png",
+    "keyTerms": ["Loop Activity", "Recognized Impact"]
+  },
+  {
+    "id": "16",
+    "title": "Bema Hub Walkthrough Home Dashboard",
+    "description": "Reference-ready placeholder until live implementation is added.",
+    "referenceImage": "/assets/storyboards/core/16_bema_hub_walkthrough_home_dashboard.png",
+    "keyTerms": ["Dashboard"]
+  },
+  {
+    "id": "17",
+    "title": "Campaigns Page Walkthrough",
+    "description": "Reference-ready placeholder until live implementation is added.",
+    "referenceImage": "/assets/storyboards/core/17_campaigns_page_walkthrough.png",
+    "keyTerms": ["Campaigns"]
+  },
+  {
+    "id": "18",
+    "title": "Campaign Detail Page Creative Value",
+    "description": "Reference-ready placeholder until live implementation is added.",
+    "referenceImage": "/assets/storyboards/core/18_campaign_detail_page_creative_value.png",
+    "keyTerms": ["Creative Value"]
+  },
+  {
+    "id": "19",
+    "title": "Choosing Your Access Level",
+    "description": "Reference-ready placeholder until live implementation is added.",
+    "referenceImage": "/assets/storyboards/core/19_choosing_your_access_level.png",
+    "keyTerms": ["Access Level"]
+  },
+  {
+    "id": "20",
+    "title": "Participation Assets Delivered",
+    "description": "Reference-ready placeholder until live implementation is added.",
+    "referenceImage": "/assets/storyboards/core/20_participation_assets_delivered.png",
+    "keyTerms": ["Participation Assets"]
+  },
+  {
+    "id": "21",
+    "title": "LoopLink and LoopCode Activation",
+    "description": "Reference-ready placeholder until live implementation is added.",
+    "referenceImage": "/assets/storyboards/core/21_looplink_and_loopcode_activation.png",
+    "keyTerms": ["LoopLink", "LoopCode"]
+  },
+  {
+    "id": "22",
+    "title": "LoopLock Confirmation",
+    "description": "Reference-ready placeholder until live implementation is added.",
+    "referenceImage": "/assets/storyboards/core/22_looplock_confirmation.png",
+    "keyTerms": ["LoopLock"]
+  },
+  {
+    "id": "23",
+    "title": "Qualified LoopLocks",
+    "description": "Reference-ready placeholder until live implementation is added.",
+    "referenceImage": "/assets/storyboards/core/23_qualified_looplocks.png",
+    "keyTerms": ["Qualified LoopLocks"]
+  },
+  {
+    "id": "24",
+    "title": "Recognized Impact Explained",
+    "description": "Reference-ready placeholder until live implementation is added.",
+    "referenceImage": "/assets/storyboards/core/24_recognized_impact_explained.png",
+    "keyTerms": ["Recognized Impact"]
+  },
+  {
+    "id": "25",
+    "title": "Trust and Transparency",
+    "description": "Reference-ready placeholder until live implementation is added.",
+    "referenceImage": "/assets/storyboards/core/25_trust_and_transparency.png",
+    "keyTerms": ["Trust"]
+  },
+  {
+    "id": "26",
+    "title": "Events Page Walkthrough",
+    "description": "Reference-ready placeholder until live implementation is added.",
+    "referenceImage": "/assets/storyboards/core/26_events_page_walkthrough.png",
+    "keyTerms": ["Events"]
+  },
+  {
+    "id": "27",
+    "title": "Event Detail Page Join the Moment",
+    "description": "Reference-ready placeholder until live implementation is added.",
+    "referenceImage": "/assets/storyboards/core/27_event_detail_page_join_the_moment.png",
+    "keyTerms": ["Event Detail"]
+  },
+  {
+    "id": "28",
+    "title": "Changemakers Overview",
+    "description": "Reference-ready placeholder until live implementation is added.",
+    "referenceImage": "/assets/storyboards/core/28_changemakers_overview.png",
+    "keyTerms": ["Changemakers"]
+  },
+  {
+    "id": "29",
+    "title": "Creator Stories and Proof Updates",
+    "description": "Reference-ready placeholder until live implementation is added.",
+    "referenceImage": "/assets/storyboards/core/29_creator_stories_and_proof_updates.png",
+    "keyTerms": ["Creator Stories"]
+  },
+  {
+    "id": "30",
+    "title": "My Impact Dashboard",
+    "description": "Reference-ready placeholder until live implementation is added.",
+    "referenceImage": "/assets/storyboards/core/30_my_impact_dashboard.png",
+    "keyTerms": ["Impact Dashboard"]
+  },
+  {
+    "id": "31",
+    "title": "Builder Progress Tracker",
+    "description": "Reference-ready placeholder until live implementation is added.",
+    "referenceImage": "/assets/storyboards/core/31_builder_progress_tracker.png",
+    "keyTerms": ["Builder Progress"]
+  },
+  {
+    "id": "32",
+    "title": "Top Referrers and Community Momentum",
+    "description": "Reference-ready placeholder until live implementation is added.",
+    "referenceImage": "/assets/storyboards/core/32_top_referrers_and_community_momentum.png",
+    "keyTerms": ["Community Momentum"]
+  },
+  {
+    "id": "33",
+    "title": "Frequently Asked Questions",
+    "description": "Reference-ready placeholder until live implementation is added.",
+    "referenceImage": "/assets/storyboards/core/33_frequently_asked_questions.png",
+    "keyTerms": ["Questions"]
+  },
+  {
+    "id": "34",
+    "title": "Final Enrollment Call to Action",
+    "description": "Reference-ready placeholder until live implementation is added.",
+    "referenceImage": "/assets/storyboards/core/34_final_enrollment_call_to_action.png",
+    "keyTerms": ["Enrollment CTA"]
+  },
+  {
+    "id": "35",
+    "title": "Thank You and Next Steps",
+    "description": "Reference-ready placeholder until live implementation is added.",
+    "referenceImage": "/assets/storyboards/core/35_thank_you_and_next_steps.png",
+    "keyTerms": ["Next Steps"]
+  },
+  {
+    "id": "36",
+    "title": "Utility Live QA",
+    "description": "Reference-ready placeholder until live implementation is added.",
+    "referenceImage": "/assets/storyboards/core/36_Utility_LiveQA.png",
+    "keyTerms": ["Utility"]
+  },
+  {
+    "id": "37",
+    "title": "Utility Enrollment Progress Live",
+    "description": "Reference-ready placeholder until live implementation is added.",
+    "referenceImage": "/assets/storyboards/core/37_Utility_EnrollmentProgressLive.png",
+    "keyTerms": ["Utility"]
+  },
+  {
+    "id": "38",
+    "title": "Utility Please Stand By",
+    "description": "Reference-ready placeholder until live implementation is added.",
+    "referenceImage": "/assets/storyboards/core/38_Utility_PleaseStandBy.png",
+    "keyTerms": ["Utility"]
+  },
+  {
+    "id": "39",
+    "title": "Utility Close Loop",
+    "description": "Reference-ready placeholder until live implementation is added.",
+    "referenceImage": "/assets/storyboards/core/39_Utility_CloseLoop.png",
+    "keyTerms": ["Utility"]
+  }
+]
