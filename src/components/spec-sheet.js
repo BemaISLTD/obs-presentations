@@ -87,10 +87,10 @@ function renderSlide01SpecSheet(slide) {
     .join('')
 
   return `
-    <section class="spec-sheet" aria-label="Storyboard specification sheet">
+    <section class="spec-sheet spec-sheet-slide01" aria-label="Storyboard specification sheet">
       <div class="spec-sheet-header">
+        <span class="spec-slide-index">SLIDE #: 01</span>
         <p class="eyebrow">Storyboard Specification Sheet</p>
-        <span class="pill-label spec-slide-no">Slide No. 01</span>
       </div>
       <h2 class="stage-title">${slide.title}</h2>
       <div class="spec-list">${rowMarkup}</div>

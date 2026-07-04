@@ -1,26 +1,29 @@
 {
   "countdown": {
     "durationSeconds": 600,
+    "liveViewerCount": 1246,
+    "chatCount": 342,
+    "countriesCount": 37,
     "stats": [
       {
         "label": "Active Campaigns",
-        "value": "24",
-        "detail": "Campaigns currently driving Loop Activity momentum."
+        "value": "39",
+        "detail": "Live now"
       },
       {
         "label": "Builders Engaged",
-        "value": "1,284",
-        "detail": "Builders and Participants active in the pre-show room."
+        "value": "10",
+        "detail": "Building impact"
       },
       {
         "label": "Engagement Level",
-        "value": "High",
-        "detail": "Creative Value conversations are trending upward."
+        "value": "Moderate",
+        "detail": "Jump in and collaborate"
       },
       {
         "label": "Growth This Quarter",
-        "value": "+32%",
-        "detail": "Quarter-over-quarter growth in recognized Loop Activity."
+        "value": "+259.8%",
+        "detail": "Momentum together"
       }
     ],
     "qr": {

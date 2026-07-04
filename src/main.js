@@ -1,7 +1,10 @@
 import './style.css'
 import { renderReferenceLayer } from './components/reference-layer.js'
 import { renderSpecSheet } from './components/spec-sheet.js'
+import { renderBackgroundLayer, initBackgroundLayer } from './components/BackgroundLayer.js'
 import { scenes } from './scenes/index.js'
+import { loadPresentationData } from './dataService.js'
+import { getSceneBackground } from './utils/getSceneBackground.js'
 
 const app = document.querySelector('#app')
 
@@ -10,20 +13,6 @@ const DEFAULT_MODE = 'live'
 const DEFAULT_OUTPUT = 'storyboard'
 const VALID_MODES = new Set(['reference', 'live', 'overlay'])
 const VALID_OUTPUTS = new Set(['storyboard', 'obs'])
-const DEPRECATED_TERMS = [
-  'supporter',
-  'donor',
-  'donation',
-  'charity',
-  'fundraising',
-  'contributor',
-  'commission',
-  'referral reward',
-  'guaranteed reward',
-  'passive income',
-  'mlm',
-  'downline',
-]
 
 let detachCanvasScale = null
 let detachDebugTools = null
@@ -33,7 +22,8 @@ const debugState = {
   safeZonesVisible: false,
   controlsVisible: true,
   overlayReferenceVisible: true,
-  referenceOpacity: 0.35,
+  referenceOpacity: 0.75,
+  overlayReferenceOnTop: false,
 }
 
 boot().catch((error) => {
@@ -57,15 +47,15 @@ async function boot() {
   const presenterLayout = normalizePresenterLayout(params.get('presenter'))
   const clean = params.get('clean') === 'true'
   const paused = params.get('paused') === 'true'
+  const backgroundDebug = params.get('bgDebug') === 'true'
+  const refOpacity = parseRefOpacity(params.get('refOpacity'))
+  const refOnTop = params.get('refOnTop') === 'true'
 
-  const [slides, metrics, ticker, promptSourceText] = await Promise.all([
-    fetchJson('/data/slides.json'),
-    fetchJson('/data/metrics.mock.json'),
-    fetchJson('/data/ticker.json'),
-    fetchText('/data/bemahub_countdown_questions_external_source.csv'),
-  ])
+  debugState.referenceOpacity = refOpacity
+  debugState.overlayReferenceOnTop = refOnTop
+  debugState.overlayReferenceVisible = true
 
-  const promptSource = parseExternalPromptSource(promptSourceText)
+  const { slides, metrics, ticker, promptSource } = await loadPresentationData()
 
   const slide = slides.find((entry) => entry.id === sceneId) ?? slides[0]
 
@@ -92,6 +82,9 @@ async function boot() {
     slide,
     ticker,
     url: params,
+    refOpacity,
+    refOnTop,
+    backgroundDebug,
   }
 
   document.title = `BemaHub OBS - Scene ${slide.id} ${mode}`
@@ -103,12 +96,28 @@ async function boot() {
 }
 
 function renderApp(context, sceneRenderer) {
-  const { clean, mode, output, paused, slide } = context
+  const { clean, mode, output, paused, slide, refOnTop, backgroundDebug } = context
   const liveMarkup = sceneRenderer ? sceneRenderer.render(context) : ''
-  const shellClassNames = ['app-shell', `output-${output}`]
+  const sceneNumber = Number(slide.id)
+  const { backgroundId } = getSceneBackground(sceneNumber)
+  const showVideoBackground = mode !== 'reference'
+  const backgroundMarkup = showVideoBackground
+    ? renderBackgroundLayer({
+        sceneId: slide.id,
+        backgroundId,
+        className: 'stage-background-layer',
+        debug: import.meta.env.DEV || backgroundDebug,
+      })
+    : ''
+  const shellClassNames = ['app-shell', `output-${output}`, `mode-${mode}`]
   const canvasClassNames = ['storyboard-canvas', `mode-${mode}`, `output-${output}`]
-  const showHeader = output === 'storyboard'
+  const showHeader = output === 'storyboard' && mode !== 'reference'
   const showSpecSheet = output === 'storyboard' && mode !== 'reference'
+  const showDebug = !clean && mode !== 'reference'
+
+  if (refOnTop && mode === 'overlay') {
+    canvasClassNames.push('reference-on-top')
+  }
 
   if (paused) {
     shellClassNames.push('is-paused')
@@ -139,10 +148,11 @@ function renderApp(context, sceneRenderer) {
           <div class="${canvasClassNames.join(' ')}">
             ${(mode === 'reference' || mode === 'overlay') ? renderReferenceLayer(slide, mode, getReferenceOpacity(mode), shouldShowReference(mode)) : ''}
             <section class="visual-stage" aria-label="OBS visual stage">
+              ${backgroundMarkup}
               ${(mode === 'live' || mode === 'overlay') ? `<div class="live-layer">${liveMarkup}</div>` : ''}
             </section>
             ${showSpecSheet ? renderSpecSheet(slide, context) : ''}
-            ${clean ? '' : renderDebugOverlay(context)}
+            ${showDebug ? renderDebugOverlay(context) : ''}
           </div>
         </div>
       </section>
@@ -151,6 +161,9 @@ function renderApp(context, sceneRenderer) {
 
   bindCanvasScale(output)
   bindDebugTools(context)
+  if (showVideoBackground) {
+    initBackgroundLayer(app)
+  }
 }
 
 function renderDebugOverlay(context) {
@@ -208,7 +221,7 @@ function renderDebugOverlay(context) {
         <button type="button" class="debug-button" data-toggle-safe-zones>${debugState.safeZonesVisible ? 'Hide Safe Zones' : 'Show Safe Zones'}</button>
       </div>
       ${warningMarkup}
-      <p class="debug-shortcuts">G grid · R reference · [ ] opacity · D debug</p>
+      <p class="debug-shortcuts">G grid · R reference · T top/bottom · [ ] opacity · D debug</p>
     </aside>
   `
 }
@@ -261,7 +274,8 @@ function bindCanvasScale(output) {
   const updateScale = () => {
     const availableWidth = Math.max(shell.clientWidth, 320)
     const shellTop = shell.getBoundingClientRect().top
-    const availableHeight = Math.max(window.innerHeight - shellTop - 24, 320)
+    const verticalPadding = output === 'obs' ? 0 : 24
+    const availableHeight = Math.max(window.innerHeight - shellTop - verticalPadding, 320)
     const scale = Math.min(availableWidth / baseWidth, availableHeight / baseHeight)
 
     frame.style.width = `${baseWidth * scale}px`
@@ -312,6 +326,7 @@ function bindDebugTools(context) {
       opacityInput.disabled = context.mode === 'live'
     }
 
+    root.classList.toggle('reference-on-top', debugState.overlayReferenceOnTop)
     syncReferenceDisplay(context.mode)
   }
 
@@ -353,6 +368,14 @@ function bindDebugTools(context) {
       return
     }
 
+    if (event.key === 't' || event.key === 'T') {
+      if (context.mode === 'overlay') {
+        debugState.overlayReferenceOnTop = !debugState.overlayReferenceOnTop
+        applyDebugState()
+      }
+      return
+    }
+
     if (event.key === '[') {
       debugState.referenceOpacity = clamp(debugState.referenceOpacity - 0.05, 0, 1)
       applyDebugState()
@@ -387,14 +410,15 @@ function bindDebugTools(context) {
 }
 
 function syncReferenceDisplay(mode) {
+  const referenceLayer = app.querySelector('.reference-layer')
   const reference = app.querySelector('.reference-layer img')
 
-  if (!reference) {
+  if (!referenceLayer || !reference) {
     return
   }
 
+  referenceLayer.style.visibility = shouldShowReference(mode) ? 'visible' : 'hidden'
   reference.style.opacity = String(getReferenceOpacity(mode))
-  reference.style.visibility = shouldShowReference(mode) ? 'visible' : 'hidden'
 }
 
 function shouldShowReference(mode) {
@@ -417,117 +441,12 @@ function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max)
 }
 
-async function fetchJson(url) {
-  const response = await fetch(url)
+function parseRefOpacity(value) {
+  const parsed = Number(value)
 
-  if (!response.ok) {
-    throw new Error(`Failed to load ${url}.`)
+  if (Number.isNaN(parsed)) {
+    return debugState.referenceOpacity
   }
 
-  return response.json()
-}
-
-async function fetchText(url) {
-  const response = await fetch(url)
-
-  if (!response.ok) {
-    throw new Error(`Failed to load ${url}.`)
-  }
-
-  return response.text()
-}
-
-function parseExternalPromptSource(csvText) {
-  const rows = parseCsvRows(csvText)
-  const deprecatedWarnings = []
-  const warningKeys = new Set()
-
-  for (const row of rows) {
-    const searchable = Object.values(row).join(' ').toLowerCase()
-
-    for (const term of DEPRECATED_TERMS) {
-      if (searchable.includes(term)) {
-        const rowId = row.id || 'unknown'
-        const key = `${rowId}:${term}`
-
-        if (!warningKeys.has(key)) {
-          warningKeys.add(key)
-          deprecatedWarnings.push({ id: rowId, term })
-        }
-      }
-    }
-  }
-
-  const enabledPrompts = rows
-    .filter((row) => String(row.enabled).toLowerCase() === 'true')
-    .map((row) => ({
-      ...row,
-      start_sec: Number(row.start_sec || 0),
-      duration_sec: Number(row.duration_sec || 0),
-      animation_in_duration_ms: Number(row.animation_in_duration_ms || 500),
-      animation_out_duration_ms: Number(row.animation_out_duration_ms || 400),
-    }))
-    .sort((a, b) => a.start_sec - b.start_sec)
-
-  return {
-    enabledPrompts,
-    deprecatedWarnings,
-  }
-}
-
-function parseCsvRows(csvText) {
-  const lines = csvText.split(/\r?\n/).filter((line) => line.trim().length)
-
-  if (!lines.length) {
-    return []
-  }
-
-  const headers = parseCsvLine(lines[0]).map((header, index) => {
-    if (index === 0) {
-      return header.replace(/^\uFEFF/, '')
-    }
-
-    return header
-  })
-
-  return lines.slice(1).map((line) => {
-    const values = parseCsvLine(line)
-    return headers.reduce((acc, header, index) => {
-      acc[header] = values[index] ?? ''
-      return acc
-    }, {})
-  })
-}
-
-function parseCsvLine(line) {
-  const values = []
-  let current = ''
-  let inQuotes = false
-
-  for (let index = 0; index < line.length; index += 1) {
-    const char = line[index]
-    const next = line[index + 1]
-
-    if (char === '"' && inQuotes && next === '"') {
-      current += '"'
-      index += 1
-      continue
-    }
-
-    if (char === '"') {
-      inQuotes = !inQuotes
-      continue
-    }
-
-    if (char === ',' && !inQuotes) {
-      values.push(current)
-      current = ''
-      continue
-    }
-
-    current += char
-  }
-
-  values.push(current)
-  return values
+  return clamp(parsed, 0, 1)
 }

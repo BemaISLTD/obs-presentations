@@ -1,15 +1,11 @@
+import { ASSET_PATHS } from '../config/assets.js'
+
 export const scene01 = {
   render(context) {
     const waveBars = createWaveBars(56)
     const eqBars = createEqBars(32)
     const particles = createParticles(24)
-    const broadcastTickerItems = [
-      '1,246 builders online',
-      '342 in chat',
-      '37 countries building together',
-      'Opening at 10:00',
-      'Say hello in chat',
-    ]
+    const defaultTickerItems = context.ticker?.scene01?.length ? context.ticker.scene01 : context.ticker?.items ?? []
     const statIcons = ['AC', 'BE', 'EL', 'GQ']
 
     const metricCards = context.metrics.countdown.stats
@@ -56,9 +52,9 @@ export const scene01 = {
 
         <header class="scene01-top">
           <div class="scene01-brand">
-            <span class="scene01-logo-core" aria-hidden="true"></span>
-            <div class="scene01-wordmark" aria-label="bemaHub">
-              <strong><span class="scene01-wordmark-bema">bema</span><span class="scene01-wordmark-hub">Hub</span></strong>
+            <div class="scene01-wordmark" data-asset-wrapper aria-label="bemaHub">
+              <img src="${ASSET_PATHS.logos.wordmark}" alt="bemaHub wordmark" data-asset-image />
+              <strong class="scene01-wordmark-fallback"><span class="scene01-wordmark-bema">bema</span><span class="scene01-wordmark-hub">Hub</span></strong>
             </div>
           </div>
           <div class="live-badge scene01-live-badge">LIVE</div>
@@ -83,7 +79,7 @@ export const scene01 = {
 
             <section class="scene01-countdown-hero" aria-label="Countdown hero">
               <p class="scene01-countdown-label">We start in</p>
-              <div class="countdown-clock" data-countdown-duration="${context.metrics.countdown.durationSeconds ?? 600}">
+              <div class="countdown-clock" data-countdown-duration="${context.metrics.countdown.durationSeconds ?? 600}" data-time="10:00">
                 <span class="clock-segment" data-clock-minutes>10</span>
                 <span class="clock-divider">:</span>
                 <span class="clock-segment" data-clock-seconds>00</span>
@@ -98,9 +94,15 @@ export const scene01 = {
 
           <aside class="scene01-right-column">
             <section class="bema-card glass-card qr-card soft-glow scene01-qr-card">
+              <div class="scene01-qr-brand" data-asset-wrapper>
+                <img src="${ASSET_PATHS.logos.mark}" alt="bemaHub compact mark" class="scene01-qr-mark" data-asset-image />
+                <span class="scene01-qr-mark-fallback" aria-hidden="true">BH</span>
+              </div>
               <h3 class="scene01-qr-title">Scan to join the conversation</h3>
               <div class="qr-row">
-                <div class="qr-visual" aria-hidden="true"></div>
+                <div class="qr-visual">
+                  <img src="${ASSET_PATHS.qr.join}" alt="Scan this QR to join" data-asset-image />
+                </div>
               </div>
               <div class="pill-row scene01-qr-pills">
                 <span class="pill-label tag">${context.metrics.countdown.qr.codeLabel}</span>
@@ -126,7 +128,7 @@ export const scene01 = {
           </article>
         </section>
 
-        ${renderBroadcastTicker(broadcastTickerItems)}
+        ${renderBroadcastTicker(defaultTickerItems)}
       </section>
     `
   },
@@ -144,10 +146,18 @@ export const scene01 = {
     const qrCard = root.querySelector('.scene01-qr-card')
     const sceneRoot = root.querySelector('.scene01')
     const tickerTrack = root.querySelector('.scene01-ticker .ticker-track')
+    const assetImages = root.querySelectorAll('[data-asset-image]')
 
     if (!countdownRoot || !minuteNode || !secondNode) {
       return
     }
+
+    assetImages.forEach((image) => {
+      image.addEventListener('error', () => {
+        const wrapper = image.closest('[data-asset-wrapper]')
+        wrapper?.classList.add('is-missing')
+      }, { once: true })
+    })
 
     const totalDuration = Number(countdownRoot.dataset.countdownDuration || 600)
     const prompts = context?.questions?.length
@@ -181,7 +191,7 @@ export const scene01 = {
         return
       }
 
-      const placementClass = `placement-${normalizeToken(prompt.placement || 'lower_right')}`
+      const placementClass = 'placement-lower_right'
       const inClass = `anim-in-${normalizeToken(prompt.animation_in || 'fadeUp')}`
       const outClass = `anim-out-${normalizeToken(prompt.animation_out || 'fadeDown')}`
       const holdClass = `hold-${normalizeToken(prompt.hold_effect || 'floatSlow')}`
@@ -250,6 +260,7 @@ export const scene01 = {
       const seconds = remainingSeconds % 60
       minuteNode.textContent = String(minutes).padStart(2, '0')
       secondNode.textContent = String(seconds).padStart(2, '0')
+      countdownRoot.dataset.time = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
 
       countdownRoot.classList.remove('pulse')
       requestAnimationFrame(() => countdownRoot.classList.add('pulse'))
@@ -308,7 +319,9 @@ function renderBroadcastTicker(items) {
   return `
     <div class="ticker scene01-ticker" aria-label="BemaHub live ticker">
       <span class="ticker-label">BEMA HUB LIVE</span>
-      <div class="ticker-track">${itemMarkup}</div>
+      <div class="ticker-scroll-window">
+        <div class="ticker-track">${itemMarkup}</div>
+      </div>
     </div>
   `
 }
