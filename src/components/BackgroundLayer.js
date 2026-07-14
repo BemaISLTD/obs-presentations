@@ -8,9 +8,10 @@ export function renderBackgroundLayer({
 } = {}) {
   const params = new URLSearchParams(window.location.search)
   const bgVideoDisabled = params.get('bgVideo') === 'false'
+  const paused = params.get('paused') === 'true'
   const bgDebugEnabled = debug || params.get('bgDebug') === 'true'
   const { backgroundId: resolvedBackgroundId, background } = getBackgroundForScene(sceneId, backgroundId)
-  const hasLoopVideo = Boolean(background.loopVideoPath)
+  const hasLoopVideo = Boolean(background.loopVideoPath) && background.videoReady === true
   const shouldUseVideo = hasLoopVideo && !bgVideoDisabled
   const overlayClass = background.overlayTint === 'navy-gradient' ? 'is-navy-gradient' : 'is-soft-wash'
   const activeAssetPath = shouldUseVideo ? background.loopVideoPath : background.posterPath
@@ -29,7 +30,7 @@ export function renderBackgroundLayer({
       ${shouldUseVideo
         ? `<video
           class="background-layer-video"
-          autoplay
+          ${paused ? '' : 'autoplay'}
           muted
           loop
           playsinline
@@ -53,6 +54,8 @@ export function renderBackgroundLayer({
 }
 
 export function initBackgroundLayer(root) {
+  const paused = new URLSearchParams(window.location.search).get('paused') === 'true'
+
   root.querySelectorAll('[data-background-layer]').forEach((container) => {
     const video = container.querySelector('[data-bg-video]')
     const poster = container.querySelector('[data-bg-poster]')
@@ -63,6 +66,13 @@ export function initBackgroundLayer(root) {
     }
 
     setState('fallback')
+
+    if (poster?.complete && poster.naturalWidth > 0) {
+      container.classList.add('has-poster')
+      if (!isVideoEnabled) {
+        setState('poster')
+      }
+    }
 
     poster?.addEventListener(
       'load',
@@ -91,7 +101,12 @@ export function initBackgroundLayer(root) {
       'canplay',
       async () => {
         try {
-          await video.play()
+          if (paused) {
+            video.pause()
+            video.currentTime = 0
+          } else {
+            await video.play()
+          }
           container.classList.add('has-video')
           setState('video')
         } catch {

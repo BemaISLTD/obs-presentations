@@ -1,56 +1,27 @@
 # BemaHub OBS Background Assets Plan
 
-This project uses 8 reusable motion-background families across 35 scenes.
+This project uses one active manifest with 14 supplied background families across 39 scenes.
 
 Final UI overlays remain HTML/CSS/JS; background loops are only for motion atmosphere.
 
-## Background Families
+## Active configuration
 
-| ID | Label | Typical Use |
-|---|---|---|
-| bg01 | Countdown Stage | Opening countdown scenes with center-stage glow |
-| bg02 | Music Visualizer | Music-driven visualizer moments |
-| bg03 | Presenter Studio | Presenter standby/live studio environments |
-| bg04 | Brand Stinger | Cinematic brand stinger/reveal moments |
-| bg05 | Explainer Clean Wave | Clean explainer and informational scenes |
-| bg06 | Dashboard / Product Walkthrough | Product walkthrough and dashboard scenes |
-| bg07 | Enrollment CTA | Enrollment invitation and action-focused scenes |
-| bg08 | Closing Hold | Closing cards, hold slides, and wrap-up scenes |
+`src/backgrounds/backgroundManifest.js` is the only background registry and scene map.
+Each entry defines the current PNG poster, the future loop-video path, presentation tint,
+and motion intensity. Do not add a second registry or scene mapping file.
 
-## Scene Assignment (1-35)
+`videoReady` defaults to false so absent future videos do not create failed browser
+requests. Set it to true on that manifest entry when the final loop is added; playback
+will then fall back automatically to its PNG if the video cannot load or play.
 
-- bg01: scene 1
-- bg02: scene 2
-- bg03: scenes 3, 5
-- bg04: scene 4
-- bg05: scenes 6, 7, 9, 10, 11, 12, 13, 15, 19, 20, 21, 22, 23, 24, 25, 28
-- bg06: scenes 8, 16, 17, 18, 26, 27, 29, 30, 31, 32
-- bg07: scenes 14, 34
-- bg08: scenes 33, 35
+Scene assignments live beside the asset definitions in the manifest so asset and scene
+changes cannot drift apart.
 
 ## Expected Asset File Names
 
-Video files:
-
-- public/assets/backgrounds/video/bg01-countdown-stage-loop.mp4
-- public/assets/backgrounds/video/bg02-music-visualizer-loop.mp4
-- public/assets/backgrounds/video/bg03-presenter-studio-loop.mp4
-- public/assets/backgrounds/video/bg04-brand-stinger-loop.mp4
-- public/assets/backgrounds/video/bg05-explainer-clean-wave-loop.mp4
-- public/assets/backgrounds/video/bg06-dashboard-product-loop.mp4
-- public/assets/backgrounds/video/bg07-enrollment-cta-loop.mp4
-- public/assets/backgrounds/video/bg08-closing-hold-loop.mp4
-
-Optional poster images:
-
-- public/assets/backgrounds/posters/bg01-countdown-stage-loop.jpg
-- public/assets/backgrounds/posters/bg02-music-visualizer-loop.jpg
-- public/assets/backgrounds/posters/bg03-presenter-studio-loop.jpg
-- public/assets/backgrounds/posters/bg04-brand-stinger-loop.jpg
-- public/assets/backgrounds/posters/bg05-explainer-clean-wave-loop.jpg
-- public/assets/backgrounds/posters/bg06-dashboard-product-loop.jpg
-- public/assets/backgrounds/posters/bg07-enrollment-cta-loop.jpg
-- public/assets/backgrounds/posters/bg08-closing-hold-loop.jpg
+Posters are stored in `public/assets/backgrounds/ref/`. Future videos use the exact
+`loopVideoPath` declared for each manifest entry under
+`public/assets/backgrounds/videos/loops/`.
 
 ## Fallback Behavior
 
@@ -73,10 +44,11 @@ Fallback families:
 
 ## Replacing Placeholder Assets Later
 
-1. Add final `.mp4` loops to `public/assets/backgrounds/video/` using existing names.
-2. Add `.jpg` posters to `public/assets/backgrounds/posters/` using existing names.
-3. No scene code changes needed when replacing files.
-4. If a new mapping is needed, edit `src/config/sceneBackgroundMap.js`.
+1. Add final `.mp4` loops under `public/assets/backgrounds/videos/loops/` using the manifest paths.
+2. Keep the supplied PNG fallbacks under `public/assets/backgrounds/ref/`.
+3. Set the manifest entry's `videoReady` flag to `true`; no scene code changes are needed.
+4. If a new mapping is needed, edit `sceneBackgroundAssignments` in
+   `src/backgrounds/backgroundManifest.js`.
 
 ## Asset Production Checklist
 

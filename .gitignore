@@ -12,6 +12,10 @@ dist
 dist-ssr
 *.local
 
+# Raw handoff ZIP extraction folders (curated assets live under public/assets)
+/bg ref/
+/bemahub_storyboard_core_01_35_numbered/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

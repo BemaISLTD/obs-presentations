@@ -16,7 +16,7 @@
   {
     "id": "03",
     "title": "Host Standby Camera",
-    "description": "Standby composition with OBS overlay or boxed presenter frame.",
+    "description": "Architecture-proof standby composition with the presenter between editable studio graphics and the foreground lower third.",
     "referenceImage": "/assets/storyboards/core/03_host_standby_camera.png",
     "keyTerms": ["Presenter Frame", "Recognized Impact", "Loop Activity"]
   },
@@ -73,7 +73,7 @@
   {
     "id": "08",
     "title": "Impact Statistics Overview",
-    "description": "Reference-ready placeholder until live implementation is added.",
+    "description": "Architecture-proof statistics dashboard with six editable metrics, a left presenter zone, and a separate foreground status bar.",
     "referenceImage": "/assets/storyboards/core/08_impact_statistics_overview.png",
     "keyTerms": ["Recognized Impact"]
   },
@@ -115,7 +115,7 @@
   {
     "id": "14",
     "title": "Live Enrollment Invitation",
-    "description": "Reference-ready placeholder until live implementation is added.",
+    "description": "Architecture-proof enrollment invitation with editable access cards, QR call to action, and sequential highlights.",
     "referenceImage": "/assets/storyboards/core/14_live_enrollment_invitation.png",
     "keyTerms": ["Enrollment"]
   },
@@ -158,7 +158,7 @@
     "id": "20",
     "title": "Participation Assets Delivered",
     "description": "Reference-ready placeholder until live implementation is added.",
-    "referenceImage": "/assets/storyboards/core/20_participation_assets_delivered.png",
+    "referenceImage": "/assets/storyboards/core/23_qualified_looplocks.png",
     "keyTerms": ["Participation Assets"]
   },
   {
@@ -179,7 +179,7 @@
     "id": "23",
     "title": "Qualified LoopLocks",
     "description": "Reference-ready placeholder until live implementation is added.",
-    "referenceImage": "/assets/storyboards/core/23_qualified_looplocks.png",
+    "referenceImage": "/assets/storyboards/core/20_participation_assets_delivered.png",
     "keyTerms": ["Qualified LoopLocks"]
   },
   {
@@ -283,7 +283,7 @@
   {
     "id": "38",
     "title": "Utility Please Stand By",
-    "description": "Reference-ready placeholder until live implementation is added.",
+    "description": "Architecture-proof technical hold screen with editable status indicators, QR resources, and paused-safe ambient motion.",
     "referenceImage": "/assets/storyboards/core/38_Utility_PleaseStandBy.png",
     "keyTerms": ["Utility"]
   },

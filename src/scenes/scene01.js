@@ -1,11 +1,12 @@
 import { ASSET_PATHS } from '../config/assets.js'
 
 export const scene01 = {
-  render(context) {
+  presenterZone: 'none',
+
+  renderUnderlay(context) {
     const waveBars = createWaveBars(56)
     const eqBars = createEqBars(32)
     const particles = createParticles(24)
-    const defaultTickerItems = context.ticker?.scene01?.length ? context.ticker.scene01 : context.ticker?.items ?? []
     const statIcons = ['AC', 'BE', 'EL', 'GQ']
 
     const metricCards = context.metrics.countdown.stats
@@ -127,10 +128,17 @@ export const scene01 = {
             <p class="muted" data-question-subtext>${firstPrompt.subtext || ''}</p>
           </article>
         </section>
-
-        ${renderBroadcastTicker(defaultTickerItems)}
       </section>
     `
+  },
+
+  renderForeground(context) {
+    const items = context.ticker?.scene01?.length ? context.ticker.scene01 : context.ticker?.items ?? []
+    return `<section class="scene-foreground scene01-foreground">${renderBroadcastTicker(items)}</section>`
+  },
+
+  render(context) {
+    return `${this.renderUnderlay(context)}${this.renderForeground(context)}`
   },
 
   setup(root, context) {

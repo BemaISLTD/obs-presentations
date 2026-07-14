@@ -1,7 +1,9 @@
 import { renderTicker } from '../components/ticker.js'
 
 export const scene02 = {
-  render(context) {
+  presenterZone: 'none',
+
+  renderUnderlay() {
     const equalizer = Array.from({ length: 28 }, (_, index) => {
       const height = 32 + (index % 7) * 16
       const delay = (index % 9) * 0.12
@@ -31,9 +33,16 @@ export const scene02 = {
           </div>
           <div class="equalizer" aria-hidden="true">${equalizer}</div>
         </div>
-        ${renderTicker(context.ticker.scene02, 'local')}
       </section>
     `
+  },
+
+  renderForeground(context) {
+    return `<section class="scene-foreground scene02-foreground">${renderTicker(context.ticker.scene02, 'local')}</section>`
+  },
+
+  render(context) {
+    return `${this.renderUnderlay(context)}${this.renderForeground(context)}`
   },
 }
 

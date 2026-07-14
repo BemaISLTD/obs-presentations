@@ -1,41 +1,12 @@
-import { renderTicker } from "../components/ticker.js";
-import { ASSET_PATHS } from "../config/assets.js";
+import { icon, renderBrand, renderForegroundBar, renderLiveBadge } from '../components/broadcastChrome.js'
 
 export const scene03 = {
-  render(context) {
-    const presenterClass =
-      context.presenterLayout === "overlay"
-        ? "presenter-frame presenter-frame-overlay"
-        : "presenter-frame presenter-frame-boxed";
-
-    return `
-      <section class="scene scene03">
-        <img class="scene-brand-mark" src="${ASSET_PATHS.logos.wordmark}" alt="BemaHub" />
-        <div class="scene-live-chip"><span></span>LIVE</div>
-
-        <div class="scene03-layout">
-          <div class="camera-stage">
-            <div class="scene03-monitor-card">
-              <img class="scene03-monitor-wordmark" src="${ASSET_PATHS.logos.wordmark}" alt="BemaHub" />
-              <p class="scene03-monitor-tagline">Better Benefits.<br/>Stronger Together.</p>
-              <div class="scene03-monitor-pillars">
-                <span>Creative Value</span>
-                <span>Builders</span>
-                <span>Loop Activity</span>
-                <span>Recognized Impact</span>
-              </div>
-            </div>
-            <div class="${presenterClass}"></div>
-            <div class="scene03-lower-third">
-              <p class="scene03-host-kicker">HOST</p>
-              <h3>Joyce Root</h3>
-              <p>Community Manager, Bema Hub</p>
-            </div>
-          </div>
-        </div>
-
-        ${renderTicker(context.ticker.scene03, "local")}
-      </section>
-    `;
+  presenterZone: 'center-left',
+  renderUnderlay() {
+    return `<section class="scene proof-scene scene03 proof-enter">${renderBrand()}${renderLiveBadge()}<div class="scene03-presenter-space" aria-label="Presenter camera placement"></div><article class="studio-display">${renderBrand()}<h2>Better Benefits.<br>Stronger Together.</h2><div class="studio-values"><div>${icon('music')}<span>Creative<br>Value</span></div><div>${icon('people')}<span>Builders</span></div><div>${icon('signal')}<span>Loop<br>Activity</span></div><div>${icon('heart')}<span>Recognized<br>Impact</span></div></div></article></section>`
   },
-};
+  renderForeground() {
+    return `<section class="scene-foreground scene03-foreground"><div class="host-lower-third" data-control-cue="reveal-lower-third"><span>HOST</span><strong>Joyce Root</strong><p>Community Manager, Bema Hub</p></div>${renderForegroundBar([{ icon: 'heart', label: 'Better Benefits' }, { icon: 'signal', label: '<strong class="red-copy">Live now</strong>' }, { icon: 'people', label: 'Chat active' }, { icon: 'eye', label: '<strong>128</strong> Watching live' }], 'OPEN ENROLLMENT <em>2026</em>')}</section>`
+  },
+  render(context) { return `${this.renderUnderlay(context)}${this.renderForeground(context)}` },
+}

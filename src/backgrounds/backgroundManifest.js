@@ -192,6 +192,10 @@ export const sceneBackgroundAssignments = Object.freeze({
   33: 'bg11-utility-qa-hold-wave-ref',
   34: 'bg09-enrollment-cta-stage-ref',
   35: 'bg11-utility-qa-hold-wave-ref',
+  36: 'bg11-utility-qa-hold-wave-ref',
+  37: 'bg08-dashboard-product-tech-ref',
+  38: 'bg11-utility-qa-hold-wave-ref',
+  39: 'bg11-utility-qa-hold-wave-ref',
 })
 
 export function resolveBackgroundId(sceneId, explicitBackgroundId) {
