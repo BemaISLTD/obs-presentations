@@ -3225,6 +3225,21 @@ html[data-scene='39'] .reference-layer img { transform: scaleY(1.18); }
   color: #26d6e6;
 }
 
+.foreground-bar-audience {
+  min-width: 238px;
+  height: 54px;
+  padding: 0 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  white-space: nowrap;
+}
+
+.foreground-bar-audience .broadcast-icon { width: 31px; height: 31px; color: #26d6e6; }
+.foreground-bar-audience strong { color: #20d3e1; font-size: 25px; }
+.foreground-bar-audience span { font-size: 16px; }
+
 .red-copy {
   color: #ff3d3a;
 }
@@ -4397,6 +4412,13 @@ html[data-scene='39'] .storyboard-live-fallback > img { transform: scaleY(1.18);
   backdrop-filter: blur(10px);
 }
 
+.reference-built-scene > .broadcast-brand {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
 .layered-scene > .broadcast-live { top: 30px; right: 38px; }
 
 .layered-presenter-space {
@@ -4746,6 +4768,7 @@ html[data-scene='39'] .storyboard-live-fallback > img { transform: scaleY(1.18);
 .reference-feature-card { --tone:#1a6be8; position:relative; overflow:hidden; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:24px; text-align:center; border:2px solid color-mix(in srgb,var(--tone) 30%,white); border-radius:25px; background:rgba(255,255,255,.92); box-shadow:0 15px 35px rgba(24,61,137,.13); }
 .reference-feature-card.tone-cyan,.reference-flow-step.tone-cyan,.reference-tier.tone-cyan { --tone:#0bb7c5; }
 .reference-feature-card.tone-purple,.reference-flow-step.tone-purple,.reference-tier.tone-purple { --tone:#7639ea; }
+.reference-feature-card.tone-pink { --tone:#df4ecb; }
 .reference-card-top { display:flex; align-items:center; gap:12px; }
 .reference-card-top .broadcast-icon { width:48px; height:48px; padding:10px; border-radius:50%; color:var(--tone); background:color-mix(in srgb,var(--tone) 10%,white); }
 .reference-card-number { color:#91a4c8; font-size:12px; font-weight:900; }
@@ -4849,65 +4872,156 @@ html[data-scene='39'] .storyboard-live-fallback > img { transform: scaleY(1.18);
 .reference-tier.tone-amber { --tone:#e89408; }
 
 /* Scene 06 — three definition cards inside one white presentation panel. */
-.scene-card-composition-06 .reference-feature-grid { padding:34px 42px; gap:28px; border-radius:34px; background:rgba(255,255,255,.94); box-shadow:0 18px 40px rgba(31,74,150,.14); }
-.scene-card-composition-06 .reference-feature-card { padding:26px 20px 22px; justify-content:center; border-width:1px; border-radius:24px; box-shadow:0 7px 18px rgba(25,66,145,.07); }
-.scene-card-composition-06 .reference-card-icon { width:92px; height:92px; border:2px solid color-mix(in srgb,var(--tone) 34%,white); border-radius:50%; background:color-mix(in srgb,var(--tone) 9%,white); box-shadow:0 0 0 9px color-mix(in srgb,var(--tone) 5%,transparent); }
-.scene-card-composition-06 .reference-feature-card h3 { max-width:220px; font-size:29px; }
-.scene-card-composition-06 .reference-feature-card p { max-width:245px; font-size:18px; line-height:1.42; }
+.reference-scene-06::before { background:linear-gradient(90deg,rgba(244,250,255,.02) 0 30%,rgba(244,249,255,.62) 42%,rgba(244,249,255,.78)); }
+.reference-scene-06 .layered-scene-heading { top:118px; left:690px; right:120px; }
+.reference-scene-06 .layered-scene-heading::before { display:none; }
+.reference-scene-06 .layered-scene-heading h2 { font-size:68px; letter-spacing:.025em; }
+.reference-scene-06 .layered-scene-heading p { margin-top:8px; font-size:24px; }
+.reference-scene-06 .reference-scene-body { left:730px; right:170px; top:330px; bottom:145px; }
+.reference-scene-06:has(.layered-callout) .reference-scene-body { bottom:145px; }
+.scene06-definition-panel { height:100%; padding:34px 42px 24px; display:grid; grid-template-rows:1fr 62px; border-radius:34px; background:rgba(255,255,255,.96); box-shadow:0 18px 40px rgba(31,74,150,.14); }
+.scene-card-composition-06 .reference-feature-grid { min-height:0; gap:28px; }
+.scene-card-composition-06 .reference-feature-card { padding:18px 16px 14px; justify-content:center; border-width:1px; border-radius:24px; box-shadow:0 7px 18px rgba(25,66,145,.07); }
+.scene-card-composition-06 .reference-card-icon { width:82px; height:82px; border:2px solid color-mix(in srgb,var(--tone) 34%,white); border-radius:50%; background:color-mix(in srgb,var(--tone) 9%,white); box-shadow:0 0 0 8px color-mix(in srgb,var(--tone) 5%,transparent); }
+.scene-card-composition-06 .reference-card-icon .broadcast-icon { width:48px; height:48px; }
+.scene-card-composition-06 .reference-feature-card h3 { max-width:220px; margin-top:14px; font-size:26px; color:var(--tone); }
+.scene-card-composition-06 .reference-feature-card p { max-width:245px; margin-top:7px; font-size:17px; line-height:1.34; }
 .scene-card-composition-06 .reference-card-link { display:none; }
+.scene06-definition-callout { display:flex; align-items:end; justify-content:center; color:#10265f; font-size:21px; }
+.scene06-definition-callout strong { margin:0 5px; color:#105be2; }
+.layered-scene-foreground-06 .foreground-bar { left:38px; right:38px; bottom:12px; height:76px; border:1px solid #d7e1f1; border-radius:17px; color:#0c245c; background:rgba(255,255,255,.96); box-shadow:0 9px 24px rgba(18,54,124,.14); }
+.layered-scene-foreground-06 .foreground-bar-item { border-right-color:#9baccc; }
+.layered-scene-foreground-06 .foreground-bar-item .broadcast-icon { color:#2469df; }
+.layered-scene-foreground-06 .foreground-bar-audience span { color:#0c245c; }
+.layered-scene-foreground-06 .foreground-bar-lead { margin-left:38px; }
 
 /* Scene 07 — independent tall pillar cards with coloured baseline details. */
+.reference-scene-07::before { background:linear-gradient(90deg,rgba(244,250,255,.02) 0 30%,rgba(244,249,255,.52) 44%,rgba(244,249,255,.68)); }
+.reference-scene-07 .layered-scene-heading { top:118px; left:740px; right:110px; }
+.reference-scene-07 .layered-scene-heading::before { display:none; }
+.reference-scene-07 .layered-scene-heading h2 { font-size:65px; background:linear-gradient(90deg,#06194d 15%,#0864e6 64%,#b636e6); background-clip:text; color:transparent; }
+.reference-scene-07 .layered-scene-heading p { margin-top:13px; font-size:31px; font-weight:800; }
+.reference-scene-07 .reference-scene-body { left:760px; right:120px; top:365px; bottom:208px; }
+.reference-scene-07:has(.layered-callout) .reference-scene-body { bottom:208px; }
 .scene-card-composition-07 .reference-feature-grid { gap:24px; align-items:stretch; }
-.scene-card-composition-07 .reference-feature-card { padding:30px 22px; border:2px solid var(--tone); border-radius:30px; box-shadow:0 15px 27px color-mix(in srgb,var(--tone) 16%,transparent); }
+.scene-card-composition-07 .reference-feature-card { padding:27px 22px 45px; border:2px solid var(--tone); border-radius:30px; box-shadow:0 15px 27px color-mix(in srgb,var(--tone) 16%,transparent); }
 .scene-card-composition-07 .reference-feature-card::before { content:""; position:absolute; left:28px; right:28px; bottom:28px; height:3px; background:linear-gradient(90deg,var(--tone) 42%,transparent 42% 48%,var(--tone) 48% 52%,transparent 52% 58%,var(--tone) 58%); }
 .scene-card-composition-07 .reference-card-icon { width:96px; height:96px; border-radius:50%; background:color-mix(in srgb,var(--tone) 11%,white); }
 .scene-card-composition-07 .reference-feature-card h3 { font-size:27px; color:var(--tone); }
-.scene-card-composition-07 .reference-feature-card p { font-size:19px; line-height:1.45; }
+.scene-card-composition-07 .reference-feature-card p { font-size:18px; line-height:1.4; }
 .scene-card-composition-07 .reference-card-link { display:none; }
+.reference-scene-07 .layered-callout { left:760px; right:120px; bottom:112px; padding:0; border:0; background:transparent; box-shadow:none; font-size:22px; }
+.reference-scene-07 .layered-callout .broadcast-icon { display:none; }
+.layered-scene-foreground-07 .foreground-bar { left:38px; right:38px; bottom:12px; height:78px; border-radius:18px; }
+.layered-scene-foreground-07 .foreground-bar-lead { margin-left:34px; padding:0 12px; color:#2ed8df; background:transparent; }
+.layered-scene-foreground-07 .foreground-bar-lead .broadcast-icon { color:#2ed8df; }
 
 /* Scene 09 — 2 x 2 horizontal program tiles. */
+.reference-scene-09::before { background:linear-gradient(90deg,rgba(244,250,255,.02) 0 28%,rgba(244,249,255,.47) 43%,rgba(244,249,255,.56)); }
+.reference-scene-09 .layered-scene-heading { top:98px; left:620px; right:155px; }
+.reference-scene-09 .layered-scene-heading::before { display:none; }
+.reference-scene-09 .layered-scene-heading h2 { font-size:68px; }
+.reference-scene-09 .layered-heading-rule { margin-top:16px; }
+.reference-scene-09 .layered-scene-heading p { margin-top:7px; font-size:25px; }
+.reference-scene-09 .reference-scene-body { left:690px; right:180px; top:330px; bottom:150px; }
 .scene-card-composition-09 .reference-feature-grid { grid-template-columns:repeat(2,minmax(0,1fr)); grid-template-rows:repeat(2,minmax(0,1fr)); gap:22px 28px; }
-.scene-card-composition-09 .reference-feature-card { grid-template-columns:108px 1fr; grid-template-rows:auto auto 12px; align-content:center; justify-items:start; padding:24px 30px; text-align:left; border:0; border-radius:23px; }
+.scene-card-composition-09 .reference-feature-card { display:grid; grid-template-columns:124px 1fr; grid-template-rows:auto auto 12px; column-gap:20px; align-content:center; justify-items:start; padding:24px 30px; text-align:left; border:0; border-radius:23px; }
 .scene-card-composition-09 .reference-card-icon { grid-row:1/4; width:92px; height:92px; border-radius:50%; background:color-mix(in srgb,var(--tone) 10%,white); }
 .scene-card-composition-09 .reference-feature-card h3 { margin:0; font-size:29px; }
-.scene-card-composition-09 .reference-feature-card p { font-size:18px; }
+.scene-card-composition-09 .reference-feature-card p { margin-top:6px; font-size:18px; }
 .scene-card-composition-09 .reference-card-link { width:92px; height:4px; margin-top:14px; overflow:hidden; color:transparent; border-radius:20px; background:var(--tone); }
+.layered-scene-foreground-09 .foreground-bar { left:38px; right:38px; bottom:12px; height:78px; border:2px solid #d6e3f5; border-radius:18px; }
+.layered-scene-foreground-09 .foreground-bar-lead { margin-left:26px; }
+.layered-scene-foreground-09 .foreground-bar-item { padding:0 19px; gap:9px; font-size:17px; }
+.layered-scene-foreground-09 .foreground-bar-audience { min-width:214px; padding:0 18px; }
 
 /* Scene 10 — five circular journey stations; no generic rectangular cards. */
-.scene-card-composition-10 .reference-flow { grid-template-columns:repeat(5,minmax(0,1fr)); gap:10px; align-items:center; }
-.scene-card-composition-10 .reference-flow-line { top:43%; left:8%; right:8%; height:7px; }
-.scene-card-composition-10 .reference-flow-step { min-height:0; height:100%; padding:4px 8px; justify-content:center; overflow:visible; border:0; background:transparent; box-shadow:none; }
-.scene-card-composition-10 .reference-flow-index { position:absolute; top:14px; left:50%; width:42px; height:42px; display:grid; place-items:center; transform:translateX(-50%); border-radius:50%; color:#fff; background:var(--tone); font-size:20px; }
-.scene-card-composition-10 .reference-flow-icon { width:126px; height:126px; margin:0; border:4px solid color-mix(in srgb,var(--tone) 30%,white); box-shadow:0 0 0 11px rgba(255,255,255,.6),0 14px 20px rgba(30,73,153,.16); }
-.scene-card-composition-10 .reference-flow-icon .broadcast-icon { width:62px; height:62px; }
-.scene-card-composition-10 .reference-flow-step h3 { min-height:52px; margin-top:34px; font-size:19px; }
+.reference-scene-10::before { background:linear-gradient(90deg,rgba(244,250,255,.02) 0 25%,rgba(244,249,255,.45) 39%,rgba(244,249,255,.58)); }
+.reference-scene-10 .layered-scene-heading { top:125px; left:530px; right:135px; }
+.reference-scene-10 .layered-scene-heading::before { display:none; }
+.reference-scene-10 .layered-scene-heading h2 { font-size:68px; background:linear-gradient(90deg,#143da7,#0867de 55%,#162b91); background-clip:text; color:transparent; }
+.reference-scene-10 .layered-scene-heading p { margin-top:18px; font-size:28px; }
+.reference-scene-10 .reference-scene-body { left:545px; right:90px; top:400px; bottom:260px; }
+.reference-scene-10:has(.layered-callout) .reference-scene-body { bottom:260px; }
+.scene-card-composition-10 .reference-flow { grid-template-columns:repeat(5,minmax(0,1fr)); gap:13px; align-items:center; }
+.scene-card-composition-10 .reference-flow-line { top:45%; left:8%; right:7%; height:7px; background:linear-gradient(90deg,#1e83f0,#1c88f2 50%,#9638e7); }
+.scene-card-composition-10 .reference-flow-step { min-height:0; height:100%; padding:4px 7px; justify-content:center; overflow:visible; border:0; background:transparent; box-shadow:none; }
+.scene-card-composition-10 .reference-flow-index { position:absolute; top:-6px; left:50%; width:54px; height:54px; display:grid; place-items:center; transform:translateX(-50%); border:4px solid #fff; border-radius:50%; color:#fff; background:var(--tone); box-shadow:0 5px 13px rgba(33,72,155,.22); font-size:25px; }
+.scene-card-composition-10 .reference-flow-icon { position:relative; width:176px; height:176px; margin:42px 0 0; border:4px solid color-mix(in srgb,var(--tone) 30%,white); box-shadow:0 0 0 11px rgba(255,255,255,.65),0 14px 20px rgba(30,73,153,.16); }
+.scene-card-composition-10 .reference-flow-icon::after { content:""; position:absolute; left:5px; right:5px; bottom:-31px; height:20px; border:2px solid color-mix(in srgb,var(--tone) 42%,white); border-radius:50%; background:linear-gradient(#fff,color-mix(in srgb,var(--tone) 25%,white)); box-shadow:0 7px 12px color-mix(in srgb,var(--tone) 18%,transparent); }
+.scene-card-composition-10 .reference-flow-icon .broadcast-icon { width:82px; height:82px; }
+.scene-card-composition-10 .reference-flow-step h3 { min-height:58px; margin-top:43px; font-size:21px; line-height:1.18; }
 .scene-card-composition-10 .reference-flow-step p { display:none; }
-.scene-card-composition-10 .reference-flow-arrow { top:43%; right:-18px; width:38px; height:38px; color:var(--tone); background:#fff; font-size:34px; }
+.scene-card-composition-10 .reference-flow-arrow { top:48%; right:-22px; width:46px; height:46px; color:var(--tone); background:transparent; font-size:47px; }
+.reference-scene-10 .layered-callout { left:625px; right:200px; bottom:112px; min-height:64px; border:0; border-radius:999px; background:rgba(255,255,255,.95); box-shadow:0 10px 24px rgba(25,63,137,.16); font-size:19px; }
+.reference-scene-10 .layered-callout .broadcast-icon { width:42px; height:42px; padding:8px; border-radius:50%; background:#fff; }
+.layered-scene-foreground-10 .foreground-bar { height:86px; }
+.layered-scene-foreground-10 .foreground-bar-item { padding:0 24px; }
 
 /* Scene 11 — connected EchoLoop term cards with icons floating over the rail. */
-.scene-card-composition-11 .reference-flow { grid-template-columns:repeat(4,minmax(0,1fr)); align-items:end; gap:18px; padding-top:55px; }
-.scene-card-composition-11 .reference-flow-line { top:68px; left:8%; right:8%; height:5px; }
-.scene-card-composition-11 .reference-flow-step { min-height:310px; padding:78px 18px 32px; overflow:visible; border:2px solid var(--tone); border-radius:24px; }
-.scene-card-composition-11 .reference-flow-icon { position:absolute; top:-62px; left:50%; width:122px; height:122px; margin:0; transform:translateX(-50%); border:4px solid var(--tone); box-shadow:0 0 0 8px rgba(255,255,255,.9),0 10px 24px rgba(35,75,153,.16); }
-.scene-card-composition-11 .reference-flow-icon .broadcast-icon { width:58px; height:58px; }
+.reference-scene-11::before { background:linear-gradient(90deg,rgba(244,250,255,.02) 0 27%,rgba(244,249,255,.52) 42%,rgba(244,249,255,.7)); }
+.reference-scene-11 .layered-scene-heading { top:120px; left:690px; right:120px; }
+.reference-scene-11 .layered-scene-heading::before { display:none; }
+.reference-scene-11 .layered-scene-heading h2 { font-size:68px; background:linear-gradient(90deg,#07184c,#0763df 58%,#7b35e4); background-clip:text; color:transparent; }
+.reference-scene-11 .layered-scene-heading p { display:none; }
+.reference-scene-11 .reference-scene-body { left:660px; right:92px; top:300px; bottom:142px; }
+.scene11-echoloop-panel { height:100%; display:grid; grid-template-rows:minmax(0,1fr) 132px; }
+.scene-card-composition-11 .reference-flow { min-height:0; grid-template-columns:repeat(4,minmax(0,1fr)); align-items:end; gap:18px; padding-top:74px; }
+.scene-card-composition-11 .reference-flow-line { top:80px; left:8%; right:4%; height:5px; }
+.scene-card-composition-11 .reference-flow-step { min-height:330px; padding:90px 18px 32px; overflow:visible; border:2px solid var(--tone); border-radius:24px; }
+.scene-card-composition-11 .reference-flow-icon { position:absolute; top:-70px; left:50%; width:140px; height:140px; margin:0; transform:translateX(-50%); border:4px solid var(--tone); box-shadow:0 0 0 8px rgba(255,255,255,.9),0 10px 24px rgba(35,75,153,.16); }
+.scene-card-composition-11 .reference-flow-icon .broadcast-icon { width:66px; height:66px; }
 .scene-card-composition-11 .reference-flow-index { position:absolute; left:50%; bottom:-22px; width:48px; height:48px; display:grid; place-items:center; transform:translateX(-50%); border-radius:50%; color:#fff; background:var(--tone); font-size:19px; }
 .scene-card-composition-11 .reference-flow-step h3 { color:var(--tone); font-size:24px; }
-.scene-card-composition-11 .reference-flow-step p { font-size:17px; line-height:1.4; }
+.scene-card-composition-11 .reference-flow-step p { font-size:16px; line-height:1.36; }
 .scene-card-composition-11 .reference-flow-arrow { display:none; }
+.scene11-notes { padding:50px 45px 0; display:grid; align-content:start; gap:15px; color:#10255e; }
+.scene11-notes p { display:flex; align-items:center; gap:20px; font-size:19px; }
+.scene11-notes span { width:34px; height:34px; display:grid; place-items:center; flex:0 0 34px; border-radius:50%; color:#fff; background:#1269e4; font-weight:900; }
+.scene11-notes p:last-child span { background:#10bfc6; }
+.layered-scene-foreground-11 .foreground-bar { height:86px; }
+.layered-scene-foreground-11 .foreground-bar-lead { margin-left:38px; }
+.layered-scene-foreground-11 .foreground-bar-item { padding:0 17px; gap:9px; font-size:17px; }
+.layered-scene-foreground-11 .foreground-bar-audience { min-width:215px; padding:0 16px; }
 
 /* Scene 12 — three truly independent horizontal access cards. */
+.reference-scene-12::before { background:linear-gradient(90deg,rgba(244,250,255,.02) 0 27%,rgba(244,249,255,.46) 43%,rgba(244,249,255,.64)); }
+.reference-scene-12 .layered-scene-heading { top:220px; left:620px; right:800px; }
+.reference-scene-12 .layered-scene-heading::before { display:none; }
+.reference-scene-12 .layered-scene-heading h2 { font-size:78px; line-height:1.06; background:linear-gradient(135deg,#0a55d5,#061a63 58%,#8a35e5); background-clip:text; color:transparent; }
+.reference-scene-12 .layered-heading-rule { width:360px; margin-top:35px; }
+.reference-scene-12 .layered-scene-heading p { margin:22px auto 0; width:330px; font-size:31px; line-height:1.18; }
+.reference-scene-12 .reference-scene-body { left:1175px; right:105px; top:82px; bottom:280px; }
+.reference-scene-12:has(.layered-callout) .reference-scene-body { bottom:280px; }
 .scene-card-composition-12 .reference-access-layout { display:block; }
 .scene-card-composition-12 .reference-access-intro { display:none; }
 .scene-card-composition-12 .reference-access-ladder { height:100%; display:grid; grid-template-rows:repeat(3,1fr); gap:22px; }
-.scene-card-composition-12 .reference-access-row { grid-template-columns:92px 1fr; gap:24px; padding:22px 32px; border:0; border-left:8px solid currentColor; border-radius:22px; transform:none; }
+.scene-card-composition-12 .reference-access-row { grid-template-columns:112px 1fr; gap:24px; padding:22px 32px; border:0; border-left:8px solid currentColor; border-radius:22px; transform:none; }
 .scene-card-composition-12 .reference-access-rank { display:none; }
-.scene-card-composition-12 .reference-access-row > div { width:82px; height:82px; border-radius:50%; }
-.scene-card-composition-12 .reference-access-row .broadcast-icon { width:45px; height:45px; }
+.scene-card-composition-12 .reference-access-row > div { width:96px; height:96px; border-radius:50%; }
+.scene-card-composition-12 .reference-access-row .broadcast-icon { width:53px; height:53px; }
+.scene-card-composition-12 .reference-access-row h3 { color:currentColor; font-size:28px; }
+.scene-card-composition-12 .reference-access-row p { margin-top:7px; color:#0e245d; font-size:18px; line-height:1.32; }
+.scene-card-composition-12 .reference-access-row small { display:none; }
+.reference-scene-12 .layered-callout { left:1175px; right:105px; bottom:165px; min-height:90px; justify-content:flex-start; padding:15px 30px; border:0; background:rgba(255,255,255,.94); box-shadow:0 12px 27px rgba(24,61,135,.13); font-size:18px; text-align:left; }
+.reference-scene-12 .layered-callout .broadcast-icon { width:48px; height:48px; padding:12px; flex:0 0 48px; border-radius:50%; color:#fff; background:#1674e7; }
+.layered-scene-foreground-12 .foreground-bar { height:92px; }
+.layered-scene-foreground-12 .foreground-bar-lead { margin-left:38px; }
+.layered-scene-foreground-12 .foreground-bar-item { padding:0 17px; gap:8px; font-size:17px; }
+.layered-scene-foreground-12 .foreground-bar-item:first-of-type { color:#23d6dd; font-weight:800; }
+.layered-scene-foreground-12 .foreground-bar-audience { min-width:215px; padding:0 16px; }
 .scene-card-composition-12 .reference-access-row h3 { color:currentColor; font-size:28px; }
 .scene-card-composition-12 .reference-access-row p { font-size:18px; }
 .scene-card-composition-12 .reference-access-row small { display:none; }
 
 /* Scene 13 — five tier cards, each with its own colour and raised footer. */
+.reference-scene-13::before { background:linear-gradient(90deg,rgba(244,250,255,.01) 0 22%,rgba(244,249,255,.38) 35%,rgba(244,249,255,.5)); }
+.reference-scene-13 .layered-scene-heading { top:82px; left:550px; right:210px; }
+.reference-scene-13 .layered-scene-heading::before { display:none; }
+.reference-scene-13 .layered-scene-heading h2 { max-width:850px; margin:auto; font-size:67px; line-height:1.02; background:linear-gradient(90deg,#0875dc,#071d77 72%,#712fe1); background-clip:text; color:transparent; }
+.reference-scene-13 .layered-scene-heading p { margin-top:15px; font-size:28px; }
+.reference-scene-13 .reference-scene-body { left:500px; right:110px; top:405px; bottom:265px; }
+.reference-scene-13:has(.layered-callout) .reference-scene-body { bottom:265px; }
 .scene-card-composition-13 .reference-tier-track { grid-template-columns:repeat(5,minmax(0,1fr)); gap:18px; align-items:stretch; }
 .scene-card-composition-13 .reference-tier-line { display:none; }
 .scene-card-composition-13 .reference-tier { min-height:100%; padding:26px 14px 32px; border:2px solid var(--tone); border-bottom-width:8px; border-radius:23px; background:rgba(255,255,255,.94); box-shadow:0 12px 22px color-mix(in srgb,var(--tone) 15%,transparent); }
@@ -4915,17 +5029,270 @@ html[data-scene='39'] .storyboard-live-fallback > img { transform: scaleY(1.18);
 .scene-card-composition-13 .reference-tier > strong { margin-top:18px; color:var(--tone); font-size:23px; }
 .scene-card-composition-13 .reference-tier > span { margin-top:22px; font-size:16px; line-height:1.4; }
 .scene-card-composition-13 .reference-tier > small { display:none; }
+.reference-scene-13 .layered-callout { left:515px; right:155px; bottom:112px; min-height:96px; justify-content:flex-start; padding:17px 38px; border:1px solid #6d70e8; border-radius:28px; background:rgba(255,255,255,.93); font-size:19px; text-align:left; }
+.reference-scene-13 .layered-callout .broadcast-icon { width:55px; height:55px; padding:11px; flex:0 0 55px; border-radius:50%; color:#1b61e3; background:#f4f7ff; }
+.layered-scene-foreground-13 .foreground-bar { height:89px; }
+.layered-scene-foreground-13 .foreground-bar-item { padding:0 24px; }
 
 /* Scene 15 — compact dashboard rows rather than generic status cards. */
-.scene-card-composition-15 .reference-status-panel { padding:18px 24px; gap:8px; border-radius:25px; }
+.reference-scene-15::before { background:linear-gradient(90deg,rgba(244,250,255,.02) 0 28%,rgba(244,249,255,.56) 43%,rgba(244,249,255,.74)); }
+.reference-scene-15 .layered-scene-heading { top:62px; left:560px; right:120px; }
+.reference-scene-15 .layered-scene-heading::before { display:none; }
+.reference-scene-15 .layered-scene-heading h2 { max-width:1030px; margin:auto; font-size:61px; line-height:1.02; }
+.reference-scene-15 .layered-scene-heading p { margin-top:14px; font-size:27px; }
+.reference-scene-15 .reference-scene-body { left:730px; right:60px; top:315px; bottom:125px; }
+.scene15-status-dashboard { height:100%; padding:17px 28px 15px; display:grid; grid-template-rows:1fr 98px; gap:16px; border-radius:28px; background:rgba(255,255,255,.96); box-shadow:0 18px 40px rgba(31,74,150,.14); }
+.scene-card-composition-15 .reference-status-panel { min-height:0; padding:0; gap:8px; border:0; border-radius:0; background:transparent; box-shadow:none; }
 .scene-card-composition-15 .reference-status-rail { display:none; }
-.scene-card-composition-15 .reference-status-row { grid-template-columns:62px 280px 1fr; gap:18px; padding:10px 14px; border:1px solid #e0e8f5; border-radius:13px; background:#fff; }
+.scene-card-composition-15 .reference-status-row { grid-template-columns:62px 300px 1fr; gap:18px; padding:8px 14px; border:1px solid #e0e8f5; border-radius:13px; background:#fff; }
 .scene-card-composition-15 .reference-status-dot { width:48px; height:48px; border:0; border-radius:12px; background:color-mix(in srgb,currentColor 10%,white); box-shadow:none; }
 .scene-card-composition-15 .reference-status-row h3 { font-size:19px; }
 .scene-card-composition-15 .reference-status-row p { grid-column:3; font-size:15px; }
 .scene-card-composition-15 .reference-status-row > div { display:contents; }
 .scene-card-composition-15 .reference-status-row > strong,
 .scene-card-composition-15 .reference-status-check { display:none; }
+.scene15-status-callout { display:flex; align-items:center; justify-content:center; gap:24px; border-radius:16px; color:#0d255f; background:#eef5ff; text-align:center; font-size:19px; line-height:1.35; }
+.scene15-status-callout .broadcast-icon { width:58px; height:58px; color:#083c9e; }
+.layered-scene-foreground-15 .foreground-bar { left:24px; right:24px; bottom:10px; height:82px; border-radius:18px; }
+.layered-scene-foreground-15 .foreground-bar-item { padding:0 25px; }
+
+/* Scene 16 — left walkthrough copy and the reference top-navigation dashboard. */
+.reference-scene-16::before { background:linear-gradient(90deg,rgba(244,250,255,.01) 0 27%,rgba(244,249,255,.35) 39%,rgba(244,249,255,.48)); }
+.reference-scene-16 .layered-scene-heading { top:150px; left:500px; right:920px; }
+.reference-scene-16 .layered-scene-heading::before { display:none; }
+.reference-scene-16 .layered-scene-heading h2 { font-size:55px; line-height:1.08; }
+.reference-scene-16 .layered-scene-heading p { margin-top:18px; font-size:25px; }
+.reference-scene-16 .reference-scene-body { left:520px; right:55px; top:78px; bottom:118px; }
+.scene16-home-layout { height:100%; display:grid; grid-template-columns:430px 1fr; gap:45px; align-items:end; }
+.scene16-home-points { padding:0 0 80px 35px; display:grid; gap:28px; }
+.scene16-home-points p { display:flex; align-items:center; gap:22px; color:#10265f; font-size:19px; line-height:1.45; }
+.scene16-home-points .broadcast-icon { width:64px; height:64px; padding:14px; flex:0 0 64px; border-radius:50%; background:#e9fbfa; }
+.scene16-home-points p:nth-child(2) .broadcast-icon { color:#7143e6; background:#f0edff; }
+.scene16-home-points p:nth-child(3) .broadcast-icon { color:#d38a0a; background:#fff4d8; }
+.scene16-dashboard { height:100%; overflow:hidden; border:1px solid #d5e0f1; border-radius:23px; background:#fff; box-shadow:0 18px 40px rgba(21,57,127,.16); }
+.scene16-dashboard > header { height:70px; padding:0 22px; display:flex; align-items:center; border-bottom:1px solid #dbe3ef; color:#10265e; font-size:12px; }
+.scene16-app-brand { position:relative; width:165px; height:45px; display:block; }
+.scene16-app-brand .broadcast-brand { position:static; width:160px; display:grid; grid-template-columns:35px 120px; grid-template-rows:40px; gap:5px; padding:0; border:0; background:transparent; box-shadow:none; }
+.scene16-app-brand .broadcast-brand > img:first-child { width:34px; height:34px; }
+.scene16-app-brand .broadcast-wordmark { width:115px; height:38px; }
+.scene16-dashboard > header nav { margin-left:35px; flex:1; font-weight:750; }
+.scene16-dashboard > header b { white-space:nowrap; }
+.scene16-dashboard main { padding:20px 24px; }
+.scene16-welcome { display:flex; justify-content:space-between; align-items:center; }
+.scene16-welcome h3 { color:#10265e; font-size:20px; }
+.scene16-welcome p { margin-top:3px; color:#6d7b96; font-size:11px; }
+.scene16-welcome button { padding:10px 18px; border:2px solid #6840e1; color:#6840e1; background:#fff; }
+.scene16-section-label { display:block; margin:16px 0 8px; color:#10265e; font-size:10px; }
+.scene16-metrics { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
+.scene16-metrics article { position:relative; min-width:0; padding:13px 14px 10px; display:grid; grid-template-columns:32px 1fr; border:1px solid #dbe3ef; border-radius:11px; }
+.scene16-metrics .broadcast-icon { width:30px; height:30px; padding:5px; border-radius:8px; background:#e9fbfa; }
+.scene16-metrics small { align-self:center; color:#20356b; font-size:8px; font-weight:800; }
+.scene16-metrics strong,.scene16-metrics span,.scene16-metrics a { grid-column:1/-1; }
+.scene16-metrics strong { margin-top:8px; color:#10265e; font-size:23px; }
+.scene16-metrics span { color:#11a889; font-size:8px; }
+.scene16-metrics a { margin:11px -14px -10px; padding:9px 14px; border-top:1px solid #e2e8f2; color:#1768dc; font-size:7px; }
+.scene16-lower-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:15px; }
+.scene16-lower-grid > section { padding:13px; border:1px solid #dbe3ef; border-radius:11px; }
+.scene16-lower-grid section > header { display:flex; justify-content:space-between; color:#10265e; font-size:8px; }
+.scene16-lower-grid a { color:#1768dc; }
+.scene16-lower-grid section article { min-height:54px; display:flex; align-items:center; gap:10px; border-bottom:1px solid #e6ebf3; }
+.scene16-lower-grid time { width:40px; padding:4px; text-align:center; border:1px solid #32c4c9; border-radius:5px; color:#182e65; font-style:normal; }
+.scene16-lower-grid time small,.scene16-lower-grid time b { display:block; font-size:7px; }
+.scene16-lower-grid time b { font-size:13px; }
+.scene16-lower-grid article > div { min-width:0; flex:1; }
+.scene16-lower-grid article > div strong,.scene16-lower-grid article > div span { display:block; color:#172d64; font-size:8px; }
+.scene16-lower-grid article > div span { margin-top:2px; color:#70809b; font-size:6px; }
+.scene16-lower-grid em { padding:4px 6px; border-radius:99px; color:#fff; background:#5d3ee0; font-size:6px; font-style:normal; }
+.scene16-campaign-art { width:53px; height:42px; flex:0 0 53px; border-radius:5px; background:linear-gradient(135deg,#142c76,#1eb7ce); }
+.scene16-campaign-art.art-1 { background:linear-gradient(135deg,#833bdd,#e46b9d); }
+.scene16-campaign-art.art-2 { background:linear-gradient(135deg,#186fc9,#33c698); }
+.scene16-lower-grid progress { width:100%; height:5px; accent-color:#16bdb8; }
+.scene16-lower-grid section:last-child article > b { color:#152b63; font-size:7px; }
+.layered-scene-foreground-16 .foreground-bar { height:92px; }
+.layered-scene-foreground-16 .foreground-bar-item { padding:0 27px; }
+
+/* Scene 17 — six-card campaign browser and live activity rail. */
+.reference-scene-17::before { background:linear-gradient(90deg,rgba(244,250,255,.01) 0 27%,rgba(244,249,255,.35) 40%,rgba(244,249,255,.5)); }
+.reference-scene-17 .layered-scene-heading { top:86px; left:560px; right:90px; }
+.reference-scene-17 .layered-scene-heading::before { display:none; }
+.reference-scene-17 .layered-scene-heading h2 { font-size:57px; }
+.reference-scene-17 .layered-scene-heading p { margin-top:10px; font-size:26px; }
+.reference-scene-17 .reference-scene-body { left:565px; right:80px; top:250px; bottom:125px; }
+.scene17-campaign-browser { height:100%; display:grid; grid-template-columns:1fr 292px; gap:18px; }
+.scene17-campaigns,.scene17-activity { overflow:hidden; border:1px solid #d7e2f1; border-radius:20px; background:rgba(255,255,255,.96); box-shadow:0 15px 35px rgba(24,61,137,.13); }
+.scene17-campaigns { padding:16px 20px; display:grid; grid-template-rows:42px 1fr 28px; }
+.scene17-campaigns > header { display:flex; align-items:center; gap:10px; color:#112861; }
+.scene17-campaigns > header > .broadcast-icon { width:27px; height:27px; padding:5px; border-radius:50%; color:#176ae3; background:#edf4ff; }
+.scene17-campaigns > header > strong { font-size:15px; }
+.scene17-campaigns nav { margin-left:auto; display:flex; align-items:center; gap:4px; }
+.scene17-campaigns nav > * { padding:7px 13px; border-radius:7px; font-size:11px; font-weight:700; }
+.scene17-campaigns nav b { color:#fff; background:#15b9c1; }
+.scene17-campaigns label { margin-left:8px; padding:8px 12px; border:1px solid #d5deed; border-radius:7px; color:#687894; font-size:10px; }
+.scene17-card-grid { min-height:0; display:grid; grid-template-columns:repeat(3,1fr); grid-template-rows:repeat(2,1fr); gap:15px 18px; }
+.scene17-card-grid article { min-width:0; overflow:hidden; display:flex; flex-direction:column; border:1px solid #38c8cf; border-radius:15px; background:#fff; box-shadow:0 7px 17px rgba(25,63,137,.1); }
+.scene17-card-grid article:nth-child(3n) { border-color:#a86bea; }
+.scene17-art { height:100px; position:relative; flex:0 0 100px; background:linear-gradient(135deg,#25136d,#9a35df,#15a8d0); }
+.scene17-art.art-1 { background:linear-gradient(135deg,#112a78,#0ec9ee,#7a36e6); }.scene17-art.art-2 { background:linear-gradient(135deg,#172762,#e748ba,#13c4dc); }.scene17-art.art-3 { background:linear-gradient(135deg,#071b49,#248dc9); }.scene17-art.art-4 { background:linear-gradient(135deg,#3d1467,#dd6c31,#174d9f); }.scene17-art.art-5 { background:linear-gradient(135deg,#172260,#6c3a9d,#d29836); }
+.scene17-art b { position:absolute; top:8px; left:8px; padding:4px 7px; border-radius:5px; color:#fff; background:#6b2ddd; font-size:9px; }
+.scene17-card-grid h3 { margin:10px 12px 0; color:#10265e; font-size:16px; }
+.scene17-card-grid p { margin:2px 12px 7px; color:#526687; font-size:12px; }
+.scene17-card-grid footer { margin-top:auto; padding:8px 12px; display:flex; align-items:center; justify-content:space-between; border-top:1px solid #e3e9f2; color:#19316b; font-size:10px; }
+.scene17-card-grid footer i { display:flex; }.scene17-card-grid footer .broadcast-icon { width:21px; height:21px; padding:3px; border:1px solid #b7ddef; border-radius:50%; }
+.scene17-view-all { align-self:end; justify-self:center; color:#145edb; font-size:14px; font-weight:850; }
+.scene17-activity { padding:17px 15px; display:flex; flex-direction:column; }
+.scene17-activity > header { display:flex; align-items:center; gap:12px; color:#10265e; }.scene17-activity > header .broadcast-icon { width:42px; height:42px; }.scene17-activity > header h3 { font-size:18px; }.scene17-activity > header p { color:#627493; font-size:11px; }
+.scene17-activity > article { margin-top:12px; padding:13px 10px; display:flex; align-items:center; gap:11px; border-radius:11px; background:#fff; box-shadow:0 5px 14px rgba(25,61,130,.11); }
+.scene17-activity > article > .broadcast-icon { width:43px; height:43px; padding:9px; flex:0 0 43px; border-radius:50%; color:#fff; background:#7540e6; }.scene17-activity > article:nth-of-type(even) > .broadcast-icon { background:#14adbe; }
+.scene17-activity article strong,.scene17-activity article span,.scene17-activity article small { display:block; }.scene17-activity article strong { color:#10265e; font-size:12px; }.scene17-activity article span { color:#284273; font-size:10px; }.scene17-activity article small { color:#7788a3; font-size:9px; }
+.scene17-activity > footer { margin-top:auto; padding:13px; display:grid; text-align:center; border:1px solid #d9e3f1; border-radius:12px; color:#10265e; }.scene17-activity > footer strong { font-size:13px; }.scene17-activity > footer span { font-size:10px; }.scene17-activity > footer button { justify-self:center; margin-top:8px; }
+.layered-scene-foreground-17 .foreground-bar { height:92px; }.layered-scene-foreground-17 .foreground-bar-item { padding:0 27px; }
+
+/* Scene 18 — campaign detail information panel. */
+.reference-scene-18::before { background:linear-gradient(90deg,rgba(244,250,255,.01) 0 27%,rgba(244,249,255,.42) 42%,rgba(244,249,255,.57)); }
+.reference-scene-18 .layered-scene-heading { top:62px; left:590px; right:110px; }.reference-scene-18 .layered-scene-heading::before { display:none; }.reference-scene-18 .layered-scene-heading h2 { font-size:69px; background:linear-gradient(90deg,#123da9,#071b71 70%,#762fe2); background-clip:text; color:transparent; }.reference-scene-18 .layered-scene-heading p { margin-top:10px; font-size:26px; }
+.reference-scene-18 .reference-scene-body { left:615px; right:120px; top:240px; bottom:225px; }
+.scene18-detail-panel { height:100%; padding:20px; display:grid; grid-template-columns:1.05fr 1.05fr 1.1fr; grid-template-rows:155px 1fr 50px; gap:14px; border:2px solid #c06bea; border-left-color:#2ec8d0; border-radius:24px; background:rgba(255,255,255,.96); box-shadow:0 17px 38px rgba(25,62,134,.14); }
+.scene18-detail-panel > section { min-width:0; border:1px solid #dce5f1; border-radius:15px; background:#fff; }
+.scene18-creator { grid-column:1/3; padding:0; display:grid; grid-template-columns:190px 1fr; gap:18px; border:0!important; }.scene18-creator-photo { display:grid; place-items:center; border-radius:13px; color:#fff; background:linear-gradient(135deg,#102b72,#2973c7,#d263a0); font-size:45px; font-weight:900; }.scene18-creator > div:last-child { padding:13px 0; }.scene18-creator h3 { color:#10265e; font-size:25px; }.scene18-creator strong,.scene18-creator span { display:block; margin-top:6px; color:#1d4389; font-size:14px; }.scene18-creator span { color:#657695; }.scene18-creator p { margin-top:14px; color:#294374; font-size:12px; }
+.scene18-purpose,.scene18-info { padding:18px; display:flex; gap:15px; }.scene18-purpose > .broadcast-icon,.scene18-info > .broadcast-icon { width:67px; height:67px; padding:14px; flex:0 0 67px; border-radius:50%; color:#0eb6ae; background:#e4f9f5; }.scene18-purpose h3,.scene18-info h3 { color:#0caeaa; font-size:20px; }.scene18-purpose p { margin-top:11px; color:#1e376e; font-size:14px; line-height:1.45; }
+.scene18-info { padding:17px 15px; }.scene18-info > .broadcast-icon { width:54px; height:54px; flex-basis:54px; padding:11px; color:#6840df; background:#f0eaff; }.scene18-info h3 { color:#5d35d9; font-size:18px; }.scene18-info ul { margin:10px 0 0; padding-left:20px; color:#19316a; font-size:13px; line-height:1.6; }.scene18-info.proof > .broadcast-icon { color:#176ce1; background:#eaf3ff; }.scene18-info.proof strong { display:block; margin-top:6px; padding:7px; border-radius:8px; color:#10265e; background:#f1f6ff; font-size:13px; }.scene18-info.levels p { margin-top:8px; padding:7px; display:flex; align-items:center; gap:8px; border:1px solid #e0e7f2; border-radius:8px; color:#0cafaa; font-size:12px; }.scene18-info.levels .broadcast-icon { width:21px; height:21px; }
+.scene18-detail-panel > footer { grid-column:1/-1; display:flex; align-items:center; justify-content:center; gap:12px; border-radius:10px; color:#18316b; background:#eaf3ff; font-size:14px; }.scene18-detail-panel > footer b { width:27px; height:27px; display:grid; place-items:center; border-radius:50%; color:#fff; background:#176de0; }.scene18-detail-panel > footer strong { color:#5834dc; }
+.layered-scene-foreground-18 .foreground-bar { left:0; right:0; height:92px; }.layered-scene-foreground-18 .foreground-bar-item { padding:0 28px; }
+
+/* Scene 19 — three large comparison cards with broadcast-readable copy. */
+.reference-scene-19::before { background:linear-gradient(90deg,rgba(244,250,255,.01) 0 27%,rgba(244,249,255,.38) 42%,rgba(244,249,255,.52)); }
+.reference-scene-19 .layered-scene-heading { top:62px; left:680px; right:130px; }.reference-scene-19 .layered-scene-heading::before { display:none; }.reference-scene-19 .layered-scene-heading h2 { max-width:850px; margin:auto; font-size:67px; line-height:1.02; background:linear-gradient(90deg,#0a5edc,#071a69 67%,#7330e4); background-clip:text; color:transparent; }.reference-scene-19 .layered-scene-heading p { margin-top:13px; font-size:25px; }
+.reference-scene-19 .reference-scene-body { left:678px; right:112px; top:315px; bottom:250px; }
+.scene-card-composition-19 .reference-feature-grid { gap:17px; }.scene-card-composition-19 .reference-feature-card { padding:24px 20px 18px; border:2px solid var(--tone); border-radius:25px; }.scene-card-composition-19 .reference-card-icon { width:112px; height:112px; border:4px solid #fff; border-radius:50%; background:color-mix(in srgb,var(--tone) 12%,white); box-shadow:0 0 0 3px color-mix(in srgb,var(--tone) 25%,white); }.scene-card-composition-19 .reference-card-icon .broadcast-icon { width:65px; height:65px; }.scene-card-composition-19 .reference-feature-card h3 { color:var(--tone); font-size:27px; }.scene-card-composition-19 .reference-feature-card p { margin-top:26px; color:#142d67; font-size:18px; line-height:1.48; }.scene-card-composition-19 .reference-pill { width:100%; margin-top:auto; padding:8px; color:var(--tone); background:color-mix(in srgb,var(--tone) 12%,white); font-size:16px; }.scene-card-composition-19 .reference-card-link { display:none; }
+.layered-scene-foreground-19 .foreground-bar { height:92px; }.layered-scene-foreground-19 .foreground-bar-item { padding:0 25px; }
+
+/* Broadcast legibility pass for previously completed cards and dashboard values. */
+.scene16-metrics small { font-size:11px; }.scene16-metrics span { font-size:10px; }.scene16-metrics a { font-size:9px; }.scene16-lower-grid section > header { font-size:10px; }.scene16-lower-grid article > div strong { font-size:10px; }.scene16-lower-grid article > div span { font-size:8px; }
+
+/* Readability pass — scenes 13–17. These sizes target a 1920×1080 OBS canvas. */
+.reference-scene-13 .reference-scene-body { left:480px; right:70px; top:390px; }
+.scene-card-composition-13 .reference-tier-track { gap:22px; }
+.scene-card-composition-13 .reference-tier { padding:28px 16px 30px; }
+.scene-card-composition-13 .reference-tier-medal { width:104px; height:104px; }
+.scene-card-composition-13 .reference-tier-medal .broadcast-icon { width:62px; height:62px; }
+.scene-card-composition-13 .reference-tier > strong { font-size:28px; }
+.scene-card-composition-13 .reference-tier > span { font-size:19px; line-height:1.32; }
+
+.scene14-heading,
+.reference-scene-15 .layered-scene-heading {
+  padding:22px 34px 20px;
+  border:1px solid rgba(38,108,217,.2);
+  border-radius:24px;
+  background:rgba(255,255,255,.92);
+  box-shadow:0 15px 34px rgba(22,59,132,.14);
+  backdrop-filter:blur(8px);
+}
+.scene14-heading { top:72px; }
+.scene14-heading h2 { font-size:68px; }
+.scene14-heading p { color:#10245d; font-size:27px; }
+.access-level-grid { top:340px; height:500px; }
+.access-level-card { padding:28px 24px 24px; align-content:start; }
+.access-level-card h3 { min-height:68px; }
+.access-level-card .broadcast-icon { margin:20px 0 25px; }
+.access-level-card p { font-size:23px; }
+
+.reference-scene-15 .layered-scene-heading { top:35px; left:585px; right:145px; padding:18px 28px 16px; }
+.reference-scene-15 .layered-scene-heading h2 { font-size:55px; }
+.reference-scene-15 .layered-scene-heading p { font-size:25px; }
+.reference-scene-15 .reference-scene-body { top:305px; }
+
+.reference-scene-16 .layered-scene-heading {
+  top:128px;
+  left:485px;
+  right:900px;
+  padding:26px 25px 22px;
+  border:1px solid rgba(39,105,211,.22);
+  border-radius:24px;
+  background:rgba(255,255,255,.93);
+  box-shadow:0 16px 34px rgba(20,58,128,.15);
+}
+.reference-scene-16 .layered-scene-heading h2 { color:#092068; font-size:57px; }
+.reference-scene-16 .layered-scene-heading p { color:#17306c; font-size:28px; font-weight:700; }
+.reference-scene-16 .reference-scene-body { left:500px; right:38px; top:68px; }
+.scene16-home-layout { grid-template-columns:420px 1fr; gap:28px; }
+.scene16-home-points { margin-bottom:54px; padding:26px 22px; gap:22px; border:1px solid rgba(35,104,213,.18); border-radius:22px; background:rgba(255,255,255,.9); box-shadow:0 14px 30px rgba(22,57,126,.13); }
+.scene16-home-points p { color:#0b225f; font-size:23px; font-weight:700; line-height:1.3; }
+.scene16-dashboard > header { height:66px; font-size:14px; }
+.scene16-dashboard main { padding:16px 20px; }
+.scene16-welcome h3 { font-size:24px; }
+.scene16-welcome p { font-size:14px; }
+.scene16-section-label { margin:12px 0 7px; font-size:13px; }
+.scene16-metrics { gap:9px; }
+.scene16-metrics article { padding:11px 12px 9px; }
+.scene16-metrics small { font-size:12px; }
+.scene16-metrics strong { margin-top:5px; font-size:26px; }
+.scene16-metrics span { font-size:11px; }
+.scene16-metrics a { margin:7px -12px -9px; padding:7px 12px; font-size:10px; }
+.scene16-lower-grid { gap:10px; margin-top:10px; }
+.scene16-lower-grid > section { padding:11px; }
+.scene16-lower-grid section > header { font-size:12px; }
+.scene16-lower-grid section article { min-height:62px; }
+.scene16-lower-grid time { width:46px; }
+.scene16-lower-grid time small { font-size:9px; }
+.scene16-lower-grid time b { font-size:16px; }
+.scene16-lower-grid article > div strong { font-size:12px; }
+.scene16-lower-grid article > div span { font-size:10px; }
+.scene16-lower-grid em,
+.scene16-lower-grid section:last-child article > b { font-size:9px; }
+.scene16-campaign-art { width:72px; height:50px; flex-basis:72px; background:center/cover no-repeat url('./assets/campaigns/concert.jpg'); }
+.scene16-campaign-art.art-1 { background:center 36%/cover no-repeat url('./assets/campaigns/producer.jpg'); }
+.scene16-campaign-art.art-2 { background:center/cover no-repeat url('./assets/campaigns/crowd.jpg'); }
+
+.reference-scene-17 .reference-scene-body { left:545px; right:48px; top:238px; bottom:120px; }
+.scene17-campaign-browser { grid-template-columns:1fr 310px; gap:16px; }
+.scene17-campaigns { padding:14px 17px; grid-template-rows:46px 1fr 30px; }
+.scene17-campaigns > header > strong { font-size:17px; }
+.scene17-campaigns nav > * { padding:7px 10px; font-size:12px; }
+.scene17-campaigns label { padding:8px 10px; font-size:11px; }
+.scene17-card-grid { gap:13px 15px; }
+.scene17-art { height:112px; flex-basis:112px; background:center/cover no-repeat url('./assets/campaigns/microphone.jpg'); }
+.scene17-art.art-1 { background:center/cover no-repeat url('./assets/campaigns/concert.jpg'); }
+.scene17-art.art-2 { background:center/cover no-repeat url('./assets/campaigns/crowd.jpg'); }
+.scene17-art.art-3 { background:center/cover no-repeat url('./assets/campaigns/producer.jpg'); }
+.scene17-art.art-4 { background:center/cover no-repeat url('./assets/campaigns/producer.jpg'); }
+.scene17-art.art-5 { background:center/cover no-repeat url('./assets/campaigns/microphone.jpg'); }
+.scene17-art::after { content:''; position:absolute; inset:0; background:linear-gradient(180deg,transparent 45%,rgba(5,19,60,.28)); pointer-events:none; }
+.scene17-art b { z-index:1; font-size:11px; }
+.scene17-card-grid h3 { margin-top:8px; font-size:18px; }
+.scene17-card-grid p { font-size:13px; }
+.scene17-card-grid footer { padding:7px 12px; font-size:12px; }
+.scene17-view-all { font-size:16px; }
+.scene17-activity > header h3 { font-size:20px; }
+.scene17-activity > header p { font-size:13px; }
+.scene17-activity > article { margin-top:10px; padding:12px 10px; }
+.scene17-activity article strong { font-size:14px; }
+.scene17-activity article span { font-size:12px; }
+.scene17-activity article small { font-size:11px; }
+.scene17-activity > footer strong { font-size:15px; }
+.scene17-activity > footer span { font-size:12px; }
+.reference-app-content p,.reference-app-content span { font-size:max(10px,1em); }
+
+/* Scene 20 — dark delivered-assets list from the swapped Scene 20 reference. */
+.reference-scene-20::before { background:linear-gradient(90deg,rgba(244,250,255,.01) 0 27%,rgba(8,25,68,.14) 42%,rgba(8,22,67,.3)); }
+.reference-scene-20 .layered-scene-heading { top:52px; left:625px; right:165px; }.reference-scene-20 .layered-scene-heading::before { display:none; }.reference-scene-20 .layered-scene-heading h2 { max-width:850px; margin:auto; font-size:62px; line-height:1.02; background:linear-gradient(90deg,#071b62,#0870df 68%,#722fe1); background-clip:text; color:transparent; }.reference-scene-20 .layered-scene-heading p { margin-top:9px; font-size:24px; }
+.reference-scene-20 .reference-scene-body { left:635px; right:200px; top:285px; bottom:175px; }.reference-scene-20:has(.layered-callout) .reference-scene-body { bottom:175px; }
+.scene-card-composition-20 .reference-assets-panel { padding:20px 38px 64px; border-radius:25px; }.scene-card-composition-20 .reference-assets-panel > header { display:none; }.scene-card-composition-20 .asset-list { height:100%; margin:0; grid-template-rows:repeat(5,1fr); gap:10px; }.scene-card-composition-20 .asset-list article { grid-template-columns:78px 1fr 54px; padding:10px 20px; border-color:rgba(73,155,236,.34); border-radius:14px; }.scene-card-composition-20 .asset-list article > span { width:64px; height:64px; border:1px solid currentColor; border-radius:50%; }.scene-card-composition-20 .asset-list .broadcast-icon { width:36px; height:36px; }.scene-card-composition-20 .asset-list h4 { font-size:21px; }.scene-card-composition-20 .asset-list p { margin-top:3px; color:#eef4ff; font-size:15px; }.scene-card-composition-20 .asset-list small { display:none; }.scene-card-composition-20 .asset-list b { width:43px; height:43px; font-size:24px; }
+.reference-scene-20 .layered-callout { left:675px; right:240px; bottom:112px; min-height:55px; border:1px solid #267adf; color:#fff; background:linear-gradient(90deg,rgba(5,37,93,.98),rgba(19,28,85,.98)); font-size:19px; }.reference-scene-20 .layered-callout .broadcast-icon { color:#38d5e1; }
+.layered-scene-foreground-20 .foreground-bar { height:92px; }.layered-scene-foreground-20 .foreground-bar-item { padding:0 25px; }
+
+/* Scene 21 — large personal-tool controls and readable live activity. */
+.reference-scene-21::before { background:linear-gradient(90deg,rgba(244,250,255,.01) 0 27%,rgba(244,249,255,.4) 42%,rgba(244,249,255,.55)); }
+.reference-scene-21 .layered-scene-heading { top:55px; left:620px; right:130px; }.reference-scene-21 .layered-scene-heading::before { display:none; }.reference-scene-21 .layered-scene-heading h2 { max-width:880px; margin:auto; font-size:61px; line-height:1.02; background:linear-gradient(90deg,#071a57,#0967df 70%,#7a34e5); background-clip:text; color:transparent; }.reference-scene-21 .layered-scene-heading p { margin-top:10px; font-size:25px; }
+.reference-scene-21 .reference-scene-body { left:575px; right:80px; top:285px; bottom:180px; }.reference-scene-21:has(.layered-callout) .reference-scene-body { bottom:180px; }
+.scene-card-composition-21 .reference-tools-layout { grid-template-columns:1fr 340px; gap:24px; }.scene-card-composition-21 .reference-tools-layout > section { gap:14px; }.scene-card-composition-21 .tool-card,.scene-card-composition-21 .reference-tools-layout > aside { padding:22px; border-radius:20px; }.scene-card-composition-21 .tool-card header>.broadcast-icon,.scene-card-composition-21 .reference-tools-layout aside>header>.broadcast-icon { width:58px; height:58px; padding:12px; }.scene-card-composition-21 .tool-card h3,.scene-card-composition-21 .reference-tools-layout aside h3 { font-size:21px; }.scene-card-composition-21 .tool-card small,.scene-card-composition-21 .reference-tools-layout aside small { font-size:10px; }.scene-card-composition-21 .tool-card header strong,.scene-card-composition-21 .reference-tools-layout aside header strong { font-size:11px; }.scene-card-composition-21 .tool-value { padding:14px; }.scene-card-composition-21 .tool-value code { font-size:17px; }.scene-card-composition-21 .tool-value button { padding:9px 13px; font-size:12px; }.scene-card-composition-21 .tool-card footer { font-size:11px; }.scene-card-composition-21 .reference-tools-layout > aside article { grid-template-columns:40px 1fr 24px; padding:11px; }.scene-card-composition-21 .reference-tools-layout > aside article b { width:38px; height:38px; font-size:11px; }.scene-card-composition-21 .reference-tools-layout > aside article span { font-size:11px; }
+.reference-scene-21 .layered-callout { left:635px; right:440px; bottom:112px; min-height:58px; font-size:17px; }.layered-scene-foreground-21 .foreground-bar { height:92px; }.layered-scene-foreground-21 .foreground-bar-item { padding:0 28px; }
+
+/* Scene 22 — four circular confirmation stations inside one white flow panel. */
+.reference-scene-22::before { background:linear-gradient(90deg,rgba(244,250,255,.01) 0 27%,rgba(244,249,255,.38) 42%,rgba(244,249,255,.52)); }
+.reference-scene-22 .layered-scene-heading { top:75px; left:630px; right:110px; }.reference-scene-22 .layered-scene-heading::before { display:none; }.reference-scene-22 .layered-scene-heading h2 { font-size:65px; background:linear-gradient(90deg,#07194f,#0a61db 68%,#6c31df); background-clip:text; color:transparent; }.reference-scene-22 .layered-scene-heading p { margin-top:12px; font-size:26px; }
+.reference-scene-22 .reference-scene-body { left:655px; right:105px; top:310px; bottom:220px; }.reference-scene-22:has(.layered-callout) .reference-scene-body { bottom:220px; }
+.scene-card-composition-22 .reference-flow { padding:28px 20px; grid-template-columns:repeat(4,1fr); gap:12px; border-radius:24px; background:rgba(255,255,255,.96); box-shadow:0 17px 38px rgba(23,60,130,.14); }.scene-card-composition-22 .reference-flow-line { top:40%; left:10%; right:10%; height:6px; }.scene-card-composition-22 .reference-flow-step { min-height:0; padding:0 12px; overflow:visible; border:0; background:transparent; box-shadow:none; }.scene-card-composition-22 .reference-flow-index { position:absolute; top:-10px; left:50%; width:52px; height:52px; display:grid; place-items:center; transform:translateX(-50%); border:3px solid #fff; border-radius:50%; color:#fff; background:var(--tone); font-size:23px; }.scene-card-composition-22 .reference-flow-icon { width:140px; height:140px; margin-top:45px; border:4px solid color-mix(in srgb,var(--tone) 30%,white); }.scene-card-composition-22 .reference-flow-icon .broadcast-icon { width:72px; height:72px; }.scene-card-composition-22 .reference-flow-step h3 { margin-top:25px; color:#10265e; font-size:20px; }.scene-card-composition-22 .reference-flow-step p { margin-top:10px; color:#203970; font-size:15px; }.scene-card-composition-22 .reference-flow-arrow { top:38%; right:-20px; width:40px; height:40px; color:var(--tone); background:transparent; font-size:40px; }
+.reference-scene-22 .layered-callout { left:675px; right:125px; bottom:112px; min-height:62px; justify-content:flex-start; border:0; background:rgba(235,245,255,.96); font-size:17px; }.layered-scene-foreground-22 .foreground-bar { height:92px; }.layered-scene-foreground-22 .foreground-bar-item { padding:0 35px; }
 
 /* Scenes with card geometry that must not inherit the definition-card look. */
 .scene-card-composition-19 .reference-card-link { width:100%; margin-top:auto; padding:8px; border-radius:99px; text-align:center; background:color-mix(in srgb,var(--tone) 12%,white); }
@@ -4935,6 +5302,28 @@ html[data-scene='39'] .storyboard-live-fallback > img { transform: scaleY(1.18);
 .scene-card-composition-23 .reference-status-dot { width:66px; height:66px; }
 .scene-card-composition-23 .reference-status-row > strong { align-self:end; }
 .scene-card-composition-23 .reference-status-check { display:none; }
+
+/* Scenes 23–25 — reference-specific qualification, impact, and trust panels. */
+.reference-scene-23 .layered-scene-heading{top:75px;left:630px;right:110px}.reference-scene-23 .layered-scene-heading::before{display:none}.reference-scene-23 .layered-scene-heading h2{font-size:69px;background:linear-gradient(90deg,#071a56,#0967df 72%,#7832e2);background-clip:text;color:transparent}.reference-scene-23 .layered-scene-heading p{font-size:26px}.reference-scene-23 .reference-scene-body{left:635px;right:85px;top:330px;bottom:245px}.reference-scene-23:has(.layered-callout) .reference-scene-body{bottom:245px}
+.scene-card-composition-23 .reference-status-panel{padding:22px;gap:20px;border-radius:24px}.scene-card-composition-23 .reference-status-row{grid-template-rows:105px auto 1fr auto;padding:18px 15px}.scene-card-composition-23 .reference-status-row:nth-of-type(4){border:3px solid #12b9b5;box-shadow:0 0 0 6px rgba(18,185,181,.08),0 14px 28px rgba(18,137,151,.18)}.scene-card-composition-23 .reference-status-dot{width:90px;height:90px}.scene-card-composition-23 .reference-status-dot .broadcast-icon{width:55px;height:55px}.scene-card-composition-23 .reference-status-row h3{font-size:21px}.scene-card-composition-23 .reference-status-row p{font-size:16px;line-height:1.45}.scene-card-composition-23 .reference-status-row>strong{width:100%;padding:10px 7px;color:currentColor;background:color-mix(in srgb,currentColor 9%,white);font-size:12px}.reference-scene-23 .layered-callout{left:655px;right:105px;bottom:112px;min-height:64px;border:0;background:#edf5ff;font-size:17px}.layered-scene-foreground-23 .foreground-bar{left:20px;right:20px;bottom:8px;height:82px;border-radius:17px}
+
+.reference-scene-24 .layered-scene-heading{display:none}.reference-scene-24 .reference-scene-body{left:560px;right:50px;top:105px;bottom:145px}.scene-card-composition-24 .impact-explainer{grid-template-columns:390px 1fr;gap:45px}.scene-card-composition-24 .impact-explainer>section{align-self:center}.scene-card-composition-24 .impact-explainer>section small,.scene-card-composition-24 .impact-explainer>section strong,.scene-card-composition-24 .impact-explainer>section>span{display:block;color:#0b3cad;font-size:58px;line-height:1.05;font-weight:900}.scene-card-composition-24 .impact-explainer>section strong{color:#071b68}.scene-card-composition-24 .impact-explainer>section>span{background:linear-gradient(90deg,#0b5cdb,#6d30df);background-clip:text;color:transparent}.scene-card-composition-24 .impact-orbit{width:300px;height:42px;margin:28px auto 20px;display:flex;align-items:center;gap:14px;border:0}.scene-card-composition-24 .impact-orbit::before,.scene-card-composition-24 .impact-orbit::after{content:"";height:2px;flex:1;background:#10b9c1}.scene-card-composition-24 .impact-orbit .broadcast-icon{width:35px;height:35px;padding:8px;border-radius:50%;color:#fff;background:#10b9c1}.scene-card-composition-24 .impact-orbit i{display:none}.scene-card-composition-24 .impact-explainer>section p{max-width:none;margin:0;color:#10265e;font-size:22px;line-height:1.35}.scene-card-composition-24 .impact-points{gap:18px}.scene-card-composition-24 .impact-points article{grid-template-columns:70px 115px 1fr;gap:18px;padding:24px 28px;border-left:7px solid #11b8b2}.scene-card-composition-24 .impact-points article:nth-child(2){border-left-color:#176de2}.scene-card-composition-24 .impact-points article:nth-child(3){border-left-color:#6b34df}.scene-card-composition-24 .impact-points article>strong{width:62px;height:62px;display:grid;place-items:center;border-radius:50%;color:#fff;background:#13b8b3;font-size:27px}.scene-card-composition-24 .impact-points article:nth-child(2)>strong{background:#176de2}.scene-card-composition-24 .impact-points article:nth-child(3)>strong{background:#6532df}.scene-card-composition-24 .impact-points article>span{width:105px;height:105px;border-radius:50%}.scene-card-composition-24 .impact-points article>span .broadcast-icon{width:62px;height:62px}.scene-card-composition-24 .impact-points h3{color:#0eb0a9;font-size:23px}.scene-card-composition-24 .impact-points p{font-size:16px;line-height:1.45}.layered-scene-foreground-24 .foreground-bar{height:92px}
+
+.reference-scene-25 .layered-scene-heading{top:42px;left:630px;right:165px}.reference-scene-25 .layered-scene-heading::before{display:none}.reference-scene-25 .layered-scene-heading h2{max-width:750px;margin:auto;font-size:64px;line-height:1}.reference-scene-25 .layered-scene-heading p{font-size:25px}.reference-scene-25 .reference-scene-body{left:660px;right:95px;top:315px;bottom:145px}.scene25-trust-panel{height:100%;padding:18px;display:grid;grid-template-columns:1.65fr .85fr;gap:24px;border:2px solid #2a73cf;border-radius:25px;color:#fff;background:linear-gradient(145deg,rgba(3,22,67,.98),rgba(7,26,76,.98));box-shadow:0 20px 44px rgba(1,16,59,.3)}.scene25-checklist{display:grid;grid-template-rows:repeat(5,1fr);gap:11px}.scene25-checklist article{padding:10px 15px;display:grid;grid-template-columns:65px 1fr 42px;align-items:center;gap:14px;border:1px solid rgba(61,139,224,.42);border-radius:13px}.scene25-checklist article>.broadcast-icon{width:58px;height:58px;padding:11px;border:2px solid currentColor;border-radius:50%;color:#19d0d5}.scene25-checklist article:nth-child(2n+1)>.broadcast-icon{color:#8f43e8}.scene25-checklist h3{font-size:21px}.scene25-checklist p{font-size:15px}.scene25-checklist b{width:38px;height:38px;display:grid;place-items:center;border:2px solid #2bd5d8;border-radius:50%;font-size:21px}.scene25-trust-panel>aside{padding:8px 18px;border:1px solid rgba(95,159,232,.55);border-radius:18px}.scene25-trust-panel>aside>h3{padding-bottom:13px;border-bottom:1px solid rgba(81,150,226,.3);color:#25d6da;text-align:center;font-size:18px}.scene25-trust-panel>aside article{padding:18px 0;display:grid;grid-template-columns:78px 1fr;align-items:center;gap:16px;border-bottom:1px dashed rgba(92,153,224,.42)}.scene25-trust-panel>aside article:last-child{border-bottom:0}.scene25-trust-panel>aside .broadcast-icon{width:72px;height:72px;padding:16px;border:2px solid currentColor;border-radius:50%;color:#20d2d6}.scene25-trust-panel>aside strong{font-size:17px}.scene25-trust-panel>aside em{display:block;color:#24d5da;font-style:normal}.scene25-trust-panel>aside p{margin-top:7px;font-size:14px}.reference-scene-25 .layered-callout{display:none}.layered-scene-foreground-25 .foreground-bar{height:92px}
+
+/* Scenes 26–28 — event interfaces and changemaker directory. */
+.reference-scene-26 .layered-scene-heading{top:250px;left:500px;right:990px}.reference-scene-26 .layered-scene-heading::before{display:none}.reference-scene-26 .layered-scene-heading h2{font-size:54px;line-height:1.08}.reference-scene-26 .layered-heading-rule{width:280px;margin-top:28px}.reference-scene-26 .layered-scene-heading p{margin:22px auto 0;max-width:390px;font-size:23px;line-height:1.35}.reference-scene-26 .reference-scene-body{left:925px;right:40px;top:78px;bottom:120px}.scene-card-composition-26 .reference-app-shell{grid-template-columns:1fr;grid-template-rows:62px 1fr;border-radius:20px}.scene-card-composition-26 .reference-app-sidebar{display:none}.scene-card-composition-26 .reference-app-topbar{font-size:12px}.scene-card-composition-26 .reference-app-content{padding:20px 24px}.scene-card-composition-26 .app-title-row h3{font-size:29px}.scene-card-composition-26 .app-title-row small{font-size:11px}.scene-card-composition-26 .event-feature{height:160px;padding:22px 27px}.scene-card-composition-26 .event-feature h3{font-size:26px}.scene-card-composition-26 .event-feature p{font-size:13px}.scene-card-composition-26 .event-feature small{font-size:10px}.scene-card-composition-26 .event-feature time{width:86px;font-size:13px}.scene-card-composition-26 .event-list{grid-template-columns:1fr;gap:10px}.scene-card-composition-26 .event-list article{grid-template-columns:65px 1fr auto;padding:12px}.scene-card-composition-26 .event-list time{font-size:10px}.scene-card-composition-26 .event-list time b{font-size:21px}.scene-card-composition-26 .event-list h4{font-size:15px}.scene-card-composition-26 .event-list p{font-size:11px}.scene-card-composition-26 .event-list button{padding:8px 12px;font-size:10px}.layered-scene-foreground-26 .foreground-bar{left:38px;right:38px;bottom:12px;height:78px;border-radius:18px}.layered-scene-foreground-26 .foreground-bar-item{padding:0 42px}
+
+.reference-scene-27 .layered-scene-heading{top:170px;left:510px;right:1000px}.reference-scene-27 .layered-scene-heading::before{display:none}.reference-scene-27 .layered-scene-heading h2{font-size:57px;line-height:1.08}.reference-scene-27 .layered-heading-rule{width:280px;margin-top:28px}.reference-scene-27 .layered-scene-heading p{margin:22px auto 0;max-width:400px;font-size:22px;line-height:1.35}.reference-scene-27 .reference-scene-body{left:890px;right:30px;top:32px;bottom:120px}.scene-card-composition-27 .reference-app-shell{grid-template-columns:1fr;grid-template-rows:45px 1fr;border-radius:18px}.scene-card-composition-27 .reference-app-sidebar{display:none}.scene-card-composition-27 .reference-app-topbar{font-size:11px}.scene-card-composition-27 .reference-app-content{padding:15px 20px}.scene-card-composition-27 .event-detail-banner{height:245px;padding:25px;background:linear-gradient(105deg,#07194b,#17327f,#0a1850)}.scene-card-composition-27 .event-detail-banner h3{max-width:430px;font-size:33px}.scene-card-composition-27 .event-detail-banner p{font-size:15px}.scene-card-composition-27 .event-detail-banner section>div{font-size:12px}.scene-card-composition-27 .event-detail-banner .proof-qr-card{display:none}.scene-card-composition-27 .event-detail-grid{gap:13px;margin-top:14px}.scene-card-composition-27 .event-detail-grid article{padding:15px}.scene-card-composition-27 .event-detail-grid h4{font-size:15px}.scene-card-composition-27 .event-detail-grid p{font-size:11px;line-height:1.5}.scene-card-composition-27 .event-detail-grid strong{font-size:10px}.scene-card-composition-27 .event-detail-grid button{padding:8px 10px;font-size:10px}.layered-scene-foreground-27 .foreground-bar{height:92px}.layered-scene-foreground-27 .foreground-bar-item{padding:0 35px}
+
+.reference-scene-28 .layered-scene-heading{top:82px;left:650px;right:105px}.reference-scene-28 .layered-scene-heading::before{display:none}.reference-scene-28 .layered-scene-heading h2{font-size:61px}.reference-scene-28 .layered-scene-heading p{margin-top:12px;font-size:25px}.reference-scene-28 .reference-scene-body{left:595px;right:105px;top:285px;bottom:145px}.scene-card-composition-28 .profile-directory{gap:18px}.scene-card-composition-28 .profile-card{grid-template-columns:105px 1fr;gap:16px;padding:18px;border-radius:18px}.scene-card-composition-28 .profile-avatar{width:96px;height:96px;font-size:24px}.scene-card-composition-28 .profile-card small{font-size:10px}.scene-card-composition-28 .profile-card h3{font-size:21px}.scene-card-composition-28 .profile-card p{margin-top:5px;font-size:14px;line-height:1.35}.scene-card-composition-28 .profile-card section span{font-size:10px}.scene-card-composition-28 .profile-card footer{padding-top:11px}.scene-card-composition-28 .profile-card footer strong{font-size:22px}.scene-card-composition-28 .profile-card footer small{font-size:9px}.scene-card-composition-28 .profile-card footer button{padding:7px 10px;font-size:10px}.layered-scene-foreground-28 .foreground-bar{left:45px;right:45px;bottom:12px;height:78px;border-radius:18px}.layered-scene-foreground-28 .foreground-bar-item{padding:0 29px}
+
+/* Scenes 29–31 — proof delivery, personal impact, and builder progress. */
+.reference-scene-29 .layered-scene-heading{top:48px;left:690px;right:120px}.reference-scene-29 .layered-scene-heading::before{display:none}.reference-scene-29 .layered-scene-heading h2{max-width:850px;margin:auto;font-size:62px;line-height:1}.reference-scene-29 .layered-scene-heading p{font-size:25px}.reference-scene-29 .reference-scene-body{left:680px;right:75px;top:300px;bottom:135px}.scene29-proof-board{height:100%;display:grid;grid-template-columns:1.35fr .85fr .85fr;grid-template-rows:1.05fr .8fr;gap:16px}.scene29-proof-board>section{padding:17px;border:1px solid #d8e3f2;border-radius:18px;background:rgba(255,255,255,.96);box-shadow:0 10px 24px rgba(22,58,126,.1)}.scene29-proof-board h3{color:#10265e;font-size:17px}.scene29-stories{grid-column:1/3}.scene29-stories>div{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:10px}.scene29-stories article{padding:10px;border:1px solid #dfe6f1;border-radius:12px}.scene29-stories header{display:grid;grid-template-columns:40px 1fr;align-items:center}.scene29-stories header b{grid-row:1/3;width:36px;height:36px;display:grid;place-items:center;border-radius:50%;color:#fff;background:#5b40df}.scene29-stories header strong{font-size:13px}.scene29-stories header small{font-size:10px}.scene29-stories p{min-height:58px;margin-top:8px;font-size:12px;line-height:1.35}.proof-thumb{display:block;height:52px;border-radius:7px;background:linear-gradient(135deg,#1c2d7d,#7741dd,#14b7cc)}.proof-thumb.art-1{background:linear-gradient(135deg,#152a63,#e36d45)}.proof-thumb.art-2{background:linear-gradient(135deg,#1b4c8f,#48c5c4)}.scene29-stories article>span{font-size:11px;color:#ea3151}.scene29-updates article{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid #e3e9f2}.scene29-updates .proof-thumb{width:62px;height:42px;flex:0 0 62px}.scene29-updates article div{flex:1}.scene29-updates strong,.scene29-updates small{display:block;font-size:12px}.scene29-updates small{font-size:10px}.scene29-updates article>b{color:#fff;background:#14b9b1;border-radius:50%;padding:4px}.scene29-status article{margin-top:14px}.scene29-status header{display:grid;grid-template-columns:1fr auto auto;gap:8px;font-size:11px}.scene29-status em{padding:3px 7px;border-radius:99px;color:#0aa69f;background:#e6f8f5;font-style:normal}.scene29-status progress{width:100%;height:9px;accent-color:#16bdb5}.scene29-spotlight>div{display:flex;align-items:center;gap:12px;margin-top:12px}.scene29-spotlight>div>b{width:55px;height:55px;display:grid;place-items:center;border-radius:50%;color:#fff;background:#5839d8}.scene29-spotlight>div small{display:block}.scene29-spotlight p{margin-top:12px;font-size:12px;line-height:1.4}.scene29-spotlight>span{color:#ef9d13;font-size:20px}.scene29-highlights p{display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid #e1e8f2}.scene29-highlights .broadcast-icon{width:42px;height:42px;padding:9px;border-radius:50%;background:#e7f9f7}.scene29-highlights strong{font-size:21px;color:#126de0}.scene29-highlights small{display:block;color:#20396d;font-size:10px}.layered-scene-foreground-29 .foreground-bar{left:50px;right:50px;bottom:10px;height:78px;border-radius:18px}
+
+.reference-scene-30 .layered-scene-heading{top:70px;left:650px;right:100px}.reference-scene-30 .layered-scene-heading::before{display:none}.reference-scene-30 .layered-scene-heading h2{font-size:65px}.reference-scene-30 .layered-scene-heading p{font-size:25px}.reference-scene-30 .reference-scene-body{left:725px;right:115px;top:285px;bottom:145px}.scene30-impact-board{height:100%;display:grid;grid-template-columns:1fr 1.2fr;grid-template-rows:1fr .9fr .85fr;gap:15px}.scene30-impact-board>section{border:1px solid #d7e2f1;border-radius:17px;background:rgba(255,255,255,.96);box-shadow:0 10px 24px rgba(22,58,126,.1)}.scene30-metrics{grid-column:1/-1;display:grid;grid-template-columns:repeat(3,1fr);gap:14px;border:0!important;background:transparent!important;box-shadow:none!important}.scene30-metrics article{padding:18px;display:flex;align-items:center;gap:18px;border:1px solid #d7e2f1;border-radius:17px;background:#fff}.scene30-metrics .broadcast-icon{width:75px;height:75px;padding:16px;border-radius:50%;background:#e7f8f7}.scene30-metrics small,.scene30-metrics span{display:block;font-size:13px}.scene30-metrics strong{display:block;color:#116de0;font-size:36px}.scene30-impact-status{padding:20px;display:flex;align-items:center;gap:22px}.scene30-impact-status>.broadcast-icon{width:80px;height:80px;color:#0bb6ad}.scene30-impact-status small{font-size:12px}.scene30-impact-status h3{color:#0bb6ad;font-size:27px}.scene30-impact-status p{font-size:13px}.scene30-tier{padding:20px;display:grid;grid-template-columns:1fr 85px auto;align-items:center;gap:14px}.scene30-tier h3{color:#1767de;font-size:24px}.scene30-tier strong{font-size:15px}.scene30-tier progress{width:100%;height:10px}.scene30-tier>.broadcast-icon{width:75px;height:75px;color:#1767de}.scene30-tier>b{font-size:18px}.scene30-activity{grid-column:1/-1;padding:18px 25px}.scene30-activity header{display:flex;justify-content:space-between}.scene30-activity header a{color:#6337dd}.scene30-activity>div{display:grid;grid-template-columns:repeat(3,1fr);margin-top:13px}.scene30-activity p{display:flex;align-items:center;gap:15px;border-right:1px solid #dce4ef}.scene30-activity p:last-child{border:0}.scene30-activity .broadcast-icon{width:52px;height:52px;padding:11px;border-radius:50%;background:#e9f8f7}.scene30-activity span{font-size:13px}.scene30-activity small{display:block}.layered-scene-foreground-30 .foreground-bar{height:92px}
+
+.reference-scene-31 .layered-scene-heading{top:45px;left:650px;right:145px}.reference-scene-31 .layered-scene-heading::before{display:none}.reference-scene-31 .layered-scene-heading h2{max-width:750px;margin:auto;font-size:66px;line-height:1}.reference-scene-31 .layered-scene-heading p{font-size:24px}.reference-scene-31 .reference-scene-body{left:645px;right:105px;top:310px;bottom:145px}.reference-scene-31:has(.layered-callout) .reference-scene-body{bottom:145px}.scene31-progress-board{height:100%;padding:22px 28px;display:grid;grid-template-rows:120px 130px 1fr;gap:15px;border:1px solid #d5e1f1;border-radius:24px;background:rgba(255,255,255,.96);box-shadow:0 16px 35px rgba(22,58,126,.13)}.scene31-tiers{position:relative;display:grid;grid-template-columns:repeat(5,1fr)}.scene31-tiers::before{content:"";position:absolute;left:8%;right:8%;top:44px;height:4px;background:linear-gradient(90deg,#13c1c4,#176dde,#7136df,#d89917)}.scene31-tiers article{z-index:1;display:flex;flex-direction:column;align-items:center;gap:7px;color:#10265e}.scene31-tiers .broadcast-icon{width:78px;height:78px;padding:17px;border-radius:50%;color:#176de0;background:#edf4ff}.scene31-tiers article.current .broadcast-icon{border:3px solid #7139df;box-shadow:0 0 0 7px #f0eaff}.scene31-tiers strong{font-size:15px}.scene31-progress{padding:10px 0}.scene31-progress header{display:flex;justify-content:space-between}.scene31-progress header b{padding:7px 13px;border-radius:7px;color:#fff;background:#6535df}.scene31-progress>div{height:20px;margin-top:20px;border-radius:99px;background:#dce2ec}.scene31-progress>div span{display:block;width:50%;height:100%;border-radius:inherit;background:linear-gradient(90deg,#13c2c5,#176be0,#7137df)}.scene31-progress footer{display:flex;justify-content:space-between}.scene31-progress footer i{font-style:normal;font-size:12px}.scene31-milestones h3{font-size:15px}.scene31-milestones>div{display:grid;grid-template-columns:repeat(5,1fr) 155px;gap:10px;margin-top:15px}.scene31-milestones article{display:flex;flex-direction:column;align-items:center;text-align:center}.scene31-milestones .broadcast-icon{width:60px;height:60px;padding:13px;border-radius:50%;color:#0cb8b1;background:#e9f8f7}.scene31-milestones article strong{margin-top:7px;font-size:12px}.scene31-milestones article span{font-size:11px}.scene31-milestones aside{padding:10px;display:flex;flex-direction:column;align-items:center;border-radius:12px;background:#f0edff}.scene31-milestones aside strong{color:#6133dc;font-size:34px}.scene31-milestones aside span{text-align:center;font-size:12px}.reference-scene-31 .layered-callout{display:none}.layered-scene-foreground-31 .foreground-bar{left:65px;right:65px;bottom:10px;height:78px;border-radius:18px}
 
 /* /control is a separate operator-only workspace and never enters OBS markup. */
 html[data-controller='true'],

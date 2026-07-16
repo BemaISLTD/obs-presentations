@@ -44,7 +44,7 @@ async function boot() {
   const clean = params.get('clean') === 'true'
   const controllerPreview = params.get('controllerPreview') === 'true'
   const paused = params.get('paused') === 'true'
-  const showControls = render === 'composite'
+  const showControls = render === 'composite' && !clean && !controllerPreview
   const controlsVisible = params.get('controls') !== 'false'
 
   document.documentElement.dataset.output = output

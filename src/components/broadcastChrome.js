@@ -13,6 +13,18 @@ const ICONS = {
   link: '<svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.1.1l2-2a5 5 0 0 0-7.1-7.1l-1.1 1.1M14 11a5 5 0 0 0-7.1-.1l-2 2A5 5 0 0 0 12 20l1.1-1.1"/></svg>',
   user: '<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c.5-5 3.2-7.5 8-7.5s7.5 2.5 8 7.5"/></svg>',
   refresh: '<svg viewBox="0 0 24 24"><path d="M20 7V3l-2.2 2.2A8 8 0 1 0 20 14M4 17v4l2.2-2.2"/></svg>',
+  creator: '<svg viewBox="0 0 24 24"><circle cx="9" cy="7" r="3"/><path d="M3 20c.4-4.2 2.4-6.3 6-6.3 2.1 0 3.7.7 4.7 2.1M17 4v10M17 4l4-1v3l-4 1M17 14c-2.6 0-3.5 1-3.5 2.3s1.1 2.2 2.6 2.2c1.8 0 2.9-1 2.9-2.8"/></svg>',
+  sprout: '<svg viewBox="0 0 24 24"><path d="M12 21V9M12 12c-5 0-8-2.5-8-7 5 0 8 2.3 8 7Zm0 3c5 0 8-2.5 8-7-5 0-8 2.3-8 7ZM7 21h10"/></svg>',
+  access: '<svg viewBox="0 0 24 24"><circle cx="9" cy="7" r="3"/><path d="M3 20c.4-4.2 2.4-6.3 6-6.3 2.3 0 4 .8 5 2.4M15 12l1.5-4 2 2 2.5-2-1 5h-5Z"/></svg>',
+  download: '<svg viewBox="0 0 24 24"><path d="M6 2h8l4 4v9H6V2Zm8 0v5h5M12 9v10m0 0-4-4m4 4 4-4M4 21h16"/></svg>',
+  thumb: '<svg viewBox="0 0 24 24"><path d="M8 10 12 3c2 0 3 1.2 2.5 3L14 9h5c1.7 0 2.6 1.2 2.2 2.8l-1.5 6c-.3 1.3-1.2 2.2-2.7 2.2H8V10Zm0 0H3v10h5"/></svg>',
+  hourglass: '<svg viewBox="0 0 24 24"><path d="M6 3h12M6 21h12M7 3c0 4 1.6 6.5 5 9-3.4 2.5-5 5-5 9m10-18c0 4-1.6 6.5-5 9 3.4 2.5 5 5 5 9"/></svg>',
+  award: '<svg viewBox="0 0 24 24"><circle cx="12" cy="9" r="6"/><path d="m8 14-1 8 5-3 5 3-1-8M12 5v8M8 9h8"/></svg>',
+  send: '<svg viewBox="0 0 24 24"><path d="m3 11 18-8-7 18-3-7-8-3Zm8 3 10-11"/></svg>',
+  diamond: '<svg viewBox="0 0 24 24"><path d="m3 8 4-5h10l4 5-9 13L3 8Zm0 0h18M7 3l5 18 5-18M8 8l4-5 4 5"/></svg>',
+  scale: '<svg viewBox="0 0 24 24"><path d="M12 3v18M5 6h14M4 21h16M6 6l-4 8h8L6 6Zm12 0-4 8h8l-4-8Z"/></svg>',
+  document: '<svg viewBox="0 0 24 24"><path d="M6 2h9l4 4v16H6V2Zm9 0v5h5M9 11h7M9 15h7M9 19h5"/></svg>',
+  question: '<svg viewBox="0 0 24 24"><path d="M4 4h16v13H9l-5 4V4Z"/><path d="M9 9a3 3 0 1 1 4 2.8c-.7.3-1 .8-1 1.7M12 16h.01"/></svg>',
   play: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m10 8 6 4-6 4Z"/></svg>',
   megaphone: '<svg viewBox="0 0 24 24"><path d="m4 13 13 5V5L4 10v3ZM17 9c2 0 3 1 3 2.5S19 14 17 14M7 14l1 5h4l-2-4"/></svg>',
   calendar: '<svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4M17 3v4M3 10h18M8 14h2M14 14h2M8 17h2"/></svg>',
@@ -34,7 +46,7 @@ export function icon(name) {
 export function renderBrand({ enrollment = false } = {}) {
   return `
     <div class="broadcast-brand">
-      <img src="/assets/logos/bemahub-mark.svg" alt="" />
+      <img src="/assets/logos/bemahub-reference-mark.svg" alt="" />
       <img class="broadcast-wordmark" src="/assets/logos/bemahub-wordmark.svg" alt="BemaHub" />
       ${enrollment ? '<strong>OPEN ENROLLMENT</strong><small>Your Benefits. Your Future. Our Priority.</small>' : ''}
     </div>
@@ -45,11 +57,12 @@ export function renderLiveBadge() {
   return '<div class="broadcast-live"><span></span>LIVE</div>'
 }
 
-export function renderForegroundBar(items, lead = 'LIVE NOW') {
+export function renderForegroundBar(items, lead = 'LIVE NOW', { audience = false, leadIcon = 'signal' } = {}) {
   return `
     <div class="foreground-bar">
-      <div class="foreground-bar-lead">${icon('signal')}<strong>${lead}</strong></div>
+      <div class="foreground-bar-lead">${icon(leadIcon)}<strong>${lead}</strong></div>
       ${items.map((item) => `<div class="foreground-bar-item">${icon(item.icon)}<span>${item.label}</span></div>`).join('')}
+      ${audience ? `<div class="foreground-bar-audience">${icon('people')}<strong>${audience}</strong><span>Watching Live</span></div>` : ''}
     </div>
   `
 }

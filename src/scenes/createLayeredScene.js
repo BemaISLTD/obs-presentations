@@ -18,12 +18,13 @@ export function createLayeredScene(config) {
           <div class="layered-presenter-space" aria-label="Presenter camera placement"></div>
           <header class="layered-scene-heading">
             <h2>${config.title}</h2>
+            ${["09", "12", "26", "27"].includes(id) ? '<span class="layered-heading-rule">•</span>' : ""}
             <p>${config.subtitle}</p>
-            <span class="layered-heading-rule">♥</span>
+            ${!["09", "12", "26", "27"].includes(id) ? '<span class="layered-heading-rule">♥</span>' : ""}
           </header>
           <div class="reference-scene-body">${renderSceneBody(id, config)}</div>
           ${config.qr && !["27", "34", "37", "39"].includes(id) ? `<aside class="layered-qr">${renderQrCard("Scan to Join")}</aside>` : ""}
-          ${config.callout ? `<div class="layered-callout">${icon("heart")}<strong>${config.callout}</strong></div>` : ""}
+          ${config.callout && !["06", "11", "15"].includes(id) ? `<div class="layered-callout">${icon("heart")}<strong>${config.callout}</strong></div>` : ""}
         </section>`;
     },
 
@@ -36,9 +37,10 @@ export function createLayeredScene(config) {
               icon: itemIcon,
               label,
             })),
-            config.utility
+            config.footerLead ?? (config.utility
               ? "LIVE NOW"
-              : config.title.split(" ").slice(0, 3).join(" "),
+              : config.title.split(" ").slice(0, 3).join(" ")),
+            { audience: config.audience, leadIcon: config.footerLeadIcon },
           )}
         </section>`;
     },
@@ -54,30 +56,30 @@ function renderSceneBody(id, config) {
 // Keep these routes explicit. Each storyboard scene owns its markup entry and
 // scene-scoped CSS, even when it reuses a low-level card primitive.
 const SCENE_BODY_RENDERERS = {
-  "06": (config) => renderFeatureCards("06", config),
+  "06": (config) => renderScene06(config),
   "07": (config) => renderFeatureCards("07", config),
   "09": (config) => renderFeatureCards("09", config),
   "10": (config) => renderFlow(config, "10"),
-  "11": (config) => renderFlow(config, "11"),
+  "11": (config) => renderScene11(config),
   "12": (config) => renderLadder("12", config),
   "13": (config) => renderLadder("13", config),
-  "15": (config) => renderStatus("15", config),
-  "16": (config) => renderAppScene("16", config),
-  "17": (config) => renderAppScene("17", config),
-  "18": (config) => renderAppScene("18", config),
+  "15": (config) => renderScene15(config),
+  "16": (config) => renderScene16(config),
+  "17": (config) => renderScene17(config),
+  "18": (config) => renderScene18(config),
   "19": (config) => renderFeatureCards("19", config),
   "20": (config) => renderAssets(config),
   "21": (config) => renderTools(config),
   "22": (config) => renderFlow(config, "22"),
   "23": (config) => renderStatus("23", config),
   "24": (config) => renderImpactExplainer(config),
-  "25": (config) => renderFeatureCards("25", config),
+  "25": (config) => renderScene25(config),
   "26": (config) => renderAppScene("26", config),
   "27": (config) => renderAppScene("27", config),
   "28": (config) => renderProfiles(config),
-  "29": (config) => renderAppScene("29", config),
-  "30": (config) => renderAppScene("30", config),
-  "31": (config) => renderLadder("31", config),
+  "29": (config) => renderScene29(config),
+  "30": (config) => renderScene30(config),
+  "31": (config) => renderScene31(config),
   "32": (config) => renderLeaderboard(config),
   "33": (config) => renderFaq(config),
   "34": (config) => renderLiveAction("34", config),
@@ -86,6 +88,124 @@ const SCENE_BODY_RENDERERS = {
   "37": (config) => renderLiveAction("37", config),
   "39": (config) => renderLiveAction("39", config),
 };
+
+function renderScene06(config) {
+  return `<div class="scene06-definition-panel">
+    ${renderFeatureCards("06", config)}
+    <div class="scene06-definition-callout"><strong>Creators</strong> bring real value. <strong>Builders</strong> help it reach more people.</div>
+  </div>`;
+}
+
+function renderScene11(config) {
+  return `<div class="scene11-echoloop-panel">
+    ${renderFlow(config, "11")}
+    <div class="scene11-notes">
+      <p><span>i</span>Sharing alone does not create Recognized Impact.</p>
+      <p><span>✓</span>Qualifying LoopLocks may contribute to Recognized Impact according to campaign rules.</p>
+    </div>
+  </div>`;
+}
+
+function renderScene15(config) {
+  return `<div class="scene15-status-dashboard">
+    ${renderStatus("15", config)}
+    <div class="scene15-status-callout">${icon("shield")}<strong>Qualified LoopLocks may contribute to Recognized Impact<br />according to campaign rules.</strong></div>
+  </div>`;
+}
+
+function renderScene16(config) {
+  const metrics = config.items.slice(0, 4);
+  return `<div class="scene16-home-layout">
+    <aside class="scene16-home-points">
+      <p>${icon("people")}<span>See what’s live.<br />Join what matters.</span></p>
+      <p>${icon("star")}<span>Discover campaigns.<br />Make an impact.</span></p>
+      <p>${icon("chart")}<span>Track activity.<br />Fuel growth together.</span></p>
+    </aside>
+    <div class="scene16-dashboard">
+      <header><span class="scene16-app-brand">${renderBrand()}</span><nav>Home　 Campaigns　 Loop Activity　 My Impact</nav><b>⌕　♧　 JR</b></header>
+      <main>
+        <div class="scene16-welcome"><div><h3>Welcome back, Joyce! 👋</h3><p>Here’s what’s happening on Bema Hub today.</p></div><button>My Dashboard　→</button></div>
+        <strong class="scene16-section-label">TODAY ON BEMA HUB</strong>
+        <div class="scene16-metrics">${metrics.map((item) => `<article>${icon(item.icon)}<small>${item.title}</small><strong>${item.value}</strong><span>${item.copy}</span><a>View details　→</a></article>`).join("")}</div>
+        <div class="scene16-lower-grid">
+          <section><header><strong>UPCOMING EVENTS</strong><a>View calendar →</a></header>${[["22","Open Enrollment Kickoff LIVE","12:00 PM ET"],["24","Creator Community Q&A","3:00 PM ET"],["27","Loop Activity Masterclass","1:00 PM ET"]].map(([day,title,time]) => `<article><time><small>MAY</small><b>${day}</b></time><div><strong>${title}</strong><span>${time}</span></div><em>${day === "22" ? "LIVE" : "RSVP"}</em></article>`).join("")}</section>
+          <section><header><strong>FEATURED CAMPAIGNS</strong><a>View all →</a></header>${[["Music for Change","Amplify voices. Inspire change.","72%"],["Creativity for Good","Create. Connect. Contribute.","58%"],["Community Builders","Stronger communities. Together.","64%"]].map(([title,copy,value], index) => `<article><i class="scene16-campaign-art art-${index}"></i><div><strong>${title}</strong><span>${copy}</span><progress value="${value.slice(0,-1)}" max="100"></progress></div><b>${value}</b></article>`).join("")}</section>
+        </div>
+      </main>
+    </div>
+  </div>`;
+}
+
+function renderScene17() {
+  const campaigns = [
+    ["Sound of Tomorrow", "NovaWave", "FEATURED", "0"],
+    ["Stage to Spotlight", "Echo Collective", "LIVE", "1"],
+    ["Move the Culture", "Flow Studio", "", "2"],
+    ["Frame the Future", "Visionary Lab", "", "3"],
+    ["Beat Builders", "Loop Makers", "", "4"],
+    ["Bright Ideas", "Create Forward", "", "5"],
+  ];
+  return `<div class="scene17-campaign-browser">
+    <section class="scene17-campaigns"><header>${icon("star")}<strong>Featured Campaigns</strong><nav><b>All</b><span>Trending</span><span>New</span><span>Ending Soon</span></nav><label>⌕　Search campaigns...</label></header>
+      <div class="scene17-card-grid">${campaigns.map(([title, creator, badge, art]) => `<article><div class="scene17-art art-${art}">${badge ? `<b>${badge}</b>` : ""}</div><h3>${title}</h3><p>by ${creator}</p><footer><span>Participation Level</span><i>${icon("people")}${icon("people")}${icon("people")}</i></footer></article>`).join("")}</div>
+      <a class="scene17-view-all">View all campaigns　→</a>
+    </section>
+    <aside class="scene17-activity"><header>${icon("signal")}<div><h3>Loop Activity</h3><p>Real-time updates</p></div></header>
+      ${[["people","218 Builders","joined Stage to Spotlight","2m ago"],["play","New Loop Activity","added to Beat Builders","5m ago"],["trophy","Challenge Completed","in Move the Culture","12m ago"],["user","New Builder","joined Bema Hub","18m ago"]].map(([itemIcon,title,copy,time]) => `<article>${icon(itemIcon)}<div><strong>${title}</strong><span>${copy}</span><small>${time}</small></div></article>`).join("")}
+      <footer><strong>Ready to participate?</strong><span>Find a campaign that moves you.</span><button>Explore Campaigns</button></footer>
+    </aside>
+  </div>`;
+}
+
+function renderScene18() {
+  return `<div class="scene18-detail-panel">
+    <section class="scene18-creator"><div class="scene18-creator-photo">JV</div><div><h3>New Single Launch: Echoes</h3><strong>✓ Jaylen Vibes</strong><span>Music Creator</span><p>♫ R&amp;B Artist　│　♙ 128K Community　│　⌖ Atlanta, GA</p></div></section>
+    <section class="scene18-purpose">${icon("target")}<div><h3>Campaign Purpose</h3><p>Support the launch of my new single “Echoes” and help me amplify real music to real listeners.</p></div></section>
+    <section class="scene18-info assets">${icon("gift")}<div><h3>Participation Assets</h3><ul><li>Early song preview</li><li>Exclusive behind-the-scenes</li><li>Personalized shoutout</li><li>Limited edition artwork</li><li>VIP listening session access</li></ul></div></section>
+    <section class="scene18-info proof">${icon("shield")}<div><h3>Creator Proof &amp; Updates</h3><ul><li>Verified creator account</li><li>Previous campaigns delivered</li><li>Regular updates &amp; transparency</li><li>Real engagement, real results</li></ul><strong>✓　100% Delivery Rate</strong></div></section>
+    <section class="scene18-info levels">${icon("crown")}<div><h3>Access Levels</h3><p>${icon("people")} Participation Level</p><p>${icon("star")} VIP Access</p><p>${icon("crown")} Signature VIP</p></div></section>
+    <footer><b>i</b>Review the purpose, assets, access levels, and creator proof to see the <strong>creative value</strong> before you join.</footer>
+  </div>`;
+}
+
+function renderScene25(config) {
+  return `<div class="scene25-trust-panel">
+    <section class="scene25-checklist">${config.items.map((item) => `<article data-control-cue="${item.cue}">${icon(item.icon)}<div><h3>${item.title}</h3><p>${item.copy}</p></div><b>✓</b></article>`).join("")}</section>
+    <aside><h3>PROOF &amp; VERIFICATION</h3>
+      <article>${icon("shield")}<div><strong>Verified by <em>LoopLock</em></strong><p>Secure and trusted verification.</p></div></article>
+      <article>${icon("document")}<div><strong>Audited Activity <em>Logs</em></strong><p>Transparent tracking from start to finish.</p></div></article>
+      <article>${icon("people")}<div><strong><em>Community Accountability</em></strong><p>Together we build trust and impact.</p></div></article>
+    </aside>
+  </div>`;
+}
+
+function renderScene29() {
+  return `<div class="scene29-proof-board">
+    <section class="scene29-stories"><h3>RECENT CREATOR STORIES</h3><div>${[["MJ","Maya J.","Wrapped up the brand anthem! On to motion graphics next.","24"],["TL","Tariq L.","Finalizing the campaign edits. Excited to share the final cut!","31"],["AR","Aisha R.","Delivering social assets today! Stay tuned for live results.","27"]].map(([initials,name,copy,likes],i)=>`<article><header><b>${initials}</b><strong>${name}</strong><small>${i*3+2}h ago</small></header><p>${copy}</p><i class="proof-thumb art-${i}"></i><span>♥ ${likes}</span></article>`).join("")}</div></section>
+    <section class="scene29-updates"><h3>RECENT PROOF UPDATES</h3>${["Campaign video draft delivered","Social post set v2 complete","Motion graphics preview","Influencer clips batch 1"].map((x,i)=>`<article><i class="proof-thumb art-${i}"></i><div><strong>${x}</strong><small>${i*2+2}h ago</small></div><b>✓</b></article>`).join("")}</section>
+    <section class="scene29-status"><h3>DELIVERY STATUS</h3>${[["Campaign Video",100,"Delivered"],["Social Assets",85,"In Review"],["Influencer Clips",60,"In Progress"]].map(([name,value,status])=>`<article><header><span>${name}</span><b>${value}%</b><em>${status}</em></header><progress value="${value}" max="100"></progress></article>`).join("")}</section>
+    <section class="scene29-spotlight"><h3>CREATOR SPOTLIGHT</h3><div><b>JK</b><strong>Jamal K.<small>Video Producer</small></strong></div><p>“Bema Hub makes it easy to collaborate, share updates, and deliver real impact.”</p><span>★★★★★</span></section>
+    <section class="scene29-highlights"><h3>PROGRESS HIGHLIGHTS</h3><p>${icon("chart")}<strong>14<small>Projects Active</small></strong></p><p>${icon("people")}<strong>38<small>Creators Engaged</small></strong></p><p>${icon("check")}<strong>92%<small>Deliverables On Track</small></strong></p></section>
+  </div>`;
+}
+
+function renderScene30(config) {
+  const metrics=config.items.slice(0,3);
+  return `<div class="scene30-impact-board">
+    <section class="scene30-metrics">${metrics.map(item=>`<article>${icon(item.icon)}<div><small>${item.title}</small><strong>${item.value}</strong><span>${item.copy}</span></div></article>`).join("")}</section>
+    <section class="scene30-impact-status">${icon("award")}<div><small>RECOGNIZED IMPACT STATUS</small><h3>On Track!</h3><p>You’re building meaningful impact.<br />Keep going!</p></div></section>
+    <section class="scene30-tier"><div><small>BUILDER TIER PROGRESS</small><h3>Silver Builder</h3><strong>2,460 / 5,000 pts</strong><progress value="49" max="100"></progress></div>${icon("shield")}<b>49%</b></section>
+    <section class="scene30-activity"><header><strong>RECENT ACTIVITY</strong><a>View all</a></header><div><p>${icon("link")}<span>LoopLink shared<small>10m ago</small></span></p><p>${icon("lock")}<span>LoopLock qualified<small>1h ago</small></span></p><p>${icon("star")}<span>Impact recognized<small>3h ago</small></span></p></div></section>
+  </div>`;
+}
+
+function renderScene31(config) {
+  return `<div class="scene31-progress-board">
+    <section class="scene31-tiers">${config.items.map((item,i)=>`<article class="${i===2?"current":""}">${icon(item.icon)}<strong>${item.title}</strong></article>`).join("")}</section>
+    <section class="scene31-progress"><header><strong>YOUR PROGRESS</strong><b>CURRENT POSITION</b></header><div><span></span></div><footer><i>0%</i><i>25%</i><i>50%</i><i>75%</i><i>100%</i></footer></section>
+    <section class="scene31-milestones"><h3>LOOPLOCK MILESTONES</h3><div>${[["1","Completed"],["3","Completed"],["7","Completed"],["15","In Progress"],["30","Next Target"]].map(([value,status],i)=>`<article>${icon(i<3?"link":"lock")}<strong>${value} LoopLock${value==="1"?"":"s"}</strong><span>${status}</span></article>`).join("")}<aside><small>NEXT TARGET</small><strong>15</strong><span>LoopLocks<br />to reach Partner</span></aside></div></section>
+  </div>`;
+}
 
 function renderFeatureCards(id, config) {
   return `<div class="reference-feature-grid columns-${config.columns ?? config.items.length}">
@@ -259,7 +379,7 @@ function renderTools(config) {
 }
 
 function renderImpactExplainer(config) {
-  return `<div class="impact-explainer"><section><small>RECOGNIZED</small><strong>IMPACT</strong><span>EXPLAINED</span><p>Recognizing real value created through verified participation.</p><div class="impact-orbit">${icon("heart")}<i></i><i></i></div></section><div class="impact-points">${config.items.map((item) => `<article data-control-cue="${item.cue}"><span>${icon(item.icon)}</span><div><h3>${item.title}</h3><p>${item.copy}</p></div><strong>${item.value}</strong></article>`).join("")}</div></div>`;
+  return `<div class="impact-explainer"><section><small>RECOGNIZED</small><strong>IMPACT</strong><span>EXPLAINED</span><div class="impact-orbit">${icon("heart")}<i></i><i></i></div><p>Acknowledging real value<br />created through verified movement.</p></section><div class="impact-points">${config.items.map((item) => `<article data-control-cue="${item.cue}"><strong>${item.value}</strong><span>${icon(item.icon)}</span><div><h3>${item.title}</h3><p>${item.copy}</p></div></article>`).join("")}</div></div>`;
 }
 
 function renderProfiles(config) {
