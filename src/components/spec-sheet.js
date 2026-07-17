@@ -4,33 +4,33 @@ export function renderSpecSheet(slide, context) {
   }
 
   const bulletMarkup = slide.keyTerms
-    .map((term) => `<span class="pill-label scene-tag">${term}</span>`)
+    .map((term) => `<span class="pill-label scene-tag inline-flex items-center rounded-full border border-bema-cyan/20 bg-gradient-to-br from-bema-cyan/10 to-bema-purple/10 px-3 py-1.5 text-sm font-bold text-bema-navy">${term}</span>`)
     .join('')
 
   return `
-    <section class="spec-sheet" aria-label="Storyboard specification sheet">
-      <p class="eyebrow">Storyboard Specification Sheet</p>
-      <h2 class="stage-title">${slide.title}</h2>
-      <div class="spec-grid">
-        <div class="spec-block">
-          <span class="spec-label">Scene</span>
-          <strong class="spec-value">${slide.id}</strong>
+    <section class="spec-sheet relative z-[2] grid content-start gap-5 border-t border-sky-200/70 bg-white/85 px-16 py-10 font-sans text-bema-navy backdrop-blur-xl" aria-label="Storyboard specification sheet">
+      <p class="eyebrow text-xs font-extrabold uppercase tracking-[.16em] text-slate-500">Storyboard Specification Sheet</p>
+      <h2 class="stage-title font-display text-5xl font-black leading-none tracking-tight">${slide.title}</h2>
+      <div class="spec-grid grid grid-cols-4 gap-4">
+        <div class="spec-block rounded-card border border-sky-200/70 bg-white/80 p-5 shadow-card">
+          <span class="spec-label block text-xs font-bold uppercase tracking-widest text-slate-500">Scene</span>
+          <strong class="spec-value text-2xl font-black">${slide.id}</strong>
         </div>
-        <div class="spec-block">
+        <div class="spec-block rounded-card border border-sky-200/70 bg-white/80 p-5 shadow-card">
           <span class="spec-label">Mode</span>
           <strong class="spec-value">${context.mode}</strong>
         </div>
-        <div class="spec-block">
+        <div class="spec-block rounded-card border border-sky-200/70 bg-white/80 p-5 shadow-card">
           <span class="spec-label">Reference</span>
           <strong class="spec-value">${slide.referenceImage.split('/').pop()}</strong>
         </div>
-        <div class="spec-block">
+        <div class="spec-block rounded-card border border-sky-200/70 bg-white/80 p-5 shadow-card">
           <span class="spec-label">Presenter Layout</span>
           <strong class="spec-value">${context.presenterLayout}</strong>
         </div>
       </div>
-      <p class="stage-subtitle muted">${slide.description}</p>
-      <div class="scene-tags" style="margin-top: 16px;">${bulletMarkup}</div>
+      <p class="stage-subtitle muted text-xl text-slate-600">${slide.description}</p>
+      <div class="scene-tags mt-4 flex flex-wrap gap-2">${bulletMarkup}</div>
     </section>
   `
 }
@@ -78,17 +78,17 @@ function renderSlide01SpecSheet(slide) {
   const rowMarkup = rows
     .map(
       (row) => `
-        <div class="spec-row">
-          <span class="spec-label">${row.label}</span>
-          <strong class="spec-value">${row.value}</strong>
+        <div class="spec-row grid grid-cols-[260px_1fr] gap-6 border-b border-sky-100 py-3">
+          <span class="spec-label text-xs font-bold uppercase tracking-widest text-slate-500">${row.label}</span>
+          <strong class="spec-value text-base font-bold">${row.value}</strong>
         </div>
       `,
     )
     .join('')
 
   return `
-    <section class="spec-sheet spec-sheet-slide01" aria-label="Storyboard specification sheet">
-      <div class="spec-sheet-header">
+    <section class="spec-sheet spec-sheet-slide01 relative z-[2] border-t border-sky-200/70 bg-white/90 px-16 py-8 font-sans text-bema-navy" aria-label="Storyboard specification sheet">
+      <div class="spec-sheet-header flex items-center justify-between">
         <span class="spec-slide-index">SLIDE #: 01</span>
         <p class="eyebrow">Storyboard Specification Sheet</p>
       </div>

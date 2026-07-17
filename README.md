@@ -96,7 +96,17 @@ markup.
 
 ```sh
 npm run build
+npm run test:scenes
+npm run test:visual
 ```
+
+The interface is built with Tailwind CSS 4 through the Vite plugin. Static
+scene geometry and scene-specific compositions live in Tailwind component
+utilities, while `src/style.css` contains custom keyframes only. Playwright
+smoke coverage exercises every scene in storyboard, underlay, foreground, and
+composite output; committed Chromium snapshots cover all live composites and
+the key storyboard shells. Use `npm run test:visual:update` only when an
+intentional visual change has been reviewed.
 
 For OBS captures, always include `clean=true`. Use `paused=true` when a still,
 fully composed frame is needed; browser animation and background video playback

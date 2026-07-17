@@ -1,4 +1,6 @@
-import './style.css'
+import './tailwind.css'
+import { isValidElement } from 'react'
+import { renderToStaticMarkup } from 'react-dom/server'
 import { renderReferenceLayer } from './components/reference-layer.js'
 import { renderSpecSheet } from './components/spec-sheet.js'
 import { renderBackgroundLayer, initBackgroundLayer } from './components/BackgroundLayer.js'
@@ -14,6 +16,25 @@ const VALID_MODES = new Set(['reference', 'overlay', 'live'])
 const VALID_OUTPUTS = new Set(['storyboard', 'obs'])
 const VALID_RENDERS = new Set(['underlay', 'foreground', 'composite'])
 const OUTPUT_NAVIGATION_ORDER = ['storyboard', 'underlay', 'foreground', 'composite']
+
+const UI = Object.freeze({
+  appShell: 'relative mx-auto h-full w-full overflow-hidden p-7 font-sans text-bema-navy',
+  header: 'relative mb-[18px] flex items-end justify-between gap-6',
+  eyebrow: 'mb-2.5 text-xs font-extrabold uppercase tracking-[.16em] text-slate-500',
+  modeGroup: 'flex flex-wrap gap-2.5',
+  modePill: 'inline-flex items-center rounded-full border border-slate-900/10 bg-white/60 px-4 py-2.5 text-sm font-bold capitalize text-slate-500 backdrop-blur',
+  modePillActive: 'border-bema-cyan/40 bg-gradient-to-br from-bema-cyan/25 to-bema-purple/20 text-bema-navy shadow-sm',
+  canvasShell: 'grid h-full w-full place-items-center pb-6',
+  canvas: 'absolute left-0 top-0 grid h-[1580px] w-[1920px] origin-top-left grid-rows-[1080px_500px] overflow-hidden rounded-panel border border-sky-300/40 bg-gradient-to-br from-white via-sky-50 to-blue-100 shadow-card [transform:scale(var(--canvas-scale))]',
+  stage: 'relative z-[2] h-[1080px] w-[1920px] overflow-hidden bg-gradient-to-br from-white via-sky-50 to-blue-100',
+  controlToggle: 'absolute right-[18px] top-[88px] z-[61] inline-flex h-[42px] cursor-pointer items-center gap-2 rounded-xl border border-indigo-200/40 bg-slate-950/90 px-3.5 text-xs font-extrabold text-indigo-50 shadow-xl backdrop-blur-xl transition hover:-translate-y-0.5 hover:border-bema-cyan',
+  controls: 'pointer-events-none absolute inset-x-5 bottom-3.5 z-[60] font-sans text-white transition duration-200',
+  controlButton: 'pointer-events-auto h-[42px] min-w-[138px] cursor-pointer rounded-xl border border-indigo-200/40 bg-slate-950/90 px-4 text-sm font-extrabold text-indigo-50 shadow-lg transition hover:-translate-y-0.5 hover:border-bema-cyan',
+  controlButtonActive: 'border-violet-400 bg-gradient-to-br from-violet-600 to-indigo-900 text-white',
+  sceneStrip: 'pointer-events-auto flex h-[54px] items-center gap-2 rounded-[13px] border border-indigo-200/30 bg-slate-950/95 p-1.5 shadow-2xl backdrop-blur-xl',
+  sceneButton: 'pointer-events-auto h-[34px] min-w-0 cursor-pointer rounded-lg border border-indigo-200/30 bg-slate-900/90 p-0 text-[10px] font-extrabold text-indigo-100 transition hover:-translate-y-0.5 hover:border-bema-cyan',
+  sceneButtonActive: 'border-bema-cyan bg-bema-cyan text-bema-deep-navy shadow-cyan',
+})
 
 let detachCanvasScale
 let detachDebugTools
@@ -106,11 +127,15 @@ function renderApp(context, sceneRenderer) {
   const showUnderlay = render !== 'foreground'
   const showForeground = render !== 'underlay'
   const underlayMarkup = canRenderLive ? renderUnderlay(sceneRenderer, context) : ''
-  const foregroundMarkup = canRenderLive ? sceneRenderer.renderForeground?.(context) ?? '' : ''
+  const foregroundMarkup = canRenderLive ? renderMarkup(sceneRenderer.renderForeground?.(context)) : ''
   const showBackground = mode !== 'reference' && showUnderlay && canRenderLive
   const { backgroundId } = getSceneBackground(Number(slide.id))
-  const shellClasses = ['app-shell', `output-${output}`, `render-${render}`, `mode-${mode}`]
-  const canvasClasses = ['storyboard-canvas', `mode-${mode}`, `output-${output}`, `render-${render}`]
+  const shellClasses = ['app-shell', UI.appShell, `output-${output}`, `render-${render}`, `mode-${mode}`]
+  const canvasClasses = ['storyboard-canvas', UI.canvas, `mode-${mode}`, `output-${output}`, `render-${render}`]
+  if (output === 'obs') shellClasses.push('!h-screen !w-screen !max-w-none !p-0')
+  if (mode === 'reference') shellClasses.push('!p-0')
+  if (output === 'obs') canvasClasses.push('!h-[1080px] !grid-rows-[1080px] !rounded-none !border-0 !shadow-none')
+  if (mode === 'reference') canvasClasses.push('!rounded-none !border-0 !bg-transparent !shadow-none')
   if (context.refOnTop && mode === 'overlay') canvasClasses.push('reference-on-top')
   if (paused) shellClasses.push('is-paused')
 
@@ -119,16 +144,16 @@ function renderApp(context, sceneRenderer) {
   const showDebug = !context.clean && !context.controllerPreview && mode !== 'reference' && output === 'storyboard'
 
   app.innerHTML = `
-    <main class="${shellClasses.join(' ')}">
+    <main class="${shellClasses.join(' ')}" data-app-shell data-testid="app-shell">
       ${showHeader ? renderHeader(context) : ''}
-      <section class="canvas-shell output-${output}">
-        <div class="canvas-scale-frame">
-          <div class="${canvasClasses.join(' ')}">
+      <section class="canvas-shell ${UI.canvasShell} ${output === 'obs' ? '!h-screen !w-screen !min-h-svh !pb-0' : ''} output-${output}" data-canvas-shell>
+        <div class="canvas-scale-frame relative overflow-hidden">
+          <div class="${canvasClasses.join(' ')}" data-storyboard-canvas data-testid="storyboard-canvas">
             ${(mode === 'reference' || mode === 'overlay') ? renderReferenceLayer(slide, mode, getReferenceOpacity(mode), shouldShowReference(mode)) : ''}
-            <section class="visual-stage output-stage-${output} render-stage-${render}" aria-label="OBS visual stage">
+            <section class="visual-stage ${UI.stage} ${render === 'foreground' || mode === 'reference' ? '!bg-transparent' : ''} output-stage-${output} render-stage-${render}" data-visual-stage data-testid="visual-stage" aria-label="OBS visual stage">
               ${showBackground ? renderBackgroundLayer({ sceneId: slide.id, backgroundId, className: 'stage-background-layer', debug: context.backgroundDebug && !context.clean }) : ''}
-              ${(mode === 'live' || mode === 'overlay') && showUnderlay ? `<div class="live-layer underlay-layer">${underlayMarkup}</div>` : ''}
-              ${(mode === 'live' || mode === 'overlay') && showForeground ? `<div class="live-layer foreground-layer">${foregroundMarkup}</div>` : ''}
+              ${(mode === 'live' || mode === 'overlay') && showUnderlay ? `<div class="live-layer underlay-layer absolute inset-0" data-live-layer="underlay">${underlayMarkup}</div>` : ''}
+              ${(mode === 'live' || mode === 'overlay') && showForeground ? `<div class="live-layer foreground-layer absolute inset-0" data-live-layer="foreground">${foregroundMarkup}</div>` : ''}
             </section>
             ${context.showControls ? renderOnCanvasControls(context) : ''}
             ${showSpec ? renderSpecSheet(slide, context) : ''}
@@ -146,21 +171,21 @@ function renderApp(context, sceneRenderer) {
 function renderOnCanvasControls(context) {
   const config = sceneControlById[context.slide.id]
   return `
-    <button type="button" class="presentation-controls-toggle" data-toggle-presentation-controls aria-pressed="${context.controlsVisible}" aria-label="${context.controlsVisible ? 'Hide' : 'Show'} presentation controls">
+    <button type="button" class="presentation-controls-toggle ${UI.controlToggle}" data-toggle-presentation-controls aria-pressed="${context.controlsVisible}" aria-label="${context.controlsVisible ? 'Hide' : 'Show'} presentation controls">
       <span aria-hidden="true">${context.controlsVisible ? '×' : '☰'}</span>
       ${context.controlsVisible ? 'Hide Controls' : 'Show Controls'}
     </button>
-    <nav class="presentation-controls ${context.controlsVisible ? '' : 'is-hidden'}" aria-label="Presentation controls">
-      <div class="presentation-mode-controls">
-        <button type="button" data-presentation-mode="reference" class="${context.mode === 'reference' ? 'is-active' : ''}">Reference</button>
-        <button type="button" data-presentation-mode="overlay" class="${context.mode === 'overlay' ? 'is-active' : ''}">Overlay</button>
-        <button type="button" data-replay-entry class="${context.mode === 'live' ? 'is-active' : ''}">Live / Replay Entry</button>
-        <button type="button" data-trigger-exit>Exit</button>
+    <nav class="presentation-controls ${UI.controls} ${context.controlsVisible ? '' : 'is-hidden invisible translate-y-6 opacity-0'}" aria-label="Presentation controls">
+      <div class="presentation-mode-controls mb-2 ml-auto flex justify-end gap-2">
+        <button type="button" data-presentation-mode="reference" class="${UI.controlButton} ${context.mode === 'reference' ? `is-active ${UI.controlButtonActive}` : ''}">Reference</button>
+        <button type="button" data-presentation-mode="overlay" class="${UI.controlButton} ${context.mode === 'overlay' ? `is-active ${UI.controlButtonActive}` : ''}">Overlay</button>
+        <button type="button" data-replay-entry class="${UI.controlButton} ${context.mode === 'live' ? `is-active ${UI.controlButtonActive}` : ''}">Live / Replay Entry</button>
+        <button type="button" data-trigger-exit class="${UI.controlButton} !border-rose-400/50 !bg-rose-950/90 !text-rose-200">Exit</button>
       </div>
-      <div class="presentation-scene-strip">
-        <span class="presentation-current-scene"><strong>${context.slide.id}</strong><small>${config?.title ?? context.slide.title}</small></span>
-        <div class="presentation-scene-buttons">
-          ${context.allSlides.map((item) => `<button type="button" data-presentation-scene="${item.id}" class="${item.id === context.slide.id ? 'is-active' : ''}" title="Scene ${item.id}: ${item.title}">${item.id}</button>`).join('')}
+      <div class="presentation-scene-strip ${UI.sceneStrip}">
+        <span class="presentation-current-scene flex w-[250px] min-w-[250px] items-center gap-2.5 overflow-hidden px-2.5"><strong class="grid size-[34px] shrink-0 place-items-center rounded-lg bg-violet-600 text-[13px] text-white">${context.slide.id}</strong><small class="truncate text-[11px] font-bold text-indigo-200/80">${config?.title ?? context.slide.title}</small></span>
+        <div class="presentation-scene-buttons grid min-w-0 flex-1 grid-cols-[repeat(39,minmax(0,1fr))] gap-[3px]">
+          ${context.allSlides.map((item) => `<button type="button" data-presentation-scene="${item.id}" class="${UI.sceneButton} ${item.id === context.slide.id ? `is-active ${UI.sceneButtonActive}` : ''}" title="Scene ${item.id}: ${item.title}">${item.id}</button>`).join('')}
         </div>
       </div>
     </nav>`
@@ -173,6 +198,9 @@ function bindOnCanvasControls(context) {
   toggle?.addEventListener('click', () => {
     const willShow = controls?.classList.contains('is-hidden') ?? true
     controls?.classList.toggle('is-hidden', !willShow)
+    controls?.classList.toggle('invisible', !willShow)
+    controls?.classList.toggle('translate-y-6', !willShow)
+    controls?.classList.toggle('opacity-0', !willShow)
     toggle.setAttribute('aria-pressed', String(willShow))
     toggle.setAttribute('aria-label', `${willShow ? 'Hide' : 'Show'} presentation controls`)
     toggle.innerHTML = `<span aria-hidden="true">${willShow ? '×' : '☰'}</span>${willShow ? 'Hide Controls' : 'Show Controls'}`
@@ -202,16 +230,26 @@ function bindOnCanvasControls(context) {
 }
 
 function renderHeader({ slide, mode, output, render }) {
-  const pills = (values, active) => values.map((value) => `<span class="mode-pill ${value === active ? 'is-active' : ''}">${value}</span>`).join('')
-  return `<header class="app-header"><div><p class="eyebrow">BemaHub Open Enrollment OBS</p><h1>Scene ${slide.id}: ${slide.title}</h1></div><div class="mode-pills">${pills(['reference', 'overlay', 'live'], mode)}</div><div class="mode-pills">${pills(['storyboard', 'obs'], output)}</div><div class="mode-pills">${pills(['underlay', 'foreground', 'composite'], render)}</div></header>`
+  const pills = (values, active) => values.map((value) => `<span class="mode-pill ${UI.modePill} ${value === active ? `is-active ${UI.modePillActive}` : ''}">${value}</span>`).join('')
+  return `<header class="app-header ${UI.header}"><div><p class="eyebrow ${UI.eyebrow}">BemaHub Open Enrollment OBS</p><h1 class="font-display text-[56px] font-black leading-[.95] tracking-[-.05em]">Scene ${slide.id}: ${slide.title}</h1></div><div class="mode-pills ${UI.modeGroup}">${pills(['reference', 'overlay', 'live'], mode)}</div><div class="mode-pills ${UI.modeGroup}">${pills(['storyboard', 'obs'], output)}</div><div class="mode-pills ${UI.modeGroup}">${pills(['underlay', 'foreground', 'composite'], render)}</div></header>`
 }
 
 function renderUnderlay(renderer, context) {
-  return renderer.renderUnderlay?.(context) ?? renderer.render?.(context) ?? ''
+  return renderMarkup(renderer.renderUnderlay?.(context) ?? renderer.render?.(context))
+}
+
+function renderMarkup(value) {
+  if (value == null || value === false) return ''
+  if (!isValidElement(value)) return String(value)
+  const markup = renderToStaticMarkup(value)
+  const wrapper = '<div data-react-scene-markup="true">'
+  return markup.startsWith(wrapper) && markup.endsWith('</div>')
+    ? markup.slice(wrapper.length, -6)
+    : markup
 }
 
 function renderDebugOverlay(context) {
-  return `<div class="debug-guides" aria-hidden="true"><div class="grid-overlay"></div><div class="safe-zone stage-safe-zone"><span>5% Safe Area</span></div></div><aside class="debug-overlay"><div class="debug-summary"><p><span>Scene</span><strong>${context.slide.id}</strong></p><p><span>Mode</span><strong>${context.mode}</strong></p><p><span>Output</span><strong>${context.output}</strong></p><p><span>Render</span><strong>${context.render}</strong></p></div><label class="debug-control"><span>Reference Opacity</span><input data-reference-opacity type="range" min="0" max="1" step="0.05" value="${getReferenceOpacity(context.mode)}" ${context.mode === 'live' ? 'disabled' : ''}></label><div class="debug-actions"><button data-toggle-grid>Grid</button><button data-toggle-safe-zones>Safe zones</button></div><p class="debug-shortcuts">← → scenes · ↑ ↓ layers · G grid · R reference · T layer · [ ] opacity · D debug</p></aside>`
+  return `<div class="debug-guides pointer-events-none absolute inset-0 z-50" aria-hidden="true"><div class="grid-overlay absolute inset-0 opacity-0"></div><div class="safe-zone stage-safe-zone absolute inset-[5%] opacity-0"><span>5% Safe Area</span></div></div><aside class="debug-overlay absolute right-5 top-[150px] z-[70] w-[340px] rounded-2xl border border-indigo-200/30 bg-slate-950/90 p-4 font-sans text-indigo-50 shadow-2xl backdrop-blur-xl transition"><div class="debug-summary grid grid-cols-4 gap-2 text-xs">${[['Scene', context.slide.id], ['Mode', context.mode], ['Output', context.output], ['Render', context.render]].map(([label, value]) => `<p class="grid gap-1"><span class="text-[9px] font-bold uppercase tracking-wider text-indigo-300/60">${label}</span><strong class="truncate capitalize">${value}</strong></p>`).join('')}</div><label class="debug-control mt-4 grid gap-2 text-xs font-bold"><span>Reference Opacity</span><input class="accent-bema-cyan" data-reference-opacity type="range" min="0" max="1" step="0.05" value="${getReferenceOpacity(context.mode)}" ${context.mode === 'live' ? 'disabled' : ''}></label><div class="debug-actions mt-3 flex gap-2"><button class="rounded-lg border border-indigo-200/30 bg-indigo-950/80 px-3 py-2 text-xs font-bold hover:border-bema-cyan" data-toggle-grid>Grid</button><button class="rounded-lg border border-indigo-200/30 bg-indigo-950/80 px-3 py-2 text-xs font-bold hover:border-bema-cyan" data-toggle-safe-zones>Safe zones</button></div><p class="debug-shortcuts mt-3 text-[10px] text-indigo-200/60">← → scenes · ↑ ↓ layers · G grid · R reference · T layer · [ ] opacity · D debug</p></aside>`
 }
 
 function bindCanvasScale(output) {
@@ -269,6 +307,8 @@ function bindDebugTools(context) {
     guides.classList.toggle('show-grid', debugState.gridVisible)
     guides.classList.toggle('show-safe-zones', debugState.safeZonesVisible)
     overlay.classList.toggle('is-hidden', !debugState.controlsVisible)
+    overlay.classList.toggle('invisible', !debugState.controlsVisible)
+    overlay.classList.toggle('opacity-0', !debugState.controlsVisible)
     root.classList.toggle('reference-on-top', debugState.overlayReferenceOnTop)
     syncReference(context.mode)
   }

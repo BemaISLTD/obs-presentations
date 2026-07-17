@@ -40,38 +40,38 @@ const ICONS = {
 }
 
 export function icon(name) {
-  return `<span class="broadcast-icon" data-icon-name="${name}" data-icon-fallback="${ICONS[name] ? 'false' : 'true'}" aria-hidden="true">${ICONS[name] ?? ICONS.signal}</span>`
+  return `<span class="broadcast-icon inline-grid shrink-0 place-items-center [&>svg]:h-full [&>svg]:w-full [&>svg]:fill-none [&>svg]:stroke-current [&>svg]:stroke-[1.8]" data-icon-name="${name}" data-icon-fallback="${ICONS[name] ? 'false' : 'true'}" aria-hidden="true">${ICONS[name] ?? ICONS.signal}</span>`
 }
 
 export function renderBrand({ enrollment = false } = {}) {
   return `
-    <div class="broadcast-brand">
-      <img src="/assets/logos/bemahub-reference-mark.svg" alt="" />
-      <img class="broadcast-wordmark" src="/assets/logos/bemahub-wordmark.svg" alt="BemaHub" />
-      ${enrollment ? '<strong>OPEN ENROLLMENT</strong><small>Your Benefits. Your Future. Our Priority.</small>' : ''}
+    <div class="broadcast-brand absolute left-[62px] top-[42px] z-20 flex items-center gap-3 font-sans text-bema-navy">
+      <img class="h-14 w-auto" src="/assets/logos/bemahub-reference-mark.svg" alt="" />
+      <img class="broadcast-wordmark h-9 w-auto" src="/assets/logos/bemahub-wordmark.svg" alt="BemaHub" />
+      ${enrollment ? '<strong class="ml-3 border-l border-current/20 pl-4 text-sm font-black tracking-[.14em]">OPEN ENROLLMENT</strong><small class="text-xs font-semibold opacity-70">Your Benefits. Your Future. Our Priority.</small>' : ''}
     </div>
   `
 }
 
 export function renderLiveBadge() {
-  return '<div class="broadcast-live"><span></span>LIVE</div>'
+  return '<div class="broadcast-live absolute right-[62px] top-[46px] z-20 inline-flex items-center gap-2 rounded-full border border-red-200/50 bg-white/90 px-4 py-2 text-sm font-black tracking-[.14em] text-bema-live shadow-lg backdrop-blur"><span class="size-2.5 animate-pulse rounded-full bg-bema-live shadow-[0_0_12px_rgba(255,45,31,.7)]"></span>LIVE</div>'
 }
 
 export function renderForegroundBar(items, lead = 'LIVE NOW', { audience = false, leadIcon = 'signal' } = {}) {
   return `
-    <div class="foreground-bar">
-      <div class="foreground-bar-lead">${icon(leadIcon)}<strong>${lead}</strong></div>
-      ${items.map((item) => `<div class="foreground-bar-item">${icon(item.icon)}<span>${item.label}</span></div>`).join('')}
-      ${audience ? `<div class="foreground-bar-audience">${icon('people')}<strong>${audience}</strong><span>Watching Live</span></div>` : ''}
+    <div class="foreground-bar absolute inset-x-[42px] bottom-[18px] z-30 flex h-[86px] items-stretch overflow-hidden rounded-[22px] border border-white/15 bg-bema-deep-navy/95 font-sans text-white shadow-2xl backdrop-blur-xl">
+      <div class="foreground-bar-lead flex min-w-[250px] items-center gap-3 bg-gradient-to-br from-bema-blue to-bema-purple px-7 [&_.broadcast-icon]:size-7"><strong class="text-base font-black tracking-wide">${lead}</strong></div>
+      ${items.map((item) => `<div class="foreground-bar-item flex min-w-0 flex-1 items-center justify-center gap-3 border-l border-white/10 px-5 text-center text-sm font-bold text-indigo-50 [&_.broadcast-icon]:size-6 [&_.broadcast-icon]:text-bema-cyan">${icon(item.icon)}<span>${item.label}</span></div>`).join('')}
+      ${audience ? `<div class="foreground-bar-audience flex min-w-[170px] items-center justify-center gap-2 border-l border-white/10 px-5 [&_.broadcast-icon]:size-6 [&_.broadcast-icon]:text-bema-cyan">${icon('people')}<strong class="text-xl">${audience}</strong><span class="text-[10px] leading-tight text-indigo-200">Watching<br>Live</span></div>` : ''}
     </div>
   `
 }
 
 export function renderQrCard(title = 'Scan to Join Now') {
   return `
-    <div class="proof-qr-card">
-      <strong>${title}</strong>
-      <img src="/assets/qr/main-join-qr.png" alt="Enrollment QR code" />
+    <div class="proof-qr-card grid place-items-center gap-2 rounded-card border border-sky-200/70 bg-white/95 p-4 text-center text-bema-navy shadow-card">
+      <strong class="text-sm font-black uppercase tracking-wide">${title}</strong>
+      <img class="size-[130px] rounded-xl bg-white p-1" src="/assets/qr/main-join-qr.png" alt="Enrollment QR code" />
     </div>
   `
 }

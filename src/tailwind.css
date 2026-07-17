@@ -1,0 +1,34 @@
+@import "tailwindcss";
+@import "./scene-utilities.css";
+@import "./style.css";
+
+@theme {
+  --font-sans: "Inter", "Helvetica Neue", Arial, sans-serif;
+  --font-display: "Inter", "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "SFMono-Regular", Consolas, monospace;
+
+  --color-bema-white: #ffffff;
+  --color-bema-soft-blue: #eff8ff;
+  --color-bema-light-blue: #ddf3ff;
+  --color-bema-sky: #48c7ff;
+  --color-bema-cyan: #12cfe2;
+  --color-bema-blue: #005bea;
+  --color-bema-navy: #071b4d;
+  --color-bema-deep-navy: #03133a;
+  --color-bema-purple: #7b3ff2;
+  --color-bema-red: #ef2d2d;
+  --color-bema-live: #ff2d1f;
+
+  --radius-card: 1.5rem;
+  --radius-panel: 2rem;
+  --shadow-card: 0 18px 45px rgb(7 27 77 / 0.14);
+  --shadow-cyan: 0 0 24px rgb(18 207 226 / 0.55);
+  --shadow-blue: 0 0 30px rgb(0 91 234 / 0.45);
+  --shadow-purple: 0 0 32px rgb(123 63 242 / 0.45);
+}
+
+/*
+ * Tailwind is the static styling source for new and migrated markup. The
+ * animation-only compatibility sheet is imported separately from main.js so
+ * runtime-generated timing values stay independent from the design tokens.
+ */
