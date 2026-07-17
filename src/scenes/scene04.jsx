@@ -1,5 +1,27 @@
-import { ASSET_PATHS } from '../config/assets.js'
-import { sceneMarkup } from './SceneMarkup.jsx'
+// Scene 04 owns these design primitives so it can be edited independently.
+const ASSET_PATHS = {
+  logos: {
+    wordmark: '/assets/logos/bemahub-wordmark.svg',
+    mark: '/assets/logos/bemahub-mark.svg',
+  },
+  qr: {
+    join: '/assets/qr/main-join-qr.png',
+  },
+  video: {
+    slide01Loop: '/assets/video/slide01-bg-loop.mp4',
+  },
+  backgrounds: {
+    slide01: '/assets/storyboards/backgrounds/slide01-bg.png',
+  },
+}
+
+function SceneMarkup({ html }) {
+  return html ? <div data-react-scene-markup="true" dangerouslySetInnerHTML={{ __html: html }} /> : null
+}
+
+function sceneMarkup(html) {
+  return <SceneMarkup html={html} />
+}
 
 export const scene04 = {
   presenterZone: 'none',
