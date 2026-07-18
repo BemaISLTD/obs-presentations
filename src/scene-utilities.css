@@ -481,49 +481,7 @@
   .reference-layer img {
     @apply [width:100%];
     @apply [height:auto];
-    @apply [transform:scaleY(1.12)];
-    @apply [transform-origin:top_center];
     @apply [transition:opacity_120ms_ease];
-  }
-  html[data-scene="06"] .reference-layer img,
-  html[data-scene="07"] .reference-layer img,
-  html[data-scene="08"] .reference-layer img,
-  html[data-scene="09"] .reference-layer img,
-  html[data-scene="10"] .reference-layer img,
-  html[data-scene="11"] .reference-layer img,
-  html[data-scene="12"] .reference-layer img,
-  html[data-scene="13"] .reference-layer img,
-  html[data-scene="14"] .reference-layer img,
-  html[data-scene="15"] .reference-layer img {
-    @apply [transform:scaleY(1.07)];
-  }
-  html[data-scene="16"] .reference-layer img,
-  html[data-scene="17"] .reference-layer img,
-  html[data-scene="18"] .reference-layer img,
-  html[data-scene="19"] .reference-layer img,
-  html[data-scene="20"] .reference-layer img,
-  html[data-scene="21"] .reference-layer img,
-  html[data-scene="22"] .reference-layer img,
-  html[data-scene="23"] .reference-layer img,
-  html[data-scene="24"] .reference-layer img,
-  html[data-scene="25"] .reference-layer img {
-    @apply [transform:scaleY(1.23)];
-  }
-  html[data-scene="26"] .reference-layer img,
-  html[data-scene="27"] .reference-layer img,
-  html[data-scene="28"] .reference-layer img,
-  html[data-scene="29"] .reference-layer img,
-  html[data-scene="30"] .reference-layer img,
-  html[data-scene="31"] .reference-layer img,
-  html[data-scene="32"] .reference-layer img,
-  html[data-scene="33"] .reference-layer img,
-  html[data-scene="34"] .reference-layer img,
-  html[data-scene="35"] .reference-layer img,
-  html[data-scene="36"] .reference-layer img,
-  html[data-scene="37"] .reference-layer img,
-  html[data-scene="38"] .reference-layer img,
-  html[data-scene="39"] .reference-layer img {
-    @apply [transform:scaleY(1.18)];
   }
   .live-layer {
     @apply [z-index:2];
@@ -3010,7 +2968,7 @@
   html[data-scene="08"] .stage-background-layer {
     @apply [filter:brightness(.58)_saturate(1.12)_hue-rotate(10deg)];
   }
-  html[data-scene="08"] .visual-stage::after {
+  html[data-scene="08"] .live-composition::after {
     @apply [content:''];
     @apply [position:absolute];
     @apply [inset:0];
@@ -9766,5 +9724,119 @@
     .cue-primary-actions {
       @apply [grid-template-columns:repeat(2,_1fr)];
     }
+  }
+
+  .reference-review-app {
+    min-height: 100svh;
+    padding: 0 !important;
+    overflow: visible;
+    background: #071126;
+  }
+  html[data-mode="reference"][data-output="storyboard"],
+  html[data-mode="reference"][data-output="storyboard"] body,
+  html[data-mode="reference"][data-output="storyboard"] #app {
+    height: auto;
+    min-height: 100svh;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+  .reference-review-shell {
+    width: 100%;
+    min-height: 100svh;
+    overflow: visible;
+    background: #071126;
+  }
+  .reference-sheet-canvas {
+    position: relative !important;
+    inset: auto !important;
+    display: block !important;
+    width: min(1920px, 100%) !important;
+    height: auto !important;
+    margin: 0 auto;
+    overflow: visible !important;
+    transform: none !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    background: transparent !important;
+  }
+  .reference-sheet,
+  .reference-sheet-image {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+  .reference-review-app > .presentation-controls,
+  .reference-review-app > .presentation-controls-toggle {
+    position: fixed;
+  }
+  .reference-review-app > .presentation-controls {
+    left: 20px;
+    right: 20px;
+    bottom: 14px;
+  }
+  .reference-composition-layer {
+    z-index: 5 !important;
+    width: 1920px;
+    height: 1080px;
+    overflow: hidden;
+    transition: opacity 120ms ease;
+  }
+  .reference-composition {
+    display: block;
+    width: 1920px;
+    height: 1080px;
+  }
+  .live-composition {
+    z-index: 6;
+    width: 1920px;
+    height: 1080px;
+  }
+  .storyboard-canvas.mode-overlay .reference-composition-layer.reference-on-top {
+    z-index: 7 !important;
+  }
+  .visual-stage.is-scene-reset .live-composition {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+  }
+  .visual-stage.is-scene-reset .live-composition *,
+  .visual-stage.is-scene-reset .live-composition *::before,
+  .visual-stage.is-scene-reset .live-composition *::after {
+    animation: none !important;
+  }
+  .visual-stage.cue-entry .live-composition {
+    animation: controller-entry 700ms cubic-bezier(.2, .8, .2, 1) both;
+  }
+  .visual-stage.cue-exit .live-composition {
+    animation: controller-exit 650ms ease-in both;
+    pointer-events: none;
+  }
+  [data-control-cue].is-cue-target {
+    position: relative;
+    z-index: 20;
+    transform: translateY(-7px) scale(1.035);
+    filter: brightness(1.1) saturate(1.08);
+    box-shadow: 0 0 0 3px rgba(38, 222, 235, .92), 0 18px 44px rgba(20, 60, 160, .32);
+    animation: controller-cue-highlight 1.45s ease both;
+  }
+  .presentation-cue-panel,
+  .comparison-controls {
+    pointer-events: auto;
+    scrollbar-color: #5c74bb #0a1230;
+    scrollbar-width: thin;
+  }
+  .presentation-cue-panel button {
+    flex: 0 0 auto;
+    height: 38px;
+    padding: 0 13px;
+    border-radius: 9px;
+    font-size: 11px;
+    white-space: nowrap;
+  }
+  .comparison-controls button.is-active {
+    border-color: #8d7bff;
+    color: #fff;
+    background: linear-gradient(135deg, rgba(95, 68, 224, .96), rgba(52, 37, 144, .96));
   }
 }

@@ -307,7 +307,15 @@ export const scene01 = {
 
     updateCountdown()
     window.clearInterval(window.__bemahubCountdown)
-    window.__bemahubCountdown = window.setInterval(updateCountdown, 1000)
+    const countdownTimer = window.setInterval(updateCountdown, 1000)
+    window.__bemahubCountdown = countdownTimer
+
+    return () => {
+      window.clearInterval(countdownTimer)
+      window.clearTimeout(window.__bemahubQuestionFade)
+      if (window.__bemahubCountdown === countdownTimer) window.__bemahubCountdown = undefined
+      window.__bemahubQuestionFade = undefined
+    }
   },
 }
 

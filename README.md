@@ -17,8 +17,18 @@ Use the Vite address shown in the terminal as `BASE_URL` (normally
 ## On-canvas controls
 
 Composite presentation pages include an operator layer over the bottom of the
-scene. The bottom strip provides direct Scene 01–39 selection. Four buttons
-above it provide Reference, Overlay, Live / Replay Entry, and Exit controls.
+scene. The bottom strip provides Previous/Next navigation and direct Scene
+01–39 selection. Reference, Overlay, and Live are separate viewing modes. The
+selected scene's cue row is generated from `src/sceneControls.js` and provides
+Reset, Entry, its operator-controlled During cues, and Exit.
+
+Reference storyboard mode displays the complete original storyboard sheet at
+its natural aspect ratio and allows the page to scroll to its specification
+section. Clean 1920×1080 Reference output displays only the approved top
+composition. Overlay places that composition and the coded live scene in the
+same 1920×1080 coordinate space, with Reference only, Both, Live only, layer
+order, and opacity controls. Continuous ambient effects are intentionally not
+operator buttons; they resume when Entry is triggered.
 
 Add `&controls=false` when the operator layer should be hidden from a final OBS
 program capture. A fixed top-right button toggles the bottom controls back on
@@ -73,8 +83,9 @@ transparent outside its lower thirds, tickers, and other Z3 elements.
 Scenes 03, 08, 14, and 38 implement the initial layering proof requested in the
 handoff. Their editable underlay and foreground markup is in `src/scenes/`.
 
-Scene 08 is the initial coded proof scene. Its Entry can be replayed and its Exit
-can be triggered from the on-canvas controls.
+Scene 08 is the initial coded proof scene. All scenes expose their catalogued
+Entry, During, and Exit actions through the on-canvas controls, and Reset returns
+the selected scene to its pre-entry state.
 
 Scenes 06–37 and 39 use editable code-native layered renderers rather than
 storyboard-image fallbacks. Their background, presenter-safe area, content

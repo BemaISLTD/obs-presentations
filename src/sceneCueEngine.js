@@ -1,36 +1,57 @@
-let cleanupTimer
+const cueState = new WeakMap()
 
-const TARGET_CLASSES = ['relative', 'z-20', '-translate-y-[7px]', 'scale-[1.035]', 'brightness-110', 'saturate-[1.08]', 'shadow-[0_0_0_3px_rgba(38,222,235,.92),0_18px_44px_rgba(20,60,160,.32)]', 'animate-[controller-cue-highlight_1.45s_ease_both]']
-const ENTRY_CLASSES = ['animate-[controller-entry_700ms_cubic-bezier(.2,.8,.2,1)_both]']
-const EXIT_CLASSES = ['animate-[controller-exit_650ms_ease-in_both]']
+function getCueState(root) {
+  if (!cueState.has(root)) cueState.set(root, { timers: new Set(), cleanups: new Set() })
+  return cueState.get(root)
+}
 
-export function resetSceneCue(root) {
-  clearTimeout(cleanupTimer)
+function clearCueTimers(root) {
+  const state = getCueState(root)
+  state.timers.forEach((timer) => window.clearTimeout(timer))
+  state.timers.clear()
+}
+
+export function registerSceneCleanup(root, cleanup) {
+  if (typeof cleanup === 'function') getCueState(root).cleanups.add(cleanup)
+}
+
+export function disposeSceneLifecycle(root) {
+  const state = getCueState(root)
+  clearCueTimers(root)
+  state.cleanups.forEach((cleanup) => cleanup())
+  state.cleanups.clear()
+}
+
+function clearSceneCue(root) {
+  clearCueTimers(root)
   const stage = root.querySelector('.visual-stage')
-  if (!stage) return
-  stage.classList.remove('cue-entry', 'cue-during', 'cue-exit', 'is-cue-active')
+  if (!stage) return null
+  stage.classList.remove('cue-entry', 'cue-during', 'cue-exit', 'is-cue-active', 'is-scene-reset')
   stage.removeAttribute('data-active-cue')
-  stage.querySelectorAll('.scene, .live-layer').forEach((element) => element.classList.remove(...ENTRY_CLASSES, ...EXIT_CLASSES))
+  stage.removeAttribute('data-scene-cue')
   stage.querySelectorAll('[data-control-cue]').forEach((element) => {
-    element.classList.remove('is-cue-target', ...TARGET_CLASSES)
+    element.classList.remove('is-cue-target', 'is-cue-complete')
     element.removeAttribute('data-cue-active')
   })
   void stage.offsetWidth
+  return stage
+}
+
+export function resetSceneCue(root) {
+  const stage = clearSceneCue(root)
+  if (!stage) return
+  stage.classList.add('is-scene-reset')
+  stage.dataset.activeCue = 'reset'
 }
 
 export function applySceneCue(root, cue) {
-  resetSceneCue(root)
-  const stage = root.querySelector('.visual-stage')
+  const stage = clearSceneCue(root)
   if (!stage || !cue) return
   stage.dataset.activeCue = cue
+  stage.dataset.sceneCue = cue
   stage.classList.add('is-cue-active', cue === 'entry' ? 'cue-entry' : cue === 'exit' ? 'cue-exit' : 'cue-during')
-  if (cue === 'entry') stage.querySelectorAll('.proof-scene, .scene').forEach((element) => element.classList.add(...ENTRY_CLASSES))
-  if (cue === 'exit') stage.querySelectorAll('.live-layer').forEach((element) => element.classList.add(...EXIT_CLASSES))
   stage.querySelectorAll(`[data-control-cue="${CSS.escape(cue)}"]`).forEach((element) => {
-    element.classList.add('is-cue-target', ...TARGET_CLASSES)
+    element.classList.add('is-cue-target')
     element.dataset.cueActive = 'true'
   })
-  cleanupTimer = window.setTimeout(() => {
-    if (cue !== 'exit') stage.classList.remove('is-cue-active')
-  }, 1800)
 }

@@ -7,7 +7,7 @@ import { renderBackgroundLayer, initBackgroundLayer } from './components/Backgro
 import { scenes } from './scenes/index.js'
 import { loadPresentationData } from './dataService.js'
 import { getSceneBackground } from './utils/getSceneBackground.js'
-import { applySceneCue, resetSceneCue } from './sceneCueEngine.js'
+import { applySceneCue, disposeSceneLifecycle, registerSceneCleanup, resetSceneCue } from './sceneCueEngine.js'
 import { sceneControlById } from './sceneControls.js'
 
 const app = document.querySelector('#app')
@@ -16,6 +16,27 @@ const VALID_MODES = new Set(['reference', 'overlay', 'live'])
 const VALID_OUTPUTS = new Set(['storyboard', 'obs'])
 const VALID_RENDERS = new Set(['underlay', 'foreground', 'composite'])
 const OUTPUT_NAVIGATION_ORDER = ['storyboard', 'underlay', 'foreground', 'composite']
+
+const cueTarget = (selector, index = 0) => Object.freeze({ selector, index })
+const SCENE_CUE_TARGETS = Object.freeze({
+  '01': { 'pulse-qr': cueTarget('.scene01-qr-card') },
+  '14': { 'level-participation': cueTarget('.access-level-card', 0), 'level-vip': cueTarget('.access-level-card', 1), 'level-signature': cueTarget('.access-level-card', 2), 'builder-cta': cueTarget('.builder-cta') },
+  '16': { 'dashboard-today': cueTarget('.scene16-welcome'), 'dashboard-events': cueTarget('.scene16-lower-grid > section', 0), 'dashboard-campaigns': cueTarget('.scene16-lower-grid > section', 1) },
+  '17': { 'campaign-featured': cueTarget('.scene17-card-grid article', 0), 'campaign-grid': cueTarget('.scene17-card-grid'), 'campaign-activity': cueTarget('.scene17-activity'), 'campaign-cta': cueTarget('.scene17-activity footer button') },
+  '18': { 'detail-purpose': cueTarget('.live-composition article', 1), 'detail-assets': cueTarget('.live-composition article', 2), 'detail-proof': cueTarget('.live-composition article', 3), 'detail-levels': cueTarget('.live-composition article', 4) },
+  '21': { 'share-link': cueTarget('[data-control-cue="copy-link"] button', 1), 'activity-update': cueTarget('.live-composition aside') },
+  '25': { 'trust-status': cueTarget('.scene25-trust-panel aside') },
+  '26': { 'event-featured': cueTarget('.live-composition main article', 0), 'event-upcoming': cueTarget('.live-composition main article', 1), 'event-categories': cueTarget('.live-composition main > div', 1) },
+  '27': { 'event-hero': cueTarget('.live-composition section > header'), 'event-schedule': cueTarget('.live-composition article', 0), 'event-benefits': cueTarget('.live-composition article', 1), 'event-cta': cueTarget('.live-composition aside button') },
+  '29': { 'story-1': cueTarget('.live-composition section article', 0), 'proof-update': cueTarget('.live-composition section', 1), 'delivery-status': cueTarget('.live-composition section', 2), 'creator-spotlight': cueTarget('.live-composition section', 3) },
+  '30': { 'metric-impact': cueTarget('.live-composition article', 3), 'metric-tier': cueTarget('.live-composition article', 4) },
+  '31': { 'advance-progress': cueTarget('.live-composition section > div', 1), 'current-tier': cueTarget('.live-composition article', 2), 'next-target': cueTarget('.live-composition aside') },
+  '33': { 'faq-1': cueTarget('.live-composition article', 0), 'faq-2': cueTarget('.live-composition article', 1), 'faq-3': cueTarget('.live-composition article', 2), 'faq-4': cueTarget('.live-composition article', 3), 'faq-5': cueTarget('.live-composition article', 4) },
+  '34': { 'level-participation': cueTarget('.live-composition article', 0), 'level-vip': cueTarget('.live-composition article', 1), 'level-signature': cueTarget('.live-composition article', 2), 'join-builder': cueTarget('.live-composition article:last-child > div', 0), 'chat-prompt': cueTarget('.live-composition article:last-child > div', 1) },
+  '35': { 'step-email': cueTarget('.live-composition article', 0), 'step-chat': cueTarget('.live-composition article', 1), 'step-dashboard': cueTarget('.live-composition article', 2), 'step-looplink': cueTarget('.live-composition article', 3) },
+  '37': { 'advance-counts': cueTarget('.live-composition main .grid'), 'advance-progress': cueTarget('.live-composition main > div'), 'activity-update': cueTarget('.live-composition aside') },
+  '39': { 'dashboard-cta': cueTarget('.live-composition article', 0), 'looplink-cta': cueTarget('.live-composition article', 1), 'community-cta': cueTarget('.live-composition article', 2) },
+})
 
 const UI = Object.freeze({
   appShell: 'relative mx-auto h-full w-full overflow-hidden p-7 font-sans text-bema-navy',
@@ -39,14 +60,16 @@ const UI = Object.freeze({
 let detachCanvasScale
 let detachDebugTools
 let detachNavigation
+let startSceneSetup
 
 const debugState = {
   gridVisible: false,
   safeZonesVisible: false,
   controlsVisible: true,
   overlayReferenceVisible: true,
-  referenceOpacity: 0.75,
-  overlayReferenceOnTop: false,
+  overlayLiveVisible: true,
+  referenceOpacity: 0.7,
+  overlayReferenceOnTop: true,
 }
 
 boot().catch(showBootError)
@@ -71,8 +94,12 @@ async function boot() {
   document.documentElement.dataset.output = output
   document.documentElement.dataset.render = render
   document.documentElement.dataset.scene = sceneId
+  document.documentElement.dataset.mode = mode
   debugState.referenceOpacity = parseOpacity(params.get('refOpacity'))
-  debugState.overlayReferenceOnTop = params.get('refOnTop') === 'true'
+  debugState.overlayReferenceOnTop = params.get('refOnTop') !== 'false'
+  const overlayView = params.get('overlayView')
+  debugState.overlayReferenceVisible = overlayView !== 'live'
+  debugState.overlayLiveVisible = overlayView !== 'reference'
 
   const data = await loadPresentationData()
   const slide = data.slides.find((item) => item.id === sceneId) ?? data.slides[0]
@@ -110,20 +137,42 @@ async function boot() {
   bindPresentationNavigation(context)
   bindOnCanvasControls(context)
 
-  if (params.get('replay') === 'entry') {
-    applySceneCue(app, 'entry')
-    const settledUrl = new URL(location.href)
-    settledUrl.searchParams.delete('replay')
-    history.replaceState(null, '', settledUrl)
+  disposeSceneLifecycle(app)
+  startSceneSetup = () => {
+    disposeSceneLifecycle(app)
+    const cleanup = sceneRenderer?.setup?.(app, context)
+    registerSceneCleanup(app, cleanup)
   }
 
-  if (canRenderLive && !paused && (mode === 'live' || mode === 'overlay')) {
-    sceneRenderer.setup?.(app, context)
+  const requestedCue = params.get('cue') || (params.get('replay') === 'entry' ? 'entry' : '')
+  if (requestedCue && canRenderLive && (mode === 'live' || mode === 'overlay')) {
+    applySceneCue(app, requestedCue)
+    if (requestedCue !== 'exit' && !paused) startSceneSetup()
+    const settledUrl = new URL(location.href)
+    settledUrl.searchParams.delete('replay')
+    settledUrl.searchParams.delete('cue')
+    history.replaceState(null, '', settledUrl)
+  } else if (canRenderLive && !paused && (mode === 'live' || mode === 'overlay')) {
+    startSceneSetup()
   }
 }
 
 function renderApp(context, sceneRenderer) {
   const { mode, output, render, paused, slide, canRenderLive } = context
+  if (mode === 'reference' && output === 'storyboard') {
+    app.innerHTML = `
+      <main class="app-shell reference-review-app font-sans text-bema-navy" data-app-shell data-testid="app-shell">
+        ${context.showControls ? renderOnCanvasControls(context) : ''}
+        <section class="reference-review-shell" data-canvas-shell>
+          <div class="storyboard-canvas reference-sheet-canvas" data-storyboard-canvas data-testid="storyboard-canvas">
+            ${renderReferenceLayer(slide, { variant: 'sheet' })}
+          </div>
+        </section>
+      </main>`
+    bindCanvasScale(context)
+    return
+  }
+
   const showUnderlay = render !== 'foreground'
   const showForeground = render !== 'underlay'
   const underlayMarkup = canRenderLive ? renderUnderlay(sceneRenderer, context) : ''
@@ -149,11 +198,13 @@ function renderApp(context, sceneRenderer) {
       <section class="canvas-shell ${UI.canvasShell} ${output === 'obs' ? '!h-screen !w-screen !min-h-svh !pb-0' : ''} output-${output}" data-canvas-shell>
         <div class="canvas-scale-frame relative overflow-hidden">
           <div class="${canvasClasses.join(' ')}" data-storyboard-canvas data-testid="storyboard-canvas">
-            ${(mode === 'reference' || mode === 'overlay') ? renderReferenceLayer(slide, mode, getReferenceOpacity(mode), shouldShowReference(mode)) : ''}
             <section class="visual-stage ${UI.stage} ${render === 'foreground' || mode === 'reference' ? '!bg-transparent' : ''} output-stage-${output} render-stage-${render}" data-visual-stage data-testid="visual-stage" aria-label="OBS visual stage">
-              ${showBackground ? renderBackgroundLayer({ sceneId: slide.id, backgroundId, className: 'stage-background-layer', debug: context.backgroundDebug && !context.clean }) : ''}
-              ${(mode === 'live' || mode === 'overlay') && showUnderlay ? `<div class="live-layer underlay-layer absolute inset-0" data-live-layer="underlay">${underlayMarkup}</div>` : ''}
-              ${(mode === 'live' || mode === 'overlay') && showForeground ? `<div class="live-layer foreground-layer absolute inset-0" data-live-layer="foreground">${foregroundMarkup}</div>` : ''}
+              ${(mode === 'reference' || mode === 'overlay') ? renderReferenceLayer(slide, { opacity: getReferenceOpacity(mode), isVisible: shouldShowReference(mode) }) : ''}
+              ${(mode === 'live' || mode === 'overlay') ? `<div class="live-composition absolute inset-0" data-live-composition style="visibility:${mode === 'overlay' && !debugState.overlayLiveVisible ? 'hidden' : 'visible'}">
+                ${showBackground ? renderBackgroundLayer({ sceneId: slide.id, backgroundId, className: 'stage-background-layer', debug: context.backgroundDebug && !context.clean }) : ''}
+                ${showUnderlay ? `<div class="live-layer underlay-layer absolute inset-0" data-live-layer="underlay">${underlayMarkup}</div>` : ''}
+                ${showForeground ? `<div class="live-layer foreground-layer absolute inset-0" data-live-layer="foreground">${foregroundMarkup}</div>` : ''}
+              </div>` : ''}
             </section>
             ${context.showControls ? renderOnCanvasControls(context) : ''}
             ${showSpec ? renderSpecSheet(slide, context) : ''}
@@ -163,13 +214,32 @@ function renderApp(context, sceneRenderer) {
       </section>
     </main>`
 
-  bindCanvasScale(output)
+  hydrateSceneCueTargets(context)
+  bindCanvasScale(context)
   bindDebugTools(context)
   if (showBackground) initBackgroundLayer(app)
 }
 
+function hydrateSceneCueTargets(context) {
+  const config = sceneControlById[context.slide.id]
+  const targets = SCENE_CUE_TARGETS[context.slide.id] ?? {}
+  config?.duringCues.forEach((cue) => {
+    if (app.querySelector(`[data-control-cue="${CSS.escape(cue.id)}"]`)) return
+    const target = targets[cue.id]
+    if (!target) return
+    const element = app.querySelectorAll(target.selector)[target.index]
+    if (element) element.dataset.controlCue = cue.id
+  })
+}
+
 function renderOnCanvasControls(context) {
   const config = sceneControlById[context.slide.id]
+  const cueButtons = [
+    `<button type="button" data-reset-scene class="${UI.controlButton} !min-w-[96px]">Reset</button>`,
+    `<button type="button" data-trigger-cue="${config?.entryCue.id ?? 'entry'}" class="${UI.controlButton} !min-w-[110px]">Entry · ${config?.entryCue.label ?? 'Entry'}</button>`,
+    ...(config?.duringCues ?? []).map((cue) => `<button type="button" data-trigger-cue="${cue.id}" class="${UI.controlButton} !min-w-fit">${cue.label}</button>`),
+    `<button type="button" data-trigger-cue="${config?.exitCue.id ?? 'exit'}" class="${UI.controlButton} !min-w-[110px] !border-rose-400/50 !bg-rose-950/90 !text-rose-200">Exit · ${config?.exitCue.label ?? 'Exit'}</button>`,
+  ].join('')
   return `
     <button type="button" class="presentation-controls-toggle ${UI.controlToggle}" data-toggle-presentation-controls aria-pressed="${context.controlsVisible}" aria-label="${context.controlsVisible ? 'Hide' : 'Show'} presentation controls">
       <span aria-hidden="true">${context.controlsVisible ? '×' : '☰'}</span>
@@ -179,16 +249,33 @@ function renderOnCanvasControls(context) {
       <div class="presentation-mode-controls mb-2 ml-auto flex justify-end gap-2">
         <button type="button" data-presentation-mode="reference" class="${UI.controlButton} ${context.mode === 'reference' ? `is-active ${UI.controlButtonActive}` : ''}">Reference</button>
         <button type="button" data-presentation-mode="overlay" class="${UI.controlButton} ${context.mode === 'overlay' ? `is-active ${UI.controlButtonActive}` : ''}">Overlay</button>
-        <button type="button" data-replay-entry class="${UI.controlButton} ${context.mode === 'live' ? `is-active ${UI.controlButtonActive}` : ''}">Live / Replay Entry</button>
-        <button type="button" data-trigger-exit class="${UI.controlButton} !border-rose-400/50 !bg-rose-950/90 !text-rose-200">Exit</button>
+        <button type="button" data-presentation-mode="live" class="${UI.controlButton} ${context.mode === 'live' ? `is-active ${UI.controlButtonActive}` : ''}">Live</button>
+      </div>
+      ${context.mode === 'overlay' ? renderOverlayControls() : ''}
+      <div class="presentation-cue-panel mb-2 flex max-h-[104px] items-center gap-2 overflow-x-auto rounded-[13px] border border-indigo-200/30 bg-slate-950/95 p-2 shadow-2xl backdrop-blur-xl" data-scene-cue-panel data-scene="${context.slide.id}">
+        <span class="shrink-0 px-2 text-[10px] font-black uppercase tracking-[.15em] text-indigo-300">Scene ${context.slide.id} cues</span>
+        ${cueButtons}
       </div>
       <div class="presentation-scene-strip ${UI.sceneStrip}">
+        <button type="button" data-previous-scene class="${UI.sceneButton} !w-[74px] !shrink-0" aria-label="Previous scene">← Previous</button>
         <span class="presentation-current-scene flex w-[250px] min-w-[250px] items-center gap-2.5 overflow-hidden px-2.5"><strong class="grid size-[34px] shrink-0 place-items-center rounded-lg bg-violet-600 text-[13px] text-white">${context.slide.id}</strong><small class="truncate text-[11px] font-bold text-indigo-200/80">${config?.title ?? context.slide.title}</small></span>
         <div class="presentation-scene-buttons grid min-w-0 flex-1 grid-cols-[repeat(39,minmax(0,1fr))] gap-[3px]">
           ${context.allSlides.map((item) => `<button type="button" data-presentation-scene="${item.id}" class="${UI.sceneButton} ${item.id === context.slide.id ? `is-active ${UI.sceneButtonActive}` : ''}" title="Scene ${item.id}: ${item.title}">${item.id}</button>`).join('')}
         </div>
+        <button type="button" data-next-scene class="${UI.sceneButton} !w-[62px] !shrink-0" aria-label="Next scene">Next →</button>
       </div>
     </nav>`
+}
+
+function renderOverlayControls() {
+  const view = debugState.overlayReferenceVisible && debugState.overlayLiveVisible
+    ? 'both'
+    : debugState.overlayReferenceVisible ? 'reference' : 'live'
+  return `<div class="comparison-controls mb-2 ml-auto flex w-fit items-center gap-2 rounded-[13px] border border-indigo-200/30 bg-slate-950/95 p-2 shadow-2xl backdrop-blur-xl" data-comparison-controls>
+    <label class="flex items-center gap-2 px-2 text-xs font-bold"><span>Reference opacity</span><input class="w-[180px] accent-bema-cyan" data-reference-opacity type="range" min="0" max="1" step="0.05" value="${debugState.referenceOpacity}"><output data-reference-opacity-output>${Math.round(debugState.referenceOpacity * 100)}%</output></label>
+    ${['reference', 'both', 'live'].map((value) => `<button type="button" data-overlay-view="${value}" class="${UI.controlButton} !h-[34px] !min-w-[92px] !px-3 !text-xs ${view === value ? `is-active ${UI.controlButtonActive}` : ''}">${value === 'reference' ? 'Reference only' : value === 'live' ? 'Live only' : 'Both'}</button>`).join('')}
+    <button type="button" data-toggle-reference-order class="${UI.controlButton} !h-[34px] !min-w-[128px] !px-3 !text-xs">${debugState.overlayReferenceOnTop ? 'Reference on top' : 'Live on top'}</button>
+  </div>`
 }
 
 function bindOnCanvasControls(context) {
@@ -215,18 +302,68 @@ function bindOnCanvasControls(context) {
   app.querySelectorAll('[data-presentation-mode]').forEach((button) => {
     button.addEventListener('click', () => navigatePresentation(context.slide.id, button.dataset.presentationMode))
   })
-  app.querySelector('[data-replay-entry]')?.addEventListener('click', () => {
-    if (context.mode !== 'live') {
-      const url = new URL(location.href)
-      url.searchParams.set('mode', 'live')
-      url.searchParams.set('replay', 'entry')
-      location.assign(url)
-      return
-    }
+  app.querySelector('[data-previous-scene]')?.addEventListener('click', () => navigateRelativeScene(context, -1))
+  app.querySelector('[data-next-scene]')?.addEventListener('click', () => navigateRelativeScene(context, 1))
+  app.querySelector('[data-reset-scene]')?.addEventListener('click', () => {
+    disposeSceneLifecycle(app)
     resetSceneCue(app)
-    requestAnimationFrame(() => applySceneCue(app, 'entry'))
   })
-  app.querySelector('[data-trigger-exit]')?.addEventListener('click', () => applySceneCue(app, 'exit'))
+  app.querySelectorAll('[data-trigger-cue]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const cue = button.dataset.triggerCue
+      if (context.mode === 'reference') {
+        const url = new URL(location.href)
+        url.searchParams.set('mode', 'live')
+        url.searchParams.set('cue', cue)
+        location.assign(url)
+        return
+      }
+      if (cue === 'entry') {
+        disposeSceneLifecycle(app)
+      }
+      applySceneCue(app, cue)
+      if (cue === 'entry' && !context.paused) startSceneSetup?.()
+      if (cue === 'exit') {
+        disposeSceneLifecycle(app)
+      }
+    })
+  })
+  app.querySelectorAll('[data-overlay-view]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const view = button.dataset.overlayView
+      debugState.overlayReferenceVisible = view !== 'live'
+      debugState.overlayLiveVisible = view !== 'reference'
+      syncComparison(context.mode)
+      app.querySelectorAll('[data-overlay-view]').forEach((item) => item.classList.toggle('is-active', item === button))
+      const url = new URL(location.href)
+      url.searchParams.set('overlayView', view)
+      history.replaceState(null, '', url)
+    })
+  })
+  app.querySelector('[data-toggle-reference-order]')?.addEventListener('click', (event) => {
+    debugState.overlayReferenceOnTop = !debugState.overlayReferenceOnTop
+    event.currentTarget.textContent = debugState.overlayReferenceOnTop ? 'Reference on top' : 'Live on top'
+    syncComparison(context.mode)
+    const url = new URL(location.href)
+    url.searchParams.set('refOnTop', String(debugState.overlayReferenceOnTop))
+    history.replaceState(null, '', url)
+  })
+  app.querySelector('.comparison-controls [data-reference-opacity]')?.addEventListener('input', (event) => {
+    debugState.referenceOpacity = Number(event.target.value)
+    app.querySelectorAll('[data-reference-opacity]').forEach((item) => { item.value = String(debugState.referenceOpacity) })
+    app.querySelectorAll('[data-reference-opacity-output]').forEach((item) => { item.textContent = `${Math.round(debugState.referenceOpacity * 100)}%` })
+    syncComparison(context.mode)
+    const url = new URL(location.href)
+    url.searchParams.set('refOpacity', String(debugState.referenceOpacity))
+    history.replaceState(null, '', url)
+  })
+  syncComparison(context.mode)
+}
+
+function navigateRelativeScene(context, offset) {
+  const index = context.allSlides.findIndex((item) => item.id === context.slide.id)
+  const next = context.allSlides[(index + offset + context.allSlides.length) % context.allSlides.length]
+  navigatePresentation(next.id, context.mode)
 }
 
 function renderHeader({ slide, mode, output, render }) {
@@ -252,15 +389,19 @@ function renderDebugOverlay(context) {
   return `<div class="debug-guides pointer-events-none absolute inset-0 z-50" aria-hidden="true"><div class="grid-overlay absolute inset-0 opacity-0"></div><div class="safe-zone stage-safe-zone absolute inset-[5%] opacity-0"><span>5% Safe Area</span></div></div><aside class="debug-overlay absolute right-5 top-[150px] z-[70] w-[340px] rounded-2xl border border-indigo-200/30 bg-slate-950/90 p-4 font-sans text-indigo-50 shadow-2xl backdrop-blur-xl transition"><div class="debug-summary grid grid-cols-4 gap-2 text-xs">${[['Scene', context.slide.id], ['Mode', context.mode], ['Output', context.output], ['Render', context.render]].map(([label, value]) => `<p class="grid gap-1"><span class="text-[9px] font-bold uppercase tracking-wider text-indigo-300/60">${label}</span><strong class="truncate capitalize">${value}</strong></p>`).join('')}</div><label class="debug-control mt-4 grid gap-2 text-xs font-bold"><span>Reference Opacity</span><input class="accent-bema-cyan" data-reference-opacity type="range" min="0" max="1" step="0.05" value="${getReferenceOpacity(context.mode)}" ${context.mode === 'live' ? 'disabled' : ''}></label><div class="debug-actions mt-3 flex gap-2"><button class="rounded-lg border border-indigo-200/30 bg-indigo-950/80 px-3 py-2 text-xs font-bold hover:border-bema-cyan" data-toggle-grid>Grid</button><button class="rounded-lg border border-indigo-200/30 bg-indigo-950/80 px-3 py-2 text-xs font-bold hover:border-bema-cyan" data-toggle-safe-zones>Safe zones</button></div><p class="debug-shortcuts mt-3 text-[10px] text-indigo-200/60">← → scenes · ↑ ↓ layers · G grid · R reference · T layer · [ ] opacity · D debug</p></aside>`
 }
 
-function bindCanvasScale(output) {
+function bindCanvasScale(context) {
   detachCanvasScale?.()
+  if (context.mode === 'reference' && context.output === 'storyboard') {
+    detachCanvasScale = undefined
+    return
+  }
   const shell = app.querySelector('.canvas-shell')
   const frame = app.querySelector('.canvas-scale-frame')
   const canvas = app.querySelector('.storyboard-canvas')
   if (!shell || !frame || !canvas) return
-  const baseHeight = output === 'storyboard' ? 1580 : 1080
+  const baseHeight = context.output === 'storyboard' ? 1580 : 1080
   const update = () => {
-    const scale = Math.min(Math.max(shell.clientWidth, 320) / 1920, Math.max(window.innerHeight - shell.getBoundingClientRect().top - (output === 'storyboard' ? 24 : 0), 320) / baseHeight)
+    const scale = Math.min(Math.max(shell.clientWidth, 320) / 1920, Math.max(window.innerHeight - shell.getBoundingClientRect().top - (context.output === 'storyboard' ? 24 : 0), 320) / baseHeight)
     frame.style.width = `${1920 * scale}px`
     frame.style.height = `${baseHeight * scale}px`
     canvas.style.setProperty('--canvas-scale', scale)
@@ -301,7 +442,7 @@ function bindDebugTools(context) {
   const root = app.querySelector('.storyboard-canvas')
   const overlay = app.querySelector('.debug-overlay')
   const guides = app.querySelector('.debug-guides')
-  const opacity = app.querySelector('[data-reference-opacity]')
+  const opacityControls = app.querySelectorAll('[data-reference-opacity]')
   if (!root || !overlay || !guides) return
   const apply = () => {
     guides.classList.toggle('show-grid', debugState.gridVisible)
@@ -310,7 +451,7 @@ function bindDebugTools(context) {
     overlay.classList.toggle('invisible', !debugState.controlsVisible)
     overlay.classList.toggle('opacity-0', !debugState.controlsVisible)
     root.classList.toggle('reference-on-top', debugState.overlayReferenceOnTop)
-    syncReference(context.mode)
+    syncComparison(context.mode)
   }
   const onKey = (event) => {
     if (event.target instanceof HTMLInputElement) return
@@ -323,7 +464,15 @@ function bindDebugTools(context) {
     else return
     apply()
   }
-  opacity?.addEventListener('input', (event) => { debugState.referenceOpacity = Number(event.target.value); apply() })
+  opacityControls.forEach((control) => control.addEventListener('input', (event) => {
+    debugState.referenceOpacity = Number(event.target.value)
+    opacityControls.forEach((item) => { item.value = String(debugState.referenceOpacity) })
+    app.querySelectorAll('[data-reference-opacity-output]').forEach((item) => { item.textContent = `${Math.round(debugState.referenceOpacity * 100)}%` })
+    apply()
+    const url = new URL(location.href)
+    url.searchParams.set('refOpacity', String(debugState.referenceOpacity))
+    history.replaceState(null, '', url)
+  }))
   app.querySelector('[data-toggle-grid]')?.addEventListener('click', () => { debugState.gridVisible = !debugState.gridVisible; apply() })
   app.querySelector('[data-toggle-safe-zones]')?.addEventListener('click', () => { debugState.safeZonesVisible = !debugState.safeZonesVisible; apply() })
   window.addEventListener('keydown', onKey)
@@ -341,16 +490,23 @@ function navigatePresentation(scene, mode) {
   location.assign(url)
 }
 
-function syncReference(mode) {
-  const layer = app.querySelector('.reference-layer')
-  const image = app.querySelector('.reference-layer img')
-  if (!layer || !image) return
-  layer.style.visibility = shouldShowReference(mode) ? 'visible' : 'hidden'
-  image.style.opacity = getReferenceOpacity(mode)
+function syncComparison(mode) {
+  const layer = app.querySelector('.reference-composition-layer')
+  const live = app.querySelector('[data-live-composition]')
+  if (layer) {
+    layer.style.visibility = shouldShowReference(mode) ? 'visible' : 'hidden'
+    layer.style.opacity = String(getReferenceOpacity(mode))
+    layer.classList.toggle('reference-on-top', debugState.overlayReferenceOnTop)
+  }
+  if (live) live.style.visibility = mode === 'overlay' && !debugState.overlayLiveVisible ? 'hidden' : 'visible'
 }
 
 function shouldShowReference(mode) { return mode === 'reference' || (mode === 'overlay' && debugState.overlayReferenceVisible) }
 function getReferenceOpacity(mode) { return mode === 'reference' ? 1 : debugState.referenceOpacity }
-function parseOpacity(value) { const number = Number(value); return Number.isFinite(number) ? Math.min(1, Math.max(0, number)) : 0.75 }
+function parseOpacity(value) {
+  if (value == null || value === '') return 0.7
+  const number = Number(value)
+  return Number.isFinite(number) ? Math.min(1, Math.max(0, number)) : 0.7
+}
 function normalizeSceneId(value) { const digits = String(value ?? '').replace(/\D/g, ''); const number = Number(digits); return number >= 1 && number <= 39 ? String(number).padStart(2, '0') : DEFAULT_SCENE }
 function showBootError(error) { console.error(error); app.innerHTML = `<section class="app-shell"><div class="error-card"><p class="eyebrow">Scene Engine Error</p><h1>Presentation app failed to load.</h1><p>${error.message}</p></div></section>` }
