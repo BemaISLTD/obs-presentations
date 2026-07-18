@@ -52,7 +52,8 @@ async function boot() {
   const paused = params.get("paused") === "true";
   const backgroundDebug = params.get("bgDebug") === "true";
   const refOpacity = parseRefOpacity(params.get("refOpacity"));
-  const refOnTop = params.get("refOnTop") === "true";
+  const refOnTopParam = params.get("refOnTop");
+  const refOnTop = refOnTopParam === "true";
 
   debugState.referenceOpacity = refOpacity;
   debugState.overlayReferenceOnTop = refOnTop;
@@ -476,7 +477,7 @@ function shouldShowReference(mode) {
 }
 
 function getReferenceOpacity(mode) {
-  return mode === "reference" ? 1 : debugState.referenceOpacity;
+  return mode === "reference" || mode === "overlay" ? 1 : debugState.referenceOpacity;
 }
 
 function clamp(value, min, max) {

@@ -410,6 +410,10 @@ p {
   background: transparent;
 }
 
+.storyboard-canvas.mode-overlay .visual-stage {
+  background: transparent;
+}
+
 .visual-stage {
   width: 1920px;
   height: 1080px;
@@ -714,6 +718,10 @@ p {
 
 .live-layer {
   z-index: 2;
+}
+
+.storyboard-canvas.mode-overlay .live-layer {
+  opacity: 0.72;
 }
 
 .storyboard-canvas.mode-overlay .scene01 {
