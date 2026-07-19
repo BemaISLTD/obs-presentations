@@ -12,7 +12,12 @@ dist
 dist-ssr
 test-results
 playwright-report
+blob-report
+coverage
+artifacts
 *.local
+.env
+.env.*
 
 # Raw handoff ZIP extraction folders (curated assets live under public/assets)
 /bg ref/

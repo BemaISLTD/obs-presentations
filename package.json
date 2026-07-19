@@ -7,6 +7,8 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
+    "visual:scene39": "node scripts/compare-scene39.mjs",
+    "visual:scene39:baseline": "node scripts/compare-scene39.mjs --save-before",
     "test:scenes": "playwright test --grep-invert @visual",
     "test:visual": "playwright test --grep @visual",
     "test:visual:update": "playwright test --grep @visual --update-snapshots",
@@ -16,6 +18,9 @@
     "@playwright/test": "^1.61.1",
     "@tailwindcss/vite": "^4.3.3",
     "@vitejs/plugin-react": "^6.0.3",
+    "pixelmatch": "^7.2.0",
+    "pngjs": "^7.0.0",
+    "sharp": "^0.35.3",
     "tailwindcss": "^4.3.3",
     "vite": "^8.1.1"
   },
