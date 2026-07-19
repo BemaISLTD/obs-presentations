@@ -5,6 +5,10 @@ import { PNG } from "pngjs";
 import pixelmatch from "pixelmatch";
 import { chromium } from "@playwright/test";
 import { getReferenceCrop } from "../src/referenceCrops.js";
+import {
+  SCENE_39_COMPARE_THRESHOLDS,
+  SCENE_39_REGION_TARGETS,
+} from "../src/scenes/scene39Geometry.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -35,6 +39,20 @@ function clampRect(rect, width, height) {
 
 function formatPct(value) {
   return `${(value * 100).toFixed(2)}%`;
+}
+
+function formatDelta(value) {
+  return `${value > 0 ? "+" : ""}${value.toFixed(1)}`;
+}
+
+function normalizeBox(box) {
+  if (!box) return null;
+  return {
+    x: Number(box.x.toFixed(1)),
+    y: Number(box.y.toFixed(1)),
+    width: Number(box.width.toFixed(1)),
+    height: Number(box.height.toFixed(1)),
+  };
 }
 
 async function ensureDir(dir) {
@@ -281,9 +299,51 @@ function compareRegions(referencePng, targetPng, excludedMask, regions) {
   return results;
 }
 
-function summarizeDifferences(after, regionAfter) {
+function compareRegionGeometry(actualRegions) {
+  const results = {};
+  for (const [name, expected] of Object.entries(SCENE_39_REGION_TARGETS)) {
+    const actual = normalizeBox(actualRegions?.[name] ?? null);
+    const expectedBox = normalizeBox(expected);
+    const delta = actual
+      ? {
+          x: Number((actual.x - expectedBox.x).toFixed(1)),
+          y: Number((actual.y - expectedBox.y).toFixed(1)),
+          width: Number((actual.width - expectedBox.width).toFixed(1)),
+          height: Number((actual.height - expectedBox.height).toFixed(1)),
+        }
+      : null;
+    const widthRatio = actual
+      ? Math.abs(actual.width - expectedBox.width) / expectedBox.width
+      : Number.POSITIVE_INFINITY;
+    const heightRatio = actual
+      ? Math.abs(actual.height - expectedBox.height) / expectedBox.height
+      : Number.POSITIVE_INFINITY;
+    const pass =
+      actual !== null &&
+      Math.abs(delta.x) <= SCENE_39_COMPARE_THRESHOLDS.positionPx &&
+      Math.abs(delta.y) <= SCENE_39_COMPARE_THRESHOLDS.positionPx &&
+      widthRatio <= SCENE_39_COMPARE_THRESHOLDS.sizeRatio &&
+      heightRatio <= SCENE_39_COMPARE_THRESHOLDS.sizeRatio;
+
+    results[name] = {
+      expected: expectedBox,
+      actual,
+      delta,
+      widthDeltaRatio: Number.isFinite(widthRatio)
+        ? Number(widthRatio.toFixed(4))
+        : null,
+      heightDeltaRatio: Number.isFinite(heightRatio)
+        ? Number(heightRatio.toFixed(4))
+        : null,
+      pass,
+    };
+  }
+  return results;
+}
+
+function summarizeDifferences(after, regionAfter, geometryAfter) {
   const differences = [];
-  if (after.visualSimilarity < 0.95) {
+  if (after.visualSimilarity < SCENE_39_COMPARE_THRESHOLDS.similarity) {
     differences.push(
       `Overall similarity is below target: ${formatPct(after.visualSimilarity)}.`,
     );
@@ -313,19 +373,32 @@ function summarizeDifferences(after, regionAfter) {
     }
   }
 
+  for (const [region, geometry] of Object.entries(geometryAfter)) {
+    if (geometry.pass) continue;
+    if (!geometry.actual) {
+      differences.push(`${region} is missing from live DOM geometry capture.`);
+      continue;
+    }
+    differences.push(
+      `${region} geometry is out of tolerance (dx ${formatDelta(geometry.delta.x)}, dy ${formatDelta(geometry.delta.y)}, dw ${formatDelta(geometry.delta.width)}, dh ${formatDelta(geometry.delta.height)}).`,
+    );
+  }
+
   return differences;
 }
 
-function toReportTable(title, stats) {
+function toReportTable(title, stats, geometry = null) {
   const rows = Object.entries(stats)
     .sort((a, b) => a[0].localeCompare(b[0]))
     .map(
-      ([name, result]) =>
-        `| ${name} | ${formatPct(result.visualSimilarity)} | ${result.mismatchedPixels} | ${result.comparedPixelCount} |`,
+      ([name, result]) => {
+        const geo = geometry?.[name];
+        return `| ${name} | ${formatPct(result.visualSimilarity)} | ${result.mismatchedPixels} | ${result.comparedPixelCount} | ${geo?.expected ? `${geo.expected.x}, ${geo.expected.y}, ${geo.expected.width}, ${geo.expected.height}` : "-"} | ${geo?.actual ? `${geo.actual.x}, ${geo.actual.y}, ${geo.actual.width}, ${geo.actual.height}` : "missing"} | ${geo?.delta ? `${formatDelta(geo.delta.x)}, ${formatDelta(geo.delta.y)}, ${formatDelta(geo.delta.width)}, ${formatDelta(geo.delta.height)}` : "-"} | ${geo ? (geo.pass ? "pass" : "fail") : "-"} |`;
+      },
     )
     .join("\n");
 
-  return `## ${title}\n\n| Region | Similarity | Mismatched Pixels | Compared Pixels |\n| --- | ---: | ---: | ---: |\n${rows}\n`;
+  return `## ${title}\n\n| Region | Similarity | Mismatched Pixels | Compared Pixels | Expected x,y,w,h | Actual x,y,w,h | Delta x,y,w,h | Geometry |\n| --- | ---: | ---: | ---: | --- | --- | --- | --- |\n${rows}\n`;
 }
 
 async function main() {
@@ -411,8 +484,13 @@ async function main() {
     excluded,
     liveAfterCapture.meta?.regions ?? {},
   );
+  const afterGeometry = compareRegionGeometry(liveAfterCapture.meta?.regions ?? {});
 
-  const remainingDifferences = summarizeDifferences(afterStats, afterRegions);
+  const remainingDifferences = summarizeDifferences(
+    afterStats,
+    afterRegions,
+    afterGeometry,
+  );
   const crop = getReferenceCrop("39");
 
   const report = {
@@ -460,6 +538,7 @@ async function main() {
       mismatchRatio: afterStats.mismatchRatio,
       visualSimilarity: afterStats.visualSimilarity,
       regions: afterRegions,
+      geometry: afterGeometry,
     },
     remainingDifferences,
   };
@@ -492,7 +571,7 @@ async function main() {
     beforeRegions
       ? toReportTable("Per-Region Before", beforeRegions)
       : "## Per-Region Before\n\nUnavailable until live-before.png exists.\n",
-    toReportTable("Per-Region After", afterRegions),
+    toReportTable("Per-Region After", afterRegions, afterGeometry),
     "## Remaining Differences",
     "",
     ...(remainingDifferences.length > 0
@@ -516,6 +595,13 @@ async function main() {
   const summaryLine = beforeStats
     ? `Scene 39 compare complete. Before: ${formatPct(beforeStats.visualSimilarity)} | After: ${formatPct(afterStats.visualSimilarity)}.`
     : `Scene 39 compare complete. After: ${formatPct(afterStats.visualSimilarity)} (run with --save-before to capture baseline).`;
+  if (remainingDifferences.length > 0) {
+    console.error(summaryLine);
+    console.error(remainingDifferences.join("\n"));
+    process.exitCode = 1;
+    return;
+  }
+
   console.log(summaryLine);
 }
 
