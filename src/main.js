@@ -78,6 +78,7 @@ async function boot() {
   const params = new URLSearchParams(window.location.search)
   const sceneId = normalizeSceneId(params.get('scene'))
   const mode = VALID_MODES.has(params.get('mode')) ? params.get('mode') : 'live'
+  const referenceView = params.get('referenceView') === 'sheet' ? 'sheet' : 'composition'
   const requestedOutput = params.get('output')
   const output = VALID_RENDERS.has(requestedOutput)
     ? 'obs'
@@ -126,6 +127,7 @@ async function boot() {
     url: params,
     refOpacity: debugState.referenceOpacity,
     refOnTop: debugState.overlayReferenceOnTop,
+    referenceView,
     backgroundDebug: params.get('bgDebug') === 'true',
     canRenderLive,
     showControls,
@@ -159,7 +161,7 @@ async function boot() {
 
 function renderApp(context, sceneRenderer) {
   const { mode, output, render, paused, slide, canRenderLive } = context
-  if (mode === 'reference' && output === 'storyboard') {
+  if (mode === 'reference' && output === 'storyboard' && context.referenceView === 'sheet') {
     app.innerHTML = `
       <main class="app-shell reference-review-app font-sans text-bema-navy" data-app-shell data-testid="app-shell">
         ${context.showControls ? renderOnCanvasControls(context) : ''}
@@ -199,7 +201,7 @@ function renderApp(context, sceneRenderer) {
         <div class="canvas-scale-frame relative overflow-hidden">
           <div class="${canvasClasses.join(' ')}" data-storyboard-canvas data-testid="storyboard-canvas">
             <section class="visual-stage ${UI.stage} ${render === 'foreground' || mode === 'reference' ? '!bg-transparent' : ''} output-stage-${output} render-stage-${render}" data-visual-stage data-testid="visual-stage" aria-label="OBS visual stage">
-              ${(mode === 'reference' || mode === 'overlay') ? renderReferenceLayer(slide, { opacity: getReferenceOpacity(mode), isVisible: shouldShowReference(mode) }) : ''}
+              ${(mode === 'reference' || mode === 'overlay') ? renderReferenceLayer(slide, { variant: 'composition', opacity: getReferenceOpacity(mode), isVisible: shouldShowReference(mode) }) : ''}
               ${(mode === 'live' || mode === 'overlay') ? `<div class="live-composition absolute inset-0" data-live-composition style="visibility:${mode === 'overlay' && !debugState.overlayLiveVisible ? 'hidden' : 'visible'}">
                 ${showBackground ? renderBackgroundLayer({ sceneId: slide.id, backgroundId, className: 'stage-background-layer', debug: context.backgroundDebug && !context.clean }) : ''}
                 ${showUnderlay ? `<div class="live-layer underlay-layer absolute inset-0" data-live-layer="underlay">${underlayMarkup}</div>` : ''}

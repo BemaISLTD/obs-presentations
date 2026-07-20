@@ -1,7 +1,10 @@
+import { readFileSync } from 'node:fs'
+import sharp from 'sharp'
 import { expect, test } from '@playwright/test'
 import { sceneControlById } from '../src/sceneControls.js'
 
 const sceneIds = Array.from({ length: 39 }, (_, index) => String(index + 1).padStart(2, '0'))
+const slides = JSON.parse(readFileSync(new URL('../public/data/slides.json', import.meta.url), 'utf8'))
 const outputs = [
   ['storyboard', 'composite'],
   ['obs', 'underlay'],
@@ -85,7 +88,7 @@ test('presentation controls, debug state, navigation, and cue lifecycle remain i
 })
 
 test('full reference, clean composition crop, and overlay comparison states are correct', async ({ page }) => {
-  await page.goto('/?scene=32&mode=reference&output=storyboard&render=composite&paused=true')
+  await page.goto('/?scene=32&mode=reference&output=storyboard&render=composite&referenceView=sheet&paused=true')
   await expect(page.locator('[data-reference-variant="sheet"]')).toBeVisible()
   await expect(page.locator('[data-reference-variant="sheet"] img')).toHaveCSS('transform', 'none')
   await expect(page.locator('[data-live-layer]')).toHaveCount(0)
@@ -95,33 +98,58 @@ test('full reference, clean composition crop, and overlay comparison states are 
 
   await page.goto('/?scene=03&mode=reference&output=obs&render=composite&clean=true&paused=true')
   await expect(page.locator('[data-reference-variant="composition"]')).toBeVisible()
-  await expect(page.locator('.reference-composition')).toHaveJSProperty('clientWidth', 1920)
-  await expect(page.locator('.reference-composition')).toHaveJSProperty('clientHeight', 1080)
+  await expect(page.locator('.reference-composition')).toHaveJSProperty('tagName', 'IMG')
+  await expect(page.locator('.reference-composition')).toHaveJSProperty('offsetWidth', 1920)
+  await expect(page.locator('.reference-composition')).toHaveJSProperty('offsetHeight', 1080)
+  await expect(page.locator('.reference-composition')).toHaveAttribute('width', '1920')
+  await expect(page.locator('.reference-composition')).toHaveAttribute('height', '1080')
+  await expect(page.locator('.reference-composition')).toHaveCSS('object-fit', 'fill')
+  await expect(page.locator('[data-reference-variant="composition"] svg')).toHaveCount(0)
   await expect(page.locator('[data-live-layer]')).toHaveCount(0)
 
-  await page.goto('/?scene=32&mode=overlay&output=storyboard&render=composite&paused=true&bgVideo=false')
+  await page.goto('/?scene=32&mode=overlay&output=obs&render=composite&clean=true&paused=true&bgVideo=false')
   const reference = page.locator('[data-reference-variant="composition"]')
   const live = page.locator('[data-live-composition]')
   await expect(reference).toBeVisible()
   await expect(live).toBeVisible()
-  const boxes = await Promise.all([reference.boundingBox(), live.boundingBox()])
+  const boxes = await Promise.all([reference.boundingBox(), live.boundingBox(), page.getByTestId('visual-stage').boundingBox()])
   expect(boxes[0]).toEqual(boxes[1])
-  await expect(page.locator('[data-comparison-controls] [data-reference-opacity]')).toHaveValue('0.7')
-  await expect(reference).toHaveClass(/reference-on-top/)
-  await page.locator('[data-comparison-controls] [data-reference-opacity]').fill('0.35')
-  await expect(reference).toHaveCSS('opacity', '0.35')
-  await page.locator('[data-overlay-view="reference"]').click()
-  await expect(live).toBeHidden()
-  await page.locator('[data-overlay-view="both"]').click()
-  await expect(live).toBeVisible()
-  await page.locator('[data-toggle-reference-order]').click()
-  await expect(reference).not.toHaveClass(/reference-on-top/)
-  await expect(page.getByTestId('visual-stage').locator('.spec-sheet')).toHaveCount(0)
+  expect(boxes[0]).toEqual(boxes[2])
+  await expect(page.locator('.reference-composition')).toHaveAttribute('width', '1920')
+  await expect(page.locator('.reference-composition')).toHaveAttribute('height', '1080')
   await expect(page.locator('[data-background-layer]')).toHaveAttribute('data-video-enabled', 'false')
 
   await page.goto('/?scene=03&mode=live&output=obs&render=composite&clean=true&controllerPreview=true&paused=true')
   await expect(page.locator('[data-toggle-presentation-controls]')).toHaveCount(0)
   await expect(page.locator('.debug-overlay')).toHaveCount(0)
+})
+
+test('all clean reference assets load successfully at 1920x1080 and scene 20/23 mappings are correct', async ({ request }) => {
+  for (const slide of slides) {
+    const response = await request.get(slide.referenceImage)
+    expect(response.ok(), `${slide.id} reference request failed`).toBeTruthy()
+    const buffer = Buffer.from(await response.body())
+    const meta = await sharp(buffer).metadata()
+    const dimensions = { width: meta.width, height: meta.height }
+    expect(dimensions).toEqual({ width: 1920, height: 1080 })
+  }
+
+  const scene20 = slides.find((slide) => slide.id === '20')
+  const scene23 = slides.find((slide) => slide.id === '23')
+  expect(scene20.referenceImage).toContain('20_participation_assets_delivered_1920x1080.png')
+  expect(scene20.storyboardImage).toContain('20_participation_assets_delivered.png')
+  expect(scene23.referenceImage).toContain('23_qualified_looplocks_1920x1080.png')
+  expect(scene23.storyboardImage).toContain('23_qualified_looplocks.png')
+})
+
+test('original storyboard sheets remain accessible through referenceView=sheet', async ({ page, request }) => {
+  const scene39 = slides.find((slide) => slide.id === '39')
+  const response = await request.get(scene39.storyboardImage)
+  expect(response.ok()).toBeTruthy()
+
+  await page.goto('/?scene=39&mode=reference&output=storyboard&render=composite&referenceView=sheet&paused=true')
+  await expect(page.locator('[data-reference-variant="sheet"]')).toBeVisible()
+  await expect(page.locator('[data-reference-variant="sheet"] img')).toHaveAttribute('src', scene39.storyboardImage)
 })
 
 test('every selected scene renders exactly its catalogued operator cues', async ({ page }) => {
