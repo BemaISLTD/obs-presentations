@@ -152,6 +152,76 @@ test('original storyboard sheets remain accessible through referenceView=sheet',
   await expect(page.locator('[data-reference-variant="sheet"] img')).toHaveAttribute('src', scene39.storyboardImage)
 })
 
+test('scene 39 accepted headline remains locked', async ({ page }) => {
+  await page.goto('/?scene=39&mode=live&output=obs&render=composite&clean=true&paused=true&bgVideo=false')
+  await page.waitForSelector('[data-match-region="headline"]')
+  await page.evaluate(async () => {
+    await document.fonts.ready
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))
+  })
+
+  const result = await page.evaluate(() => {
+    const headline = document.querySelector('[data-match-region="headline"]')
+    const stage = document.querySelector('[data-visual-stage]')
+    const line1 = headline?.querySelector('h2')
+    const line2 = headline?.querySelector('p')
+    const rect = headline?.getBoundingClientRect()
+    const stageRect = stage?.getBoundingClientRect()
+    const line1Style = line1 ? getComputedStyle(line1) : null
+    const line2Style = line2 ? getComputedStyle(line2) : null
+    const scaleX = rect && stageRect ? rect.width / headline.offsetWidth : null
+    const scaleY = rect && stageRect ? rect.height / headline.offsetHeight : null
+
+    return {
+      box: rect && stageRect
+        ? {
+            x: headline.offsetLeft,
+            y: headline.offsetTop,
+            width: headline.offsetWidth,
+            height: headline.offsetHeight,
+          }
+        : null,
+      scale: scaleX && scaleY ? { x: scaleX, y: scaleY } : null,
+      line1: line1Style
+        ? {
+            fontFamily: line1Style.fontFamily,
+            fontSize: line1Style.fontSize,
+            fontWeight: line1Style.fontWeight,
+            lineHeight: line1Style.lineHeight,
+            letterSpacing: line1Style.letterSpacing,
+          }
+        : null,
+      line2: line2Style
+        ? {
+            fontFamily: line2Style.fontFamily,
+            fontSize: line2Style.fontSize,
+            fontWeight: line2Style.fontWeight,
+            lineHeight: line2Style.lineHeight,
+            letterSpacing: line2Style.letterSpacing,
+            marginTop: line2Style.marginTop,
+          }
+        : null,
+    }
+  })
+
+  expect(result.box).toEqual({ x: 619, y: 198, width: 790, height: 162 })
+  expect(result.line1).toEqual({
+    fontFamily: '"Helvetica Neue", Arial, sans-serif',
+    fontSize: '126px',
+    fontWeight: '900',
+    lineHeight: '105.84px',
+    letterSpacing: '-8.568px',
+  })
+  expect(result.line2).toEqual({
+    fontFamily: '"Helvetica Neue", Arial, sans-serif',
+    fontSize: '148px',
+    fontWeight: '900',
+    lineHeight: '124.32px',
+    letterSpacing: '-9.62px',
+    marginTop: '-4px',
+  })
+})
+
 test('every selected scene renders exactly its catalogued operator cues', async ({ page }) => {
   const missingTargets = []
   for (const sceneId of sceneIds) {

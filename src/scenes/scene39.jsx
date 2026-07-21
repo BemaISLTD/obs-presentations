@@ -1,16 +1,3 @@
-function SceneMarkup({ html }) {
-  return html ? (
-    <div
-      data-react-scene-markup="true"
-      dangerouslySetInnerHTML={{ __html: html }}
-    />
-  ) : null;
-}
-
-function sceneMarkup(html) {
-  return <SceneMarkup html={html} />;
-}
-
 import {
   SCENE_39_GEOMETRY,
   geometryStyle,
@@ -46,6 +33,19 @@ const SCENE_39_CTAS = Object.freeze([
   }),
 ]);
 
+function SceneMarkup({ html }) {
+  return html ? (
+    <div
+      data-react-scene-markup="true"
+      dangerouslySetInnerHTML={{ __html: html }}
+    />
+  ) : null;
+}
+
+function sceneMarkup(html) {
+  return <SceneMarkup html={html} />;
+}
+
 function renderScene39Card(item, box, accentColor) {
   return `
     <article class="absolute overflow-hidden rounded-[22px] border border-[#cfdcf4] bg-white shadow-[0_12px_30px_rgba(17,56,129,.18)]" style="${geometryStyle(box)}" data-control-cue="${item.cue}" data-match-region="${item.region}">
@@ -70,35 +70,34 @@ export const scene39 = {
         <div class="absolute inset-0 bg-[radial-gradient(circle_at_48%_32%,rgba(255,255,255,.92),transparent_26%),radial-gradient(circle_at_77%_23%,rgba(89,208,255,.34),transparent_28%),linear-gradient(180deg,rgba(255,255,255,.20),rgba(255,255,255,.06))]"></div>
         <div class="pointer-events-none absolute" style="${geometryStyle(SCENE_39_GEOMETRY.presenterSafe)}" data-presenter-safe-zone aria-label="Presenter-safe area"></div>
 
-        <div class="absolute z-20 flex items-start gap-[14px]" style="${geometryStyle(SCENE_39_GEOMETRY.brand)}" data-match-region="brand">
-          <img class="mt-[4px] h-[88px] w-[88px]" src="/assets/logos/bemahub-reference-mark.svg" alt="" />
-          <div class="pt-[8px] leading-none">
-            <img class="h-[60px] w-auto" src="/assets/logos/bemahub-wordmark.svg" alt="BemaHub" />
-            <p class="mt-[8px] text-[16px] font-bold tracking-[-.02em] text-[#142a65]">Connect. Create. Move Value.</p>
-          </div>
+        <div class="absolute z-20" style="${geometryStyle(SCENE_39_GEOMETRY.brand)}" data-match-region="brand">
+          <img class="absolute left-0 top-0 h-[103px] w-[83px]" src="/assets/logos/bemahub-reference-mark.svg" alt="" data-brand-part="mark" />
+          <span class="absolute left-[79px] top-[29px] block h-[33px] w-[290px] bg-[linear-gradient(90deg,#15245d_0_57%,#32bfff_57%_100%)]" style="mask-image:url('/assets/logos/bemahub-wordmark.svg');-webkit-mask-image:url('/assets/logos/bemahub-wordmark.svg');mask-repeat:no-repeat;-webkit-mask-repeat:no-repeat;mask-size:100% 100%;-webkit-mask-size:100% 100%;" aria-label="BemaHub" data-brand-part="wordmark"></span>
+          <p class="absolute left-[79px] top-[53px] h-[49px] w-[289px] text-[15px] font-black leading-[1] tracking-[-.01em] text-[#162a65]" style="font-family:'Helvetica Neue',Arial,sans-serif;" data-brand-part="tagline">Connect. Create. Move Value.</p>
         </div>
 
-        <div class="absolute z-30 inline-flex items-center justify-center gap-[13px] rounded-[15px] border border-[#ff5c66] bg-[#ea131b] text-white shadow-[0_8px_18px_rgba(198,16,25,.24)]" style="${geometryStyle(SCENE_39_GEOMETRY.endBadge)}" data-match-region="end-badge">
-          <span class="size-[22px] rounded-full bg-white"></span><span class="text-[43px] font-black uppercase tracking-[-.05em]">END</span>
+        <div class="absolute z-30 inline-flex items-center justify-center gap-[8px] rounded-[13px] border border-[#ff7676] bg-[#f01112] text-white shadow-[0_5px_12px_rgba(234,23,30,.14)]" style="${geometryStyle(SCENE_39_GEOMETRY.endBadge)}" data-match-region="end-badge">
+          <span class="size-[18px] rounded-full bg-white shadow-[0_0_0_1px_rgba(255,255,255,.3)]"></span><span class="text-[35px] font-black uppercase tracking-[-.045em]" style="font-family:'Helvetica Neue',Arial,sans-serif;line-height:1;">END</span>
         </div>
 
-        <header class="absolute z-20 text-center" style="${geometryStyle(SCENE_39_GEOMETRY.headline)}" data-match-region="headline">
-          <h2 class="font-display text-[101px] font-black leading-[.86] tracking-[-.06em] text-[#0f2368]">THE LOOP<br/><span class="bg-gradient-to-r from-[#21b8ff] via-[#2c74e9] to-[#7445e8] bg-clip-text text-transparent">CONTINUES.</span></h2>
+        <header class="absolute z-20 flex flex-col items-center justify-start text-center" style="${geometryStyle(SCENE_39_GEOMETRY.headline)}" data-match-region="headline">
+          <h2 class="text-[126px] font-black leading-[.84] tracking-[-.068em] text-[#0f2368]" style="font-family:'Helvetica Neue',Arial,sans-serif;">THE LOOP</h2>
+          <p class="mt-[-4px] text-[148px] font-black leading-[.84] tracking-[-.065em] bg-gradient-to-r from-[#23b1ff] via-[#2c6fea] to-[#7b49e9] bg-clip-text text-transparent" style="font-family:'Helvetica Neue',Arial,sans-serif;">CONTINUES.</p>
         </header>
 
-        <div class="absolute z-20 flex items-center justify-center gap-[22px] text-[#2476db]" style="${geometryStyle(SCENE_39_GEOMETRY.divider)}" data-match-region="divider">
-          <span class="h-[4px] w-[282px] rounded-full bg-[#2a57b3]"></span>
-          <span class="text-[43px] font-semibold leading-none">∞</span>
-          <span class="h-[4px] w-[282px] rounded-full bg-[#2a57b3]"></span>
+        <div class="absolute z-20 flex items-center justify-center gap-[12px] text-[#2d92f6]" style="${geometryStyle(SCENE_39_GEOMETRY.divider)}" data-match-region="divider">
+          <span class="mt-[-6px] h-[2px] w-[291px] rounded-full bg-[#202d7c]"></span>
+          <span class="mt-[-6px] text-[33px] font-semibold leading-none tracking-[-.04em]">∞</span>
+          <span class="mt-[-6px] h-[2px] w-[252px] rounded-full bg-[#202d7c]"></span>
         </div>
 
-        <div class="absolute z-20 text-center" style="${geometryStyle(SCENE_39_GEOMETRY.subtitle)}" data-match-region="subtitle">
-          <p class="text-[26px] font-black leading-[1.21] tracking-[-.017em] text-[#122b68]">Keep creating. Keep connecting.<br/>Keep <span class="bg-gradient-to-r from-[#2178e8] to-[#7e49e8] bg-clip-text text-transparent">moving value forward.</span></p>
+        <div class="absolute z-20 flex items-start justify-center text-center" style="${geometryStyle(SCENE_39_GEOMETRY.subtitle)}" data-match-region="subtitle">
+          <p class="pt-[0px] text-[27px] font-black leading-[1.04] tracking-[-.025em] text-[#132b68]" style="font-family:'Helvetica Neue',Arial,sans-serif;">Keep creating. Keep connecting.<br/>Keep <span class="bg-gradient-to-r from-[#2991ff] via-[#4271f1] to-[#8546ea] bg-clip-text text-transparent">moving value forward.</span></p>
         </div>
 
-        <div class="absolute z-20 rounded-[28px] border-[2px] border-[#c4eeff] bg-[#ffffff] p-[18px] shadow-[0_0_0_4px_rgba(118,214,255,.38),0_0_24px_rgba(74,198,255,.38)]" style="${geometryStyle(SCENE_39_GEOMETRY.qr)}" data-match-region="qr">
-          <div class="flex h-full items-center justify-center rounded-[16px] border border-[#d3def9] bg-white">
-            <img class="h-[307px] w-[307px] rounded-[4px] bg-white" src="/assets/qr/main-join-qr.png" alt="Scan to continue with Bema Hub" />
+        <div class="absolute z-20 grid place-items-center rounded-[30px] border border-[#dbf5ff] bg-[#ffffff] p-[10px] shadow-[0_0_0_2px_rgba(160,237,255,.8),0_0_18px_rgba(95,215,255,.3)]" style="${geometryStyle(SCENE_39_GEOMETRY.qr)}" data-match-region="qr" data-qr-part="frame">
+          <div class="grid h-full w-full place-items-center rounded-[18px] border border-[#d8d2ff] bg-white p-[14px] shadow-[inset_0_0_0_1px_rgba(88,169,255,.18)]" data-qr-part="inner-frame">
+            <img class="h-[291px] w-[291px] rounded-[4px] bg-white" src="/assets/qr/main-join-qr.png" alt="Scan to continue with Bema Hub" data-qr-part="content" />
           </div>
         </div>
 
