@@ -17,6 +17,9 @@ blob-report
 coverage
 artifacts
 review-package/
+data/*.sqlite
+data/*.sqlite-shm
+data/*.sqlite-wal
 *.local
 
 # Raw handoff ZIP extraction folders (curated assets live under public/assets)

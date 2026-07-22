@@ -7,10 +7,11 @@ import { renderBackgroundLayer, initBackgroundLayer } from './components/Backgro
 import { scenes } from './scenes/index.js'
 import { loadPresentationData } from './dataService.js'
 import { getSceneBackground } from './utils/getSceneBackground.js'
-import { bindTickerControls, getGlobalTicker, initGlobalTicker, renderGlobalTicker, renderTickerControls } from './globalTicker.js'
+import { applySharedTickerSettings, bindTickerControls, getGlobalTicker, initGlobalTicker, renderGlobalTicker, renderTickerControls } from './globalTicker.js'
 import { getInitialLiveData, startSceneLiveData } from './obsLiveData.js'
 import { applySceneCue, disposeSceneLifecycle, hydrateLayerAnimationTargets, LAYER_CUES, registerSceneCleanup, resetSceneCue } from './sceneCueEngine.js'
 import { sceneControlById } from './sceneControls.js'
+import { fetchSharedState, subscribeSharedState } from './sharedControlClient.js'
 
 const app = document.querySelector('#app')
 const DEFAULT_SCENE = '01'
@@ -63,7 +64,10 @@ let detachCanvasScale
 let detachDebugTools
 let detachNavigation
 let detachGlobalTicker
+let detachSharedControl
 let startSceneSetup
+let sharedSnapshot
+let lastSharedCommandSequence = -1
 
 const debugState = {
   gridVisible: false,
@@ -79,26 +83,36 @@ boot().catch(showBootError)
 
 async function boot() {
   const params = new URLSearchParams(window.location.search)
-  const sceneId = normalizeSceneId(params.get('scene'))
-  const mode = VALID_MODES.has(params.get('mode')) ? params.get('mode') : 'live'
+  const syncEnabled = params.get('sync') === 'true' || (!params.has('scene') && params.get('sync') !== 'false')
+  sharedSnapshot = syncEnabled ? await fetchSharedState().catch((error) => {
+    console.warn('Shared control server unavailable; using URL state.', error)
+    return null
+  }) : null
+  const sharedState = sharedSnapshot?.state
+  const sceneId = normalizeSceneId(sharedState?.sceneId ?? params.get('scene'))
+  const requestedMode = sharedState?.mode ?? params.get('mode')
+  const mode = VALID_MODES.has(requestedMode) ? requestedMode : 'live'
   const requestedOutput = params.get('output')
   const output = VALID_RENDERS.has(requestedOutput)
     ? 'obs'
-    : VALID_OUTPUTS.has(requestedOutput) ? requestedOutput : 'storyboard'
+    : VALID_OUTPUTS.has(requestedOutput) ? requestedOutput : sharedSnapshot ? 'obs' : 'storyboard'
   const render = VALID_RENDERS.has(params.get('render'))
     ? params.get('render')
     : VALID_RENDERS.has(requestedOutput) ? requestedOutput : 'composite'
+  if (sharedState) params.set('bgVideo', String(sharedState.backgroundVideo))
   const clean = params.get('clean') === 'true'
   const controllerPreview = params.get('controllerPreview') === 'true'
-  const paused = params.get('paused') === 'true'
-  const showControls = render === 'composite' && !clean && !controllerPreview
+  const paused = sharedState?.animationsPaused ?? (params.get('paused') === 'true')
+  const showControls = params.get('legacyControls') === 'true' && render === 'composite' && !clean && !controllerPreview
   const controlsVisible = params.get('controls') !== 'false'
-  const selectedQuestion = getSelectedQuestion(params)
+  const selectedQuestion = sharedState?.selectedQuestion ?? getSelectedQuestion(params)
 
   document.documentElement.dataset.output = output
   document.documentElement.dataset.render = render
   document.documentElement.dataset.scene = sceneId
   document.documentElement.dataset.mode = mode
+  document.documentElement.dataset.sharedControl = String(syncEnabled && Boolean(sharedSnapshot))
+  document.documentElement.classList.toggle('shared-animations-paused', paused)
   debugState.referenceOpacity = parseOpacity(params.get('refOpacity'))
   debugState.overlayReferenceOnTop = params.get('refOnTop') !== 'false'
   const overlayView = params.get('overlayView')
@@ -136,11 +150,17 @@ async function boot() {
     showControls,
     controlsVisible,
     selectedQuestion,
+    syncEnabled,
   }
 
   document.title = `BemaHub OBS - Scene ${slide.id} ${mode}`
   renderApp(context, sceneRenderer)
-  bindPresentationNavigation(context)
+  if (syncEnabled) {
+    detachNavigation?.()
+    detachNavigation = undefined
+  } else {
+    bindPresentationNavigation(context)
+  }
   bindOnCanvasControls(context)
 
   detachGlobalTicker?.()
@@ -168,6 +188,65 @@ async function boot() {
   } else if (canRenderLive && !paused && (mode === 'live' || mode === 'overlay')) {
     startSceneSetup()
   }
+
+  if (sharedSnapshot) {
+    applySharedTickerSettings(sharedState.ticker, sharedSnapshot.revision)
+    applySharedControlCommand(sharedSnapshot, context)
+    detachSharedControl?.()
+    detachSharedControl = subscribeSharedState((nextSnapshot) => syncSharedPresentation(nextSnapshot, context))
+  }
+}
+
+function applySharedControlCommand(snapshot, context) {
+  const command = snapshot?.state?.command
+  if (!command || command.sequence === lastSharedCommandSequence) return
+  lastSharedCommandSequence = command.sequence
+  if (context.mode !== 'live' && context.mode !== 'overlay') return
+  if (command.type === 'reset' || command.cue === 'reset') {
+    disposeSceneLifecycle(app)
+    resetSceneCue(app)
+    return
+  }
+  if (context.slide.id === '36' && /^question-[1-4]$/.test(command.cue)) {
+    const selected = Number(command.cue.split('-')[1])
+    app.querySelectorAll('[data-operator-question-index]').forEach((element) => {
+      const isSelected = Number(element.dataset.operatorQuestionIndex) === selected
+      element.classList.toggle('is-operator-selected', isSelected)
+      element.setAttribute('aria-current', isSelected ? 'true' : 'false')
+    })
+    app.querySelector('.visual-stage')?.setAttribute('data-selected-question', String(selected))
+  }
+  if (command.cue === 'entry' || command.cue === LAYER_CUES.full) disposeSceneLifecycle(app)
+  applySceneCue(app, command.cue)
+  if ((command.cue === 'entry' || command.cue === LAYER_CUES.full) && !snapshot.state.animationsPaused) startSceneSetup?.()
+  if (command.cue === 'exit') disposeSceneLifecycle(app)
+}
+
+function syncSharedPresentation(nextSnapshot, context) {
+  if (!nextSnapshot?.state || nextSnapshot.revision <= (sharedSnapshot?.revision ?? -1)) return
+  const previous = sharedSnapshot?.state
+  sharedSnapshot = nextSnapshot
+  const next = nextSnapshot.state
+  const requiresReload = next.sceneId !== context.slide.id
+    || next.mode !== context.mode
+    || next.backgroundVideo !== previous?.backgroundVideo
+    || (context.slide.id === '36' && next.selectedQuestion !== previous?.selectedQuestion && next.command.sequence === lastSharedCommandSequence)
+  if (requiresReload) {
+    const url = new URL(location.href)
+    url.searchParams.set('scene', next.sceneId)
+    url.searchParams.set('mode', next.mode)
+    url.searchParams.set('bgVideo', String(next.backgroundVideo))
+    url.searchParams.set('question', String(next.selectedQuestion))
+    location.replace(url)
+    return
+  }
+
+  document.documentElement.classList.toggle('shared-animations-paused', next.animationsPaused)
+  app.querySelector('[data-app-shell]')?.classList.toggle('is-paused', next.animationsPaused)
+  if (next.animationsPaused && !previous?.animationsPaused) disposeSceneLifecycle(app)
+  if (!next.animationsPaused && previous?.animationsPaused && (context.mode === 'live' || context.mode === 'overlay')) startSceneSetup?.()
+  applySharedTickerSettings(next.ticker, nextSnapshot.revision)
+  applySharedControlCommand(nextSnapshot, context)
 }
 
 function renderApp(context, sceneRenderer) {

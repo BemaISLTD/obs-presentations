@@ -79,6 +79,24 @@ class GlobalTickerCoordinator {
     this.notify(broadcast)
   }
 
+  applySharedSettings(settings, revision) {
+    if (!settings) return
+    this.state.visible = settings.visible !== false
+    this.state.paused = Boolean(settings.paused)
+    const priorityId = Math.max(0, Number(settings.priorityId) || 0)
+    const message = String(settings.priorityMessage || '').trim().slice(0, 180)
+    this.state.items = this.state.items.filter((item) => !String(item.id || '').startsWith('shared-priority-'))
+    if (message) {
+      const item = { id: `shared-priority-${priorityId}`, message, event_type: 'operator_announcement', priority: 'critical', safe_for_public_display: true, timestamp: new Date().toISOString() }
+      this.state.priority = item
+      this.state.items = mergeItems(this.state.items, [item])
+    } else {
+      this.state.priority = null
+    }
+    this.state.sequence = Math.max(this.state.sequence + 1, Number(revision) || 0)
+    this.notify(false)
+  }
+
   command(command, payload, broadcast = true) {
     if (command === 'toggle-visible') this.state.visible = !this.state.visible
     if (command === 'toggle-paused') this.state.paused = !this.state.paused
@@ -143,6 +161,10 @@ let coordinator
 export function getGlobalTicker(params = new URLSearchParams()) {
   if (!coordinator) coordinator = new GlobalTickerCoordinator(params)
   return coordinator
+}
+
+export function applySharedTickerSettings(settings, revision) {
+  getGlobalTicker().applySharedSettings(settings, revision)
 }
 
 export function renderGlobalTicker({ slide, url }) {

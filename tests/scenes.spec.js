@@ -47,8 +47,8 @@ for (const sceneId of sceneIds) {
   })
 }
 
-test('presentation controls, debug state, navigation, and cue lifecycle remain interactive', async ({ page }) => {
-  await page.goto('/?scene=08&mode=live&output=storyboard&render=composite&paused=true&bgVideo=false')
+test('legacy presentation controls, debug state, navigation, and cue lifecycle remain interactive', async ({ page }) => {
+  await page.goto('/?scene=08&mode=live&output=storyboard&render=composite&paused=true&bgVideo=false&legacyControls=true')
   const controls = page.locator('.presentation-controls')
   await expect(controls).toBeVisible()
   await page.locator('[data-toggle-presentation-controls]').click()
@@ -62,7 +62,7 @@ test('presentation controls, debug state, navigation, and cue lifecycle remain i
   await page.keyboard.press('ArrowRight')
   await expect(page).toHaveURL(/scene=09/)
 
-  await page.goto('/?scene=08&mode=live&output=storyboard&render=composite&paused=true&bgVideo=false')
+  await page.goto('/?scene=08&mode=live&output=storyboard&render=composite&paused=true&bgVideo=false&legacyControls=true')
   await expect(page.locator('[data-presentation-scene]')).toHaveCount(39)
   await expect(page.locator('[data-scene-cue-panel]')).toHaveAttribute('data-scene', '08')
   await expect(page.locator('[data-trigger-cue]')).toHaveCount(sceneControlById['08'].duringCues.length + layerCueIds.length + 2)
@@ -100,7 +100,7 @@ test('presentation controls, debug state, navigation, and cue lifecycle remain i
 })
 
 test('global ticker controls persist across scene changes without resetting the queue', async ({ page }) => {
-  await page.goto('/?scene=07&mode=live&output=storyboard&render=composite&paused=true&bgVideo=false')
+  await page.goto('/?scene=07&mode=live&output=storyboard&render=composite&paused=true&bgVideo=false&legacyControls=true')
   const ticker = page.locator('[data-global-live-ticker]')
   await expect(ticker).toBeVisible()
 
@@ -127,8 +127,102 @@ test('global ticker controls persist across scene changes without resetting the 
   await expect(page.locator('[data-global-ticker-status]')).toHaveText(/SIM|LIVE/)
 })
 
+test('shared control room synchronizes scenes, cues, animation state, and ticker across displays', async ({ browser, request }) => {
+  await request.patch('/api/control/state', {
+    data: {
+      sceneId: '01',
+      mode: 'live',
+      animationsPaused: false,
+      backgroundVideo: false,
+      ticker: { visible: true, paused: false, priorityMessage: '', priorityId: 100 },
+    },
+  })
+  await request.post('/api/control/command', { data: { type: 'reset', cue: 'reset', sceneId: '01' } })
+
+  const control = await browser.newPage({ viewport: { width: 1440, height: 1000 } })
+  const firstDisplay = await browser.newPage()
+  const secondDisplay = await browser.newPage()
+  let announcementPayload
+  control.on('request', (outgoing) => {
+    if (outgoing.method() === 'PATCH' && outgoing.url().endsWith('/api/control/state') && outgoing.postData()?.includes('priorityMessage')) {
+      announcementPayload = outgoing.postDataJSON()
+    }
+  })
+  try {
+    await firstDisplay.goto('/?sync=true&output=obs&render=composite&clean=true&bgVideo=false')
+    await control.goto('/control')
+    await expect(control.getByRole('heading', { name: 'OBS Control Room' })).toBeVisible()
+
+    await test.step('change the active scene', async () => {
+      await control.locator('[data-action="scene"][data-value="08"]').click()
+      await expect(firstDisplay.locator('html')).toHaveAttribute('data-scene', '08')
+      await expect(firstDisplay.getByTestId('visual-stage')).toHaveAttribute('data-active-cue', LAYER_CUES.background)
+      await expect(firstDisplay.getByTestId('visual-stage')).toHaveClass(/is-layer-background-visible/)
+      await expect(firstDisplay.getByTestId('visual-stage')).not.toHaveClass(/is-layer-foreground-visible/)
+    })
+    await test.step('play and restore scene cues', async () => {
+      await control.locator('[data-action="cue"][data-value="entry"]').click()
+      await expect(firstDisplay.getByTestId('visual-stage')).toHaveAttribute('data-active-cue', 'entry')
+      await secondDisplay.goto('/?sync=true&output=obs&render=composite&clean=true&bgVideo=false')
+      await expect(secondDisplay.getByTestId('visual-stage')).toHaveAttribute('data-active-cue', 'entry')
+      await control.locator('[data-action="cue"][data-value="foreground-in"]').click()
+      await expect(firstDisplay.getByTestId('visual-stage')).toHaveClass(/is-layer-foreground-visible/)
+      await expect(secondDisplay.getByTestId('visual-stage')).toHaveClass(/is-layer-foreground-visible/)
+    })
+    await test.step('apply global animation and ticker settings', async () => {
+      await control.locator('[data-action="toggle-animations"]').click()
+      await expect(firstDisplay.locator('html')).toHaveClass(/shared-animations-paused/)
+      await expect(secondDisplay.locator('html')).toHaveClass(/shared-animations-paused/)
+      await control.locator('[data-action="toggle-ticker"]').click()
+      await expect(firstDisplay.locator('[data-global-live-ticker]')).toHaveClass(/is-hidden/)
+      await expect(secondDisplay.locator('[data-global-live-ticker]')).toHaveClass(/is-hidden/)
+    })
+    await test.step('send a shared priority announcement', async () => {
+      await control.locator('#priority-message').fill('Enrollment closes in ten minutes')
+      await expect(control.locator('#priority-message')).toHaveValue('Enrollment closes in ten minutes')
+      await control.getByRole('button', { name: 'Send announcement' }).click()
+      await expect.poll(() => announcementPayload?.ticker?.priorityMessage).toBe('Enrollment closes in ten minutes')
+      await expect.poll(async () => (await (await request.get('/api/control/state')).json()).state.ticker.priorityMessage).toBe('Enrollment closes in ten minutes')
+      await expect(firstDisplay.locator('[data-global-live-ticker]')).toContainText('Enrollment closes in ten minutes')
+      await expect(firstDisplay.locator('[data-global-live-ticker]')).not.toHaveClass(/is-hidden/)
+      await expect(secondDisplay.locator('[data-global-live-ticker]')).toContainText('Enrollment closes in ten minutes')
+    })
+  } finally {
+    await request.patch('/api/control/state', {
+      data: { sceneId: '01', mode: 'live', animationsPaused: false, backgroundVideo: true, ticker: { visible: true, paused: false, priorityMessage: '' } },
+    })
+    await request.post('/api/control/command', { data: { type: 'reset', cue: 'reset', sceneId: '01' } })
+    await Promise.all([control.close(), firstDisplay.close(), secondDisplay.close()])
+  }
+})
+
+test('control room remains scrollable and usable on tablet and mobile viewports', async ({ page }) => {
+  await page.goto('/control')
+  await expect(page.getByRole('heading', { name: 'OBS Control Room' })).toBeVisible()
+
+  for (const viewport of [{ width: 768, height: 900 }, { width: 390, height: 700 }]) {
+    await page.setViewportSize(viewport)
+    await expect(page.locator('.ticker-panel')).toBeVisible()
+    await expect(page.locator('#priority-message')).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Send announcement' })).toBeVisible()
+    const dimensions = await page.evaluate(() => ({
+      viewportWidth: window.innerWidth,
+      documentWidth: document.documentElement.scrollWidth,
+      documentHeight: Math.max(document.documentElement.scrollHeight, document.body.scrollHeight),
+      rootOverflowY: getComputedStyle(document.documentElement).overflowY,
+      bodyOverflowY: getComputedStyle(document.body).overflowY,
+    }))
+    expect(dimensions.documentWidth).toBeLessThanOrEqual(dimensions.viewportWidth)
+    expect(dimensions.documentHeight).toBeGreaterThan(viewport.height)
+    expect(dimensions.rootOverflowY).toBe('auto')
+    expect(dimensions.bodyOverflowY).toBe('visible')
+    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight))
+    expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(0)
+  }
+})
+
 test('Scene 36 retains the operator-selected question and supports curated URL questions', async ({ page }) => {
-  await page.goto('/?scene=36&mode=live&output=storyboard&render=composite&paused=true&bgVideo=false&qa=First+curated+question&qa=Second+curated+question&qa=Third+curated+question&qa=Fourth+curated+question')
+  await page.goto('/?scene=36&mode=live&output=storyboard&render=composite&paused=true&bgVideo=false&legacyControls=true&qa=First+curated+question&qa=Second+curated+question&qa=Third+curated+question&qa=Fourth+curated+question')
   await expect(page.locator('[data-operator-question-index="1"]')).toContainText('First curated question')
   await page.locator('[data-trigger-cue="question-3"]').click()
   await expect(page.locator('[data-operator-question-index="3"]')).toHaveAttribute('aria-current', 'true')
@@ -174,7 +268,7 @@ test('production OBS data updates Scenes 01, 08, and 37 while non-live scenes re
   expect(new Set(requestedEndpoints)).toEqual(new Set(['live-activity']))
 })
 
-test('full reference, clean composition crop, and overlay comparison states are correct', async ({ page }) => {
+test('full storyboard, clean composition reference, and overlay comparison states are correct', async ({ page }) => {
   await page.goto('/?scene=32&mode=reference&output=storyboard&render=composite&paused=true')
   await expect(page.locator('[data-reference-variant="sheet"]')).toBeVisible()
   await expect(page.locator('[data-reference-variant="sheet"] img')).toHaveCSS('transform', 'none')
@@ -189,7 +283,7 @@ test('full reference, clean composition crop, and overlay comparison states are 
   await expect(page.locator('.reference-composition')).toHaveJSProperty('clientHeight', 1080)
   await expect(page.locator('[data-live-layer]')).toHaveCount(0)
 
-  await page.goto('/?scene=32&mode=overlay&output=storyboard&render=composite&paused=true&bgVideo=false')
+  await page.goto('/?scene=32&mode=overlay&output=storyboard&render=composite&paused=true&bgVideo=false&legacyControls=true')
   const reference = page.locator('[data-reference-variant="composition"]')
   const live = page.locator('[data-live-composition]')
   await expect(reference).toBeVisible()
@@ -214,10 +308,30 @@ test('full reference, clean composition crop, and overlay comparison states are 
   await expect(page.locator('.debug-overlay')).toHaveCount(0)
 })
 
+test('all scenes use the new composition references while retaining storyboard sheets', async ({ request }) => {
+  const slidesResponse = await request.get('/data/slides.json')
+  expect(slidesResponse.ok()).toBeTruthy()
+  const slides = await slidesResponse.json()
+  expect(slides).toHaveLength(39)
+
+  for (const slide of slides) {
+    expect(slide.referenceImage).toMatch(new RegExp(`/assets/references/1920x1080/${slide.id}_.+_1920x1080\\.png$`))
+    expect(slide.storyboardImage).toMatch(/^\/assets\/storyboards\/core\/.+\.png$/)
+    const [referenceResponse, storyboardResponse] = await Promise.all([
+      request.get(slide.referenceImage),
+      request.get(slide.storyboardImage),
+    ])
+    expect(referenceResponse.ok(), `scene ${slide.id} reference failed`).toBeTruthy()
+    expect(storyboardResponse.ok(), `scene ${slide.id} storyboard failed`).toBeTruthy()
+    const png = Buffer.from(await referenceResponse.body())
+    expect({ width: png.readUInt32BE(16), height: png.readUInt32BE(20) }).toEqual({ width: 1672, height: 941 })
+  }
+})
+
 test('every selected scene renders exactly its catalogued operator cues', async ({ page }) => {
   const missingTargets = []
   for (const sceneId of sceneIds) {
-    await page.goto(`/?scene=${sceneId}&mode=live&output=storyboard&render=composite&paused=true&bgVideo=false`)
+    await page.goto(`/?scene=${sceneId}&mode=live&output=storyboard&render=composite&paused=true&bgVideo=false&legacyControls=true`)
     const expectedCues = [
       sceneControlById[sceneId].entryCue.id,
       ...layerCueIds,
@@ -235,7 +349,7 @@ test('every selected scene renders exactly its catalogued operator cues', async 
 })
 
 test('scene 32 completes the full operator sequence twice without stale cue state', async ({ page }) => {
-  await page.goto('/?scene=32&mode=live&output=storyboard&render=composite&paused=true&bgVideo=false')
+  await page.goto('/?scene=32&mode=live&output=storyboard&render=composite&paused=true&bgVideo=false&legacyControls=true')
   const sequence = ['entry', ...sceneControlById['32'].duringCues.map((cue) => cue.id), 'exit']
   for (let pass = 0; pass < 2; pass += 1) {
     await page.locator('[data-reset-scene]').click()

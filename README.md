@@ -11,19 +11,42 @@ npm install
 npm run dev
 ```
 
-Use the Vite address shown in the terminal as `BASE_URL` (normally
-`http://localhost:5173`).
+Node 24 or newer is required for the built-in SQLite driver. The command starts
+one HTTP server for the presentation, the control API, and the Vite development
+app. Use the address shown in the terminal as `BASE_URL` (normally
+`http://localhost:5173`). Open `BASE_URL/control` for the operator room and
+`BASE_URL/` for the synchronized composite presentation.
 
-## On-canvas controls
+To control displays on other computers, keep this server running on one host and
+open that host's LAN address from every other system, for example
+`http://192.168.1.25:5173/`. The server listens on all interfaces by default.
 
-Composite presentation pages include an operator layer over the bottom of the
-scene. The bottom strip provides Previous/Next navigation and direct Scene
-01–39 selection. Reference, Overlay, and Live are separate viewing modes. The
-selected scene's cue row is generated from `src/sceneControls.js` and provides
-Reset, Entry, layer-specific Background/Foreground/Footer entrances, a full
-staggered sequence, its operator-controlled During cues, and Exit. Entry reveals
-only the background plus the logo/LIVE header so the remaining layers can be
-brought on independently.
+For a production build:
+
+```sh
+npm run build
+npm start
+```
+
+Shared presentation state is persisted in the ignored
+`data/obs-control.sqlite` database. SQLite WAL mode and a server-sent event
+stream allow any number of display clients to read the same durable state and
+receive changes immediately.
+
+## Control room
+
+All operator controls live at `BASE_URL/control`, separate from the scene output.
+The page provides Previous/Next navigation, direct Scene 01–39 selection, and a
+cue panel generated from `src/sceneControls.js` for the active scene. It includes
+Reset, Entry, Background/Foreground/Footer entrances, Full Sequence, every
+scene-specific During cue, and Exit. It also controls global animation pause,
+background video/posters, live/reference/overlay mode, the ticker, and priority
+announcements. Scene 36 question selection follows its active scene controls.
+
+Every button writes to SQLite through the control API. Connected display pages
+receive that revision over server-sent events. A display opened later restores
+the current scene, cue, question, ticker, and animation settings from the
+database rather than starting from local browser state.
 
 Reference storyboard mode displays the complete original storyboard sheet at
 its natural aspect ratio and allows the page to scroll to its specification
@@ -33,10 +56,9 @@ same 1920×1080 coordinate space, with Reference only, Both, Live only, layer
 order, and opacity controls. Continuous ambient effects are intentionally not
 operator buttons; they resume when Entry is triggered.
 
-Add `&controls=false` when the operator layer should be hidden from a final OBS
-program capture. A fixed top-right button toggles the bottom controls back on
-or off without reloading the scene. Underlay and foreground-only browser
-sources never render the control layer.
+The former on-canvas controls are hidden by default. They remain available for
+isolated development with `legacyControls=true`; those local controls are not
+the production shared-control path.
 
 ## Keyboard navigation
 
@@ -54,6 +76,19 @@ can be used in a browser preview without adding controls to the OBS output.
 ## OBS browser-source URLs
 
 Replace `08` with the required two-digit scene number.
+
+Recommended synchronized sources (the scene number comes from the control room):
+
+- Underlay — `BASE_URL/?sync=true&output=obs&render=underlay&clean=true`
+- Foreground — `BASE_URL/?sync=true&output=obs&render=foreground&clean=true`
+- Composite — `BASE_URL/?sync=true&output=obs&render=composite&clean=true`
+
+All three retain their own OBS layer role while following the same active scene
+and commands. Plain `BASE_URL/` is also synchronized and defaults to a full-screen
+composite. Use `sync=false` or omit `sync=true` on a URL containing `scene=...`
+when an isolated, manually selected development view is required.
+
+Static development URLs:
 
 - Underlay — `BASE_URL/?scene=08&mode=live&output=obs&render=underlay&clean=true`
 - Foreground — `BASE_URL/?scene=08&mode=live&output=obs&render=foreground&clean=true`
@@ -90,11 +125,12 @@ transparent outside its lower thirds, tickers, and other Z3 elements.
 Only Scenes 01, 08, and 37 request scene-specific production values. All other
 walkthrough scenes remain deterministic. The global activity ticker is part of
 the foreground source and independently polls `/live-activity` on every scene.
-Its queue and operator state survive navigation through `localStorage`, and
-open same-origin browser views synchronize with `BroadcastChannel`.
+Its live activity queue still has a local fallback, while operator visibility,
+pause, and priority-announcement settings are stored centrally and synchronized
+to every system through the control server.
 
-The operator controls provide Show/Hide, Pause/Resume, Clear, Reconnect, and a
-local priority announcement. The ticker continues receiving safe public
+The control room provides Show/Hide, Pause/Resume, clear-announcement, and a
+shared priority announcement. The ticker continues receiving safe public
 activity while hidden or paused. It is muted by default on Scenes 38 and 39;
 use `ticker=show` when it should remain visible there. API activity is rendered
 only when `safe_for_public_display` is explicitly `true`.
@@ -154,9 +190,24 @@ markup.
 
 ```sh
 npm run build
+npm run test:server
 npm run test:scenes
 npm run test:visual
 ```
+
+## Network security
+
+On a trusted production network, set a write token before starting the server:
+
+```sh
+CONTROL_TOKEN='replace-with-a-long-random-value' npm start
+```
+
+Enter the same value under **Control server token** on `/control`. Presentation
+clients need no token because they only read state. Put HTTPS and normal network
+access controls in front of the server when it is reachable beyond a trusted
+LAN. A single running server/database should be the authority for one show;
+do not run independent SQLite copies on multiple hosts.
 
 The interface is built with Tailwind CSS 4 through the Vite plugin. Static
 scene geometry and scene-specific compositions live in Tailwind component
