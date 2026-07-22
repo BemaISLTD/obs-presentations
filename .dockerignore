@@ -1,0 +1,15 @@
+.git
+.gitignore
+.DS_Store
+.env
+.env.*
+data/
+dist/
+node_modules/
+playwright-report/
+review-package/
+test-results/
+tests/
+artifacts/
+*.log
+

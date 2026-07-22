@@ -53,6 +53,12 @@ function publish(snapshot) {
 }
 
 async function handleApi(request, response, url) {
+  if (request.method === 'GET' && url.pathname === '/api/control/health') {
+    const snapshot = store.read()
+    sendJson(response, 200, { status: 'ok', revision: snapshot.revision, updatedAt: snapshot.updatedAt })
+    return true
+  }
+
   if (request.method === 'GET' && url.pathname === '/api/control/state') {
     sendJson(response, 200, store.read())
     return true

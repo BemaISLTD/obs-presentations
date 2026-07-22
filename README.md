@@ -28,6 +28,11 @@ npm run build
 npm start
 ```
 
+For Coolify, deploy [docker-compose.yaml](./docker-compose.yaml) with the Docker
+Compose build pack. This runs the Node/SQLite server and mounts its database on
+a persistent volume; a static Vite/Nixpacks deployment will not provide shared
+controls. See [the Coolify deployment guide](./docs/coolify-deployment.md).
+
 Shared presentation state is persisted in the ignored
 `data/obs-control.sqlite` database. SQLite WAL mode and a server-sent event
 stream allow any number of display clients to read the same durable state and
