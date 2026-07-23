@@ -5828,7 +5828,9 @@
   }
   /* Scene 06 — three definition cards inside one white presentation panel. */
   .reference-scene-06::before {
-    @apply [background:linear-gradient(90deg,rgba(244,250,255,.02)_0_30%,rgba(244,249,255,.62)_42%,rgba(244,249,255,.78))];
+    @apply [display:none];
+    @apply [content:none];
+    @apply [background:transparent];
   }
   .reference-scene-06 .layered-scene-heading {
     @apply [top:118px];
@@ -5938,7 +5940,9 @@
   }
   /* Scene 07 — independent tall pillar cards with coloured baseline details. */
   .reference-scene-07::before {
-    @apply [background:linear-gradient(90deg,rgba(244,250,255,.02)_0_30%,rgba(244,249,255,.52)_44%,rgba(244,249,255,.68))];
+    @apply [display:none];
+    @apply [content:none];
+    @apply [background:transparent];
   }
   .reference-scene-07 .layered-scene-heading {
     @apply [top:118px];
@@ -6035,7 +6039,9 @@
   }
   /* Scene 09 — 2 x 2 horizontal program tiles. */
   .reference-scene-09::before {
-    @apply [background:linear-gradient(90deg,rgba(244,250,255,.02)_0_28%,rgba(244,249,255,.47)_43%,rgba(244,249,255,.56))];
+    @apply [display:none];
+    @apply [content:none];
+    @apply [background:transparent];
   }
   .reference-scene-09 .layered-scene-heading {
     @apply [top:98px];
@@ -6124,7 +6130,9 @@
   }
   /* Scene 10 — five circular journey stations; no generic rectangular cards. */
   .reference-scene-10::before {
-    @apply [background:linear-gradient(90deg,rgba(244,250,255,.02)_0_25%,rgba(244,249,255,.45)_39%,rgba(244,249,255,.58))];
+    @apply [display:none];
+    @apply [content:none];
+    @apply [background:transparent];
   }
   .reference-scene-10 .layered-scene-heading {
     @apply [top:125px];
@@ -6259,7 +6267,9 @@
   }
   /* Scene 11 — connected EchoLoop term cards with icons floating over the rail. */
   .reference-scene-11::before {
-    @apply [background:linear-gradient(90deg,rgba(244,250,255,.02)_0_27%,rgba(244,249,255,.52)_42%,rgba(244,249,255,.7))];
+    @apply [display:none];
+    @apply [content:none];
+    @apply [background:transparent];
   }
   .reference-scene-11 .layered-scene-heading {
     @apply [top:120px];
@@ -6404,7 +6414,9 @@
   }
   /* Scene 12 — three truly independent horizontal access cards. */
   .reference-scene-12::before {
-    @apply [background:linear-gradient(90deg,rgba(244,250,255,.02)_0_27%,rgba(244,249,255,.46)_43%,rgba(244,249,255,.64))];
+    @apply [display:none];
+    @apply [content:none];
+    @apply [background:transparent];
   }
   .reference-scene-12 .layered-scene-heading {
     @apply [top:220px];
@@ -6539,7 +6551,9 @@
   }
   /* Scene 13 — five tier cards, each with its own colour and raised footer. */
   .reference-scene-13::before {
-    @apply [background:linear-gradient(90deg,rgba(244,250,255,.01)_0_22%,rgba(244,249,255,.38)_35%,rgba(244,249,255,.5))];
+    @apply [display:none];
+    @apply [content:none];
+    @apply [background:transparent];
   }
   .reference-scene-13 .layered-scene-heading {
     @apply [top:82px];
@@ -6637,7 +6651,9 @@
   }
   /* Scene 15 — compact dashboard rows rather than generic status cards. */
   .reference-scene-15::before {
-    @apply [background:linear-gradient(90deg,rgba(244,250,255,.02)_0_28%,rgba(244,249,255,.56)_43%,rgba(244,249,255,.74))];
+    @apply [display:none];
+    @apply [content:none];
+    @apply [background:transparent];
   }
   .reference-scene-15 .layered-scene-heading {
     @apply [top:62px];
@@ -6744,7 +6760,9 @@
   }
   /* Scene 16 — left walkthrough copy and the reference top-navigation dashboard. */
   .reference-scene-16::before {
-    @apply [background:linear-gradient(90deg,rgba(244,250,255,.01)_0_27%,rgba(244,249,255,.35)_39%,rgba(244,249,255,.48))];
+    @apply [display:none];
+    @apply [content:none];
+    @apply [background:transparent];
   }
   .reference-scene-16 .layered-scene-heading {
     @apply [top:150px];
@@ -7029,7 +7047,9 @@
   }
   /* Scene 17 — six-card campaign browser and live activity rail. */
   .reference-scene-17::before {
-    @apply [background:linear-gradient(90deg,rgba(244,250,255,.01)_0_27%,rgba(244,249,255,.35)_40%,rgba(244,249,255,.5))];
+    @apply [display:none];
+    @apply [content:none];
+    @apply [background:transparent];
   }
   .reference-scene-17 .layered-scene-heading {
     @apply [top:86px];
@@ -7482,7 +7502,9 @@
   }
   /* Scene 19 — three large comparison cards with broadcast-readable copy. */
   .reference-scene-19::before {
-    @apply [background:linear-gradient(90deg,rgba(244,250,255,.01)_0_27%,rgba(244,249,255,.38)_42%,rgba(244,249,255,.52))];
+    @apply [display:none];
+    @apply [content:none];
+    @apply [background:transparent];
   }
   .reference-scene-19 .layered-scene-heading {
     @apply [top:62px];
@@ -8151,7 +8173,9 @@
   }
   /* Scene 20 — dark delivered-assets list from the swapped Scene 20 reference. */
   .reference-scene-20::before {
-    @apply [background:linear-gradient(90deg,rgba(244,250,255,.01)_0_27%,rgba(8,25,68,.14)_42%,rgba(8,22,67,.3))];
+    @apply [display:none];
+    @apply [content:none];
+    @apply [background:transparent];
   }
   .reference-scene-20 .layered-scene-heading {
     @apply [top:52px];
@@ -8399,7 +8423,9 @@
   }
   /* Scene 22 — four circular confirmation stations inside one white flow panel. */
   .reference-scene-22::before {
-    @apply [background:linear-gradient(90deg,rgba(244,250,255,.01)_0_27%,rgba(244,249,255,.38)_42%,rgba(244,249,255,.52))];
+    @apply [display:none];
+    @apply [content:none];
+    @apply [background:transparent];
   }
   .reference-scene-22 .layered-scene-heading {
     @apply [top:75px];
@@ -8742,6 +8768,11 @@
   }
   .layered-scene-foreground-24 .foreground-bar {
     @apply [height:92px];
+  }
+  .reference-scene-25::before {
+    @apply [display:none];
+    @apply [content:none];
+    @apply [background:transparent];
   }
   .reference-scene-25 .layered-scene-heading {
     @apply [top:42px];
@@ -10278,6 +10309,61 @@
     border: 0 !important;
     background: transparent !important;
     box-shadow: none !important;
+  }
+
+  :is(
+    html[data-scene="06"],
+    html[data-scene="07"],
+    html[data-scene="09"],
+    html[data-scene="10"],
+    html[data-scene="11"],
+    html[data-scene="12"],
+    html[data-scene="13"],
+    html[data-scene="15"],
+    html[data-scene="16"],
+    html[data-scene="17"],
+    html[data-scene="19"],
+    html[data-scene="20"],
+    html[data-scene="22"],
+    html[data-scene="25"]
+  ) .broadcast-brand .brand-wordmark,
+  :is(
+    html[data-scene="06"],
+    html[data-scene="07"],
+    html[data-scene="09"],
+    html[data-scene="10"],
+    html[data-scene="11"],
+    html[data-scene="12"],
+    html[data-scene="13"],
+    html[data-scene="15"],
+    html[data-scene="16"],
+    html[data-scene="17"],
+    html[data-scene="19"],
+    html[data-scene="20"],
+    html[data-scene="22"],
+    html[data-scene="25"]
+  ) .broadcast-brand .broadcast-wordmark {
+    width: 320px !important;
+    height: 92px !important;
+  }
+
+  :is(
+    html[data-scene="06"],
+    html[data-scene="07"],
+    html[data-scene="09"],
+    html[data-scene="10"],
+    html[data-scene="11"],
+    html[data-scene="12"],
+    html[data-scene="13"],
+    html[data-scene="15"],
+    html[data-scene="16"],
+    html[data-scene="17"],
+    html[data-scene="19"],
+    html[data-scene="20"],
+    html[data-scene="22"],
+    html[data-scene="25"]
+  ) .broadcast-brand .brand-wordmark-fallback {
+    font-size: 44px;
   }
 
   .reference-scene-17 .layered-scene-heading h2 {

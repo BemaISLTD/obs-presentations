@@ -143,6 +143,17 @@ test('Scene 05 agenda matches the approved reference order', async ({ page }) =>
   ])
 })
 
+for (const scene of ['06', '07', '09', '10', '11', '12', '13', '15', '16', '17', '19', '20', '22', '25']) {
+  test(`Scene ${scene} brand lockup remains fully transparent`, async ({ page }) => {
+    await page.goto(`/?scene=${scene}&mode=live&output=storyboard&render=composite&paused=true&bgVideo=false`)
+    await expect(page.locator(`.reference-scene-${scene} > .broadcast-brand`)).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
+    await expect(page.locator(`.reference-scene-${scene} > .broadcast-brand .brand-wordmark`)).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
+    await expect(page.locator(`.reference-scene-${scene} > .broadcast-brand .broadcast-wordmark`)).toHaveCSS('width', '320px')
+    await expect(page.locator(`.reference-scene-${scene} > .broadcast-brand .broadcast-wordmark`)).toHaveCSS('height', '92px')
+    expect(await page.locator(`.reference-scene-${scene}`).evaluate((element) => getComputedStyle(element, '::before').display)).toBe('none')
+  })
+}
+
 test('global ticker controls persist across scene changes without resetting the queue', async ({ page }) => {
   await page.goto('/?scene=07&mode=live&output=storyboard&render=composite&paused=true&bgVideo=false&legacyControls=true')
   const ticker = page.locator('[data-global-live-ticker]')

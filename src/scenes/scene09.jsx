@@ -19,10 +19,10 @@ function icon(name) {
 
 function renderBrand({ enrollment = false } = {}) {
   return `
-    <div class="broadcast-brand absolute left-[62px] top-[42px] z-20 flex items-center gap-3 font-sans text-bema-navy">
-      <img class="h-14 w-auto" src="/assets/logos/bemahub-reference-mark.svg" alt="" />
-      <span class="brand-wordmark" data-asset-wrapper>
-        <img class="broadcast-wordmark h-9 w-auto" src="/assets/logos/bemahub-wordmark.svg" alt="BemaHub" data-asset-image />
+    <div class="broadcast-brand absolute left-[62px] top-[42px] z-20 flex items-center gap-3 border-0 bg-transparent font-sans text-bema-navy shadow-none" style="background:transparent!important;border:0!important;box-shadow:none!important;backdrop-filter:none!important">
+      <img class="h-14 w-auto bg-transparent" style="background:transparent!important" src="/assets/logos/bemahub-reference-mark.svg" alt="" />
+      <span class="brand-wordmark bg-transparent" style="background:transparent!important;border:0!important;box-shadow:none!important" data-asset-wrapper>
+        <img class="broadcast-wordmark h-9 w-auto bg-transparent" style="background:transparent!important" src="/assets/logos/bemahub-wordmark.svg" alt="BemaHub" data-asset-image />
         <strong class="brand-wordmark-fallback"><span class="brand-wordmark-bema">bema</span><span class="brand-wordmark-hub">Hub</span></strong>
       </span>
       ${enrollment ? '<strong class="ml-3 border-l border-current/20 pl-4 text-sm font-black tracking-[.14em]">OPEN ENROLLMENT</strong><small class="text-xs font-semibold opacity-70">Your Benefits. Your Future. Our Priority.</small>' : ""}
