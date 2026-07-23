@@ -1404,7 +1404,7 @@
   .scene01-ticker {
     @apply [position:absolute];
     @apply [left:35px];
-    @apply [top:930px];
+    @apply [top:990px];
     @apply [width:1850px];
     @apply [height:75px];
     @apply [z-index:4];
