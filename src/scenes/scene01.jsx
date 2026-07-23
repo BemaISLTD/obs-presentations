@@ -142,14 +142,8 @@ export const scene01 = {
           data-countdown-question
           style="--in-duration:${firstPrompt.animation_in_duration_ms}ms;--out-duration:${firstPrompt.animation_out_duration_ms}ms"
         >
-          <div class="countdown-questions-title">
-            <p class="eyebrow">Where are you building from?</p>
-            <p class="muted" data-question-window>${firstPrompt.start_time || "00:00"}-${firstPrompt.end_time || "00:00"}</p>
-          </div>
           <article class="countdown-question is-visible">
-            <span class="eyebrow" data-question-index>Prompt ${firstPrompt.id}</span>
-            <p data-question-text>${firstPrompt.question}</p>
-            <p class="muted" data-question-subtext>${firstPrompt.subtext || ""}</p>
+            <p data-question-text class="text-3xl">${firstPrompt.question}</p>
           </article>
         </section>
       </section>

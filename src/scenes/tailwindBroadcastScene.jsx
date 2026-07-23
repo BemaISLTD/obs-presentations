@@ -40,12 +40,10 @@ export function renderTailwindCanvas(body) {
     </section>`} />
 }
 
-export function renderTailwindForeground(items, lead = 'LIVE NOW', audience = '128') {
+export function renderTailwindForeground(items) {
   return <Markup html={`
     <div class="pointer-events-none absolute inset-x-7 bottom-4 z-40 flex h-[82px] items-center overflow-hidden rounded-[20px] border border-white/25 bg-[#031849]/95 text-white shadow-2xl backdrop-blur-xl">
-      <strong class="mx-5 flex h-14 min-w-[210px] items-center justify-center rounded-full bg-red-600 px-7 text-lg font-black">${lead}</strong>
       ${items.map((item) => `<span class="flex h-10 min-w-0 flex-1 items-center justify-center border-l border-white/35 px-4 text-center text-base font-bold">${item}</span>`).join('')}
-      <span class="flex h-10 min-w-[220px] items-center justify-center gap-3 border-l border-white/35 px-5"><b class="text-2xl text-cyan-300">${audience}</b><small class="text-sm">Watching Live</small></span>
     </div>`} />
 }
 

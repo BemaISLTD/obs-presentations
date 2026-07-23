@@ -27,12 +27,10 @@ function renderLiveBadge() {
   return '<div class="broadcast-live absolute right-[62px] top-[46px] z-20 inline-flex items-center gap-2 rounded-full border border-red-200/50 bg-white/90 px-4 py-2 text-sm font-black tracking-[.14em] text-bema-live shadow-lg backdrop-blur"><span class="size-2.5 animate-pulse rounded-full bg-bema-live shadow-[0_0_12px_rgba(255,45,31,.7)]"></span>LIVE</div>'
 }
 
-function renderForegroundBar(items, lead = 'LIVE NOW', { audience = false, leadIcon = 'signal' } = {}) {
+function renderForegroundBar(items) {
   return `
     <div class="foreground-bar absolute inset-x-[42px] bottom-[18px] z-30 flex h-[86px] items-stretch overflow-hidden rounded-[22px] border border-white/15 bg-bema-deep-navy/95 font-sans text-white shadow-2xl backdrop-blur-xl">
-      <div class="foreground-bar-lead flex min-w-[250px] items-center gap-3 bg-gradient-to-br from-bema-blue to-bema-purple px-7 [&_.broadcast-icon]:size-7"><strong class="text-base font-black tracking-wide">${lead}</strong></div>
       ${items.map((item) => `<div class="foreground-bar-item flex min-w-0 flex-1 items-center justify-center gap-3 border-l border-white/10 px-5 text-center text-sm font-bold text-indigo-50 [&_.broadcast-icon]:size-6 [&_.broadcast-icon]:text-bema-cyan">${icon(item.icon)}<span>${item.label}</span></div>`).join('')}
-      ${audience ? `<div class="foreground-bar-audience flex min-w-[170px] items-center justify-center gap-2 border-l border-white/10 px-5 [&_.broadcast-icon]:size-6 [&_.broadcast-icon]:text-bema-cyan">${icon('people')}<strong class="text-xl">${audience}</strong><span class="text-[10px] leading-tight text-indigo-200">Watching<br>Live</span></div>` : ''}
     </div>
   `
 }
@@ -110,13 +108,8 @@ function renderLayeredForeground(id, config) {
     icon: itemIcon,
     label,
   }));
-  const lead =
-    config.footerLead ??
-    (config.utility
-      ? "LIVE NOW"
-      : config.title.split(" ").slice(0, 3).join(" "));
   return sceneMarkup(
-    `<section class="scene-foreground layered-scene-foreground layered-scene-foreground-${id} pointer-events-none absolute inset-0 font-sans"><div class="layered-presenter-accent" aria-hidden="true"></div>${renderForegroundBar(items, lead, { audience: config.audience, leadIcon: config.footerLeadIcon })}</section>`,
+    `<section class="scene-foreground layered-scene-foreground layered-scene-foreground-${id} pointer-events-none absolute inset-0 font-sans"><div class="layered-presenter-accent" aria-hidden="true"></div>${renderForegroundBar(items)}</section>`,
   );
 }
 
@@ -145,7 +138,7 @@ function renderAppShell(content) {
 }
 
 const config = {
-    title: 'THE LOOP CONTINUES.', subtitle: 'Keep creating. Keep connecting. Keep moving value forward.', layout: 'cta', utility: true, qr: true,
+    title: 'THE LOOP CONTINUES.', subtitle: 'Keep creating. Keep connecting. Keep moving value forward.', layout: 'cta', qr: true,
     items: [
       card('Visit Your Dashboard', 'Track your activity and continue your journey.', 'chart', 'OPEN', 'blue', 'dashboard-cta'),
       card('Share Your LoopLink', 'Help creative value reach more people.', 'signal', 'SHARE', 'purple', 'looplink-cta'),
@@ -176,5 +169,5 @@ export const scene39 = {
       </section>
       <div class="absolute bottom-[155px] left-[32%] z-20 w-[36%] text-center"><div class="mx-auto grid size-[112px] place-items-center rounded-full bg-gradient-to-br from-cyan-500 via-blue-600 to-violet-600 text-[52px] font-black text-white shadow-xl">↻</div><p class="mt-5 text-[24px] font-black leading-tight">Thank you for joining<br/>Bema Hub <span class="text-blue-600">Open Enrollment 2026.</span></p></div>`)
   },
-  renderForeground() { return renderTailwindForeground(['⌁ THANK YOU FOR BEING PART OF THE LOOP.', 'CREATE CONNECTIONS.', 'SHARE VALUE.', 'MOVE FORWARD.'], 'END') },
+  renderForeground() { return renderTailwindForeground(['⌁ THANK YOU FOR BEING PART OF THE LOOP.', 'CREATE CONNECTIONS.', 'SHARE VALUE.', 'MOVE FORWARD.']) },
 }

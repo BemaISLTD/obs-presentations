@@ -36,12 +36,10 @@ function renderLiveBadge() {
   return '<div class="broadcast-live absolute right-[52px] top-[34px] z-20 inline-flex items-center gap-3 rounded-xl border border-red-500 bg-red-600 px-5 py-3 text-2xl font-black tracking-[.1em] text-white shadow-lg"><span class="size-3 animate-pulse rounded-full bg-white shadow-[0_0_12px_rgba(255,255,255,.8)]"></span>LIVE</div>'
 }
 
-function renderForegroundBar(items, lead = 'LIVE NOW', { audience = false, leadIcon = 'signal' } = {}) {
+function renderForegroundBar(items) {
   return `
     <div class="foreground-bar absolute inset-x-[42px] bottom-[18px] z-30 flex h-[86px] !items-center overflow-hidden rounded-[22px] border border-white/15 bg-bema-deep-navy/95 font-sans text-white shadow-2xl backdrop-blur-xl">
-      <div class="foreground-bar-lead m-3 flex min-w-[175px] items-center justify-center gap-3 rounded-full bg-gradient-to-r from-red-500 to-red-600 px-7 [&_.broadcast-icon]:size-7">${icon(leadIcon)}<strong class="text-base font-black tracking-wide">${lead}</strong></div>
       ${items.map((item) => `<div class="foreground-bar-item flex min-w-0 !flex-1 !basis-0 items-center justify-center gap-3 border-l border-white/10 px-5 text-center text-sm font-bold text-indigo-50 [&_.broadcast-icon]:size-6 [&_.broadcast-icon]:text-bema-cyan">${icon(item.icon)}<span>${item.label}</span></div>`).join('')}
-      ${audience ? `<div class="foreground-bar-audience flex min-w-[170px] items-center justify-center gap-2 border-l border-white/10 px-5 [&_.broadcast-icon]:size-6 [&_.broadcast-icon]:text-bema-cyan">${icon('people')}<strong class="text-xl">${audience}</strong><span class="text-[10px] leading-tight text-indigo-200">Watching<br>Live</span></div>` : ''}
     </div>
   `
 }
@@ -119,13 +117,8 @@ function renderLayeredForeground(id, config) {
     icon: itemIcon,
     label,
   }));
-  const lead =
-    config.footerLead ??
-    (config.utility
-      ? "LIVE NOW"
-      : config.title.split(" ").slice(0, 3).join(" "));
   return sceneMarkup(
-    `<section class="scene-foreground layered-scene-foreground layered-scene-foreground-${id} pointer-events-none absolute inset-0 font-sans"><div class="layered-presenter-accent" aria-hidden="true"></div>${renderForegroundBar(items, lead, { audience: config.audience, leadIcon: config.footerLeadIcon })}</section>`,
+    `<section class="scene-foreground layered-scene-foreground layered-scene-foreground-${id} pointer-events-none absolute inset-0 font-sans"><div class="layered-presenter-accent" aria-hidden="true"></div>${renderForegroundBar(items)}</section>`,
   );
 }
 
@@ -154,7 +147,7 @@ function renderAppShell(content) {
 }
 
 const config = {
-    title: 'CAMPAIGN DETAIL PAGE', subtitle: 'Real creative value. Clear mutual exchange.', layout: 'dashboard', footerLead: 'LIVE NOW', audience: '128',
+    title: 'CAMPAIGN DETAIL PAGE', subtitle: 'Real creative value. Clear mutual exchange.', layout: 'dashboard',
     items: [
       card('New Single Launch: Echoes', 'Jaylen Vibes · Music Creator · Atlanta, GA', 'music', 'CREATOR', 'blue', 'detail-purpose'),
       card('Campaign Purpose', 'Support the launch of “Echoes” and amplify real music to real listeners.', 'heart', 'WHY', 'cyan', 'detail-purpose'),

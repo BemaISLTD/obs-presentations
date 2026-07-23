@@ -1,19 +1,6 @@
-// Scene 04 owns these design primitives so it can be edited independently.
-const ASSET_PATHS = {
-  logos: {
-    wordmark: '/assets/logos/bemahub-wordmark.svg',
-    mark: '/assets/logos/bemahub-reference-mark.svg',
-  },
-  qr: {
-    join: '/assets/qr/main-join-qr.png',
-  },
-  video: {
-    slide01Loop: '/assets/video/slide01-bg-loop.mp4',
-  },
-  backgrounds: {
-    slide01: '/assets/storyboards/backgrounds/slide01-bg.png',
-  },
-}
+// Scene 04 is an art-directed stinger. Its approved plate already contains
+// the final background, lockup, icons, typography, and stage geometry.
+const REFERENCE_PLATE = '/assets/references/1920x1080/04_grand_opening_stinger_1920x1080.png'
 
 function SceneMarkup({ html }) {
   return html ? <div data-react-scene-markup="true" dangerouslySetInnerHTML={{ __html: html }} /> : null
@@ -26,8 +13,14 @@ function sceneMarkup(html) {
 export const scene04 = {
   presenterZone: 'none',
   renderUnderlay() {
-    const particles = Array.from({ length: 20 }, (_, index) => `<span class="particle" style="left:${5 + (index * 4.45) % 88}%;bottom:-30px;width:${5 + (index % 5) * 2}px;height:${5 + (index % 5) * 2}px;animation-delay:${(index % 6) * 0.55}s;animation-duration:${6 + (index % 4)}s"></span>`).join('')
-    return sceneMarkup(`<section class="scene scene04 absolute inset-0 overflow-hidden font-sans text-bema-navy"><div class="scene-live-chip"><span></span>LIVE</div><div class="particle-layer particle-field">${particles}</div><div class="light-streak"></div><div class="scene04-brand-row scene-brand-lockup"><img class="scene04-brand-mark" src="${ASSET_PATHS.logos.mark}" alt="BemaHub mark"><span class="brand-wordmark" data-asset-wrapper><img class="scene04-brand-wordmark" src="${ASSET_PATHS.logos.wordmark}" alt="BemaHub" data-asset-image /><strong class="brand-wordmark-fallback"><span class="brand-wordmark-bema">bema</span><span class="brand-wordmark-hub">Hub</span></strong></span></div><div class="stinger-copy wave-layer"><div class="scene04-statements"><p data-control-cue="statement-1"><i>◉</i><span>Every <strong class="blue">creator</strong> deserves <strong class="blue">to be seen</strong>.</span></p><p data-control-cue="statement-2"><i>♧</i><span>Every <strong class="cyan">Builder</strong> deserves a meaningful way to <strong class="blue">help creative value move</strong>.</span></p><p data-control-cue="statement-3"><i>♙</i><span>Every <strong class="blue">community</strong> deserves a chance to <strong class="red">grow together</strong>.</span></p></div><span class="scene04-rule"></span><p class="scene04-welcome">Welcome to <strong>Bema.</strong> Welcome to <strong class="blue">Open Enrollment 2026.</strong></p></div></section>`)
+    return sceneMarkup(`
+      <section class="scene scene04 absolute inset-0 overflow-hidden" aria-label="Grand opening stinger">
+        <img class="absolute inset-0 size-full object-fill" src="${REFERENCE_PLATE}" alt="Bema Hub grand opening stinger" width="1920" height="1080" />
+        <span class="absolute opacity-0" data-control-cue="statement-1"></span>
+        <span class="absolute opacity-0" data-control-cue="statement-2"></span>
+        <span class="absolute opacity-0" data-control-cue="statement-3"></span>
+      </section>
+    `)
   },
   render(context) { return this.renderUnderlay(context) },
 }
