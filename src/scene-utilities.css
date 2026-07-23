@@ -10248,10 +10248,11 @@
     left: 475px;
     width: 1210px;
     height: 72px;
+    pointer-events: none;
     border: 0 !important;
     border-radius: 18px;
-    background: rgba(249, 251, 255, .96);
-    box-shadow: 0 0 26px 18px rgba(249, 251, 255, .92) !important;
+    background: transparent;
+    box-shadow: none !important;
     opacity: 1;
     transform: none !important;
     filter: none !important;
@@ -10261,8 +10262,25 @@
   .scene04-statement-reveal.statement-2 { top: 550px; }
   .scene04-statement-reveal.statement-3 { top: 648px; }
   .scene04-statement-reveal.is-cue-complete {
-    opacity: 0;
+    opacity: 1;
     animation: none !important;
+  }
+  .scene04-statement-reveal.is-cue-target {
+    z-index: 4;
+    opacity: 1;
+    transform: none !important;
+    filter: none !important;
+    background: linear-gradient(90deg, transparent, rgba(18, 207, 226, .11) 18%, rgba(18, 207, 226, .11) 82%, transparent);
+    box-shadow: inset 0 -4px 0 rgba(18, 207, 226, .9), 0 10px 24px rgba(18, 207, 226, .16) !important;
+    animation: controller-cue-highlight 1.45s ease both !important;
+  }
+  .scene04-statement-reveal.statement-2.is-cue-target {
+    background: linear-gradient(90deg, transparent, rgba(23, 100, 221, .1) 18%, rgba(23, 100, 221, .1) 82%, transparent);
+    box-shadow: inset 0 -4px 0 rgba(23, 100, 221, .88), 0 10px 24px rgba(23, 100, 221, .16) !important;
+  }
+  .scene04-statement-reveal.statement-3.is-cue-target {
+    background: linear-gradient(90deg, transparent, rgba(123, 63, 242, .1) 18%, rgba(123, 63, 242, .1) 82%, transparent);
+    box-shadow: inset 0 -4px 0 rgba(123, 63, 242, .88), 0 10px 24px rgba(123, 63, 242, .16) !important;
   }
 
   .scene05-title-wrap {

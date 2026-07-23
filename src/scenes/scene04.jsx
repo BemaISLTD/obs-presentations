@@ -16,9 +16,9 @@ export const scene04 = {
     return sceneMarkup(`
       <section class="scene scene04 absolute inset-0 overflow-hidden" aria-label="Grand opening stinger">
         <img class="absolute inset-0 size-full object-fill" src="${REFERENCE_PLATE}" alt="Bema Hub grand opening stinger" width="1920" height="1080" />
-        <span class="scene04-statement-reveal statement-1" data-control-cue="statement-1" aria-hidden="true"></span>
-        <span class="scene04-statement-reveal statement-2" data-control-cue="statement-2" aria-hidden="true"></span>
-        <span class="scene04-statement-reveal statement-3" data-control-cue="statement-3" aria-hidden="true"></span>
+        <span class="scene04-statement-reveal statement-1" data-control-cue="reveal-creator" aria-hidden="true"></span>
+        <span class="scene04-statement-reveal statement-2" data-control-cue="reveal-builder" aria-hidden="true"></span>
+        <span class="scene04-statement-reveal statement-3" data-control-cue="reveal-community" aria-hidden="true"></span>
       </section>
     `)
   },

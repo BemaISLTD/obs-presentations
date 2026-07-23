@@ -111,20 +111,25 @@ test('Scene 04 reveal controls advance the three statements independently', asyn
   const reveals = page.locator('.scene04-statement-reveal')
 
   await page.locator('[data-reset-scene]').click()
-  await page.locator('[data-trigger-cue="statement-1"]').click()
+  await expect(reveals.nth(0)).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
+  await expect(reveals.nth(0)).toHaveCSS('box-shadow', 'none')
+  await page.locator('[data-trigger-cue="reveal-creator"]').click()
   await expect(reveals.nth(0)).toHaveClass(/is-cue-complete/)
+  await expect(reveals.nth(0)).toHaveClass(/is-cue-target/)
   await expect(reveals.nth(1)).not.toHaveClass(/is-cue-complete/)
   await expect(reveals.nth(2)).not.toHaveClass(/is-cue-complete/)
 
-  await page.locator('[data-trigger-cue="statement-2"]').click()
-  await expect(reveals.nth(0)).toHaveClass(/is-cue-complete/)
+  await page.locator('[data-trigger-cue="reveal-builder"]').click()
+  await expect(reveals.nth(0)).not.toHaveClass(/is-cue-complete/)
   await expect(reveals.nth(1)).toHaveClass(/is-cue-complete/)
+  await expect(reveals.nth(1)).toHaveClass(/is-cue-target/)
   await expect(reveals.nth(2)).not.toHaveClass(/is-cue-complete/)
 
-  await page.locator('[data-trigger-cue="statement-3"]').click()
-  await expect(reveals.nth(0)).toHaveClass(/is-cue-complete/)
-  await expect(reveals.nth(1)).toHaveClass(/is-cue-complete/)
+  await page.locator('[data-trigger-cue="reveal-community"]').click()
+  await expect(reveals.nth(0)).not.toHaveClass(/is-cue-complete/)
+  await expect(reveals.nth(1)).not.toHaveClass(/is-cue-complete/)
   await expect(reveals.nth(2)).toHaveClass(/is-cue-complete/)
+  await expect(reveals.nth(2)).toHaveClass(/is-cue-target/)
 })
 
 test('Scene 05 agenda matches the approved reference order', async ({ page }) => {

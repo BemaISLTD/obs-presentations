@@ -20,6 +20,15 @@ const LAYER_VISIBLE_CLASSES = [
   'is-layer-footer-visible',
 ]
 
+const SCENE04_REVEAL_CUES = Object.freeze({
+  'reveal-creator': 0,
+  'reveal-builder': 1,
+  'reveal-community': 2,
+  'statement-1': 0,
+  'statement-2': 1,
+  'statement-3': 2,
+})
+
 const HEADER_SELECTOR = [
   '.broadcast-brand',
   '.broadcast-live',
@@ -130,14 +139,13 @@ export function applySceneCue(root, cue) {
   stage.dataset.activeCue = cue
   stage.dataset.sceneCue = cue
 
-  const statementMatch = /^statement-([1-3])$/.exec(cue)
-  if (statementMatch && stage.querySelector('.scene04')) {
-    const revealThrough = Number(statementMatch[1])
+  const scene04RevealIndex = SCENE04_REVEAL_CUES[cue]
+  if (scene04RevealIndex != null && stage.querySelector('.scene04')) {
     stage.querySelectorAll('.scene04-statement-reveal').forEach((element, index) => {
-      const revealed = index < revealThrough
-      element.classList.toggle('is-cue-complete', revealed)
-      element.classList.toggle('is-cue-target', index === revealThrough - 1)
-      if (revealed) element.dataset.cueActive = 'true'
+      const isSelected = index === scene04RevealIndex
+      element.classList.toggle('is-cue-complete', isSelected)
+      element.classList.toggle('is-cue-target', isSelected)
+      if (isSelected) element.dataset.cueActive = 'true'
     })
     stage.classList.add('is-cue-active', 'cue-during')
     return
