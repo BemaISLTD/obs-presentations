@@ -10152,4 +10152,29 @@
     flex: 0 0 242px !important;
     object-fit: contain !important;
   }
+
+  /* Shared broken-image fallback for the header wordmark, same behavior as scene01. */
+  .brand-wordmark,
+  .scene01-wordmark {
+    display: grid;
+    align-items: center;
+  }
+  .brand-wordmark-fallback {
+    display: none;
+    font-family: var(--font-title);
+    font-size: 32px;
+    letter-spacing: -0.04em;
+  }
+  .brand-wordmark.is-missing img {
+    display: none;
+  }
+  .brand-wordmark.is-missing .brand-wordmark-fallback {
+    display: inline-flex;
+  }
+  .brand-wordmark-bema {
+    color: var(--bema-red);
+  }
+  .brand-wordmark-hub {
+    color: var(--bema-navy);
+  }
 }

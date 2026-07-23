@@ -5,7 +5,10 @@ function Markup({ html }) {
 const logo = `
   <div class="scene-brand-lockup absolute left-12 top-9 z-30 flex items-center gap-3">
     <img class="h-14 w-14" src="/assets/logos/bemahub-reference-mark.svg" alt="" />
-    <img class="h-10 w-auto" src="/assets/logos/bemahub-wordmark.svg" alt="BemaHub" />
+    <span class="brand-wordmark" data-asset-wrapper>
+      <img class="h-10 w-auto" src="/assets/logos/bemahub-wordmark.svg" alt="BemaHub" data-asset-image />
+      <strong class="brand-wordmark-fallback"><span class="brand-wordmark-bema">bema</span><span class="brand-wordmark-hub">Hub</span></strong>
+    </span>
   </div>`
 
 const live = `

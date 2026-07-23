@@ -23,7 +23,10 @@ function renderBrand({ enrollment = false } = {}) {
   return `
     <div class="broadcast-brand absolute left-[48px] top-[34px] z-20 flex items-center gap-3 font-sans text-bema-navy">
       <img class="h-[72px] w-auto" src="/assets/logos/bemahub-reference-mark.svg" alt="" />
-      <img class="broadcast-wordmark h-[74px] w-auto" src="/assets/logos/bemahub-wordmark.svg" alt="BemaHub" />
+      <span class="brand-wordmark" data-asset-wrapper>
+        <img class="broadcast-wordmark h-[74px] w-auto" src="/assets/logos/bemahub-wordmark.svg" alt="BemaHub" data-asset-image />
+        <strong class="brand-wordmark-fallback"><span class="brand-wordmark-bema">bema</span><span class="brand-wordmark-hub">Hub</span></strong>
+      </span>
       ${enrollment ? '<strong class="ml-3 border-l border-current/20 pl-4 text-sm font-black tracking-[.14em]">OPEN ENROLLMENT</strong><small class="text-xs font-semibold opacity-70">Your Benefits. Your Future. Our Priority.</small>' : ''}
     </div>
   `

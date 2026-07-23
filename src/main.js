@@ -4,6 +4,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { renderReferenceLayer } from './components/reference-layer.js'
 import { renderSpecSheet } from './components/spec-sheet.js'
 import { renderBackgroundLayer, initBackgroundLayer } from './components/BackgroundLayer.js'
+import { bindBrandAssetFallback } from './components/brandAssetFallback.js'
 import { scenes } from './scenes/index.js'
 import { loadPresentationData } from './dataService.js'
 import { getSceneBackground } from './utils/getSceneBackground.js'
@@ -79,6 +80,7 @@ const debugState = {
   overlayReferenceOnTop: true,
 }
 
+bindBrandAssetFallback(app)
 boot().catch(showBootError)
 
 async function boot() {

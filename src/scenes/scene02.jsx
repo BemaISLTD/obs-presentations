@@ -42,7 +42,7 @@ export const scene02 = {
     return sceneMarkup(`
       <section class="scene scene02 absolute inset-0 overflow-hidden font-sans text-bema-navy">
         <div class="particle-layer particle-field">${particles}</div>
-        <div class="scene02-brand scene-brand-lockup"><img src="/assets/logos/bemahub-reference-mark.svg" alt=""><img src="/assets/logos/bemahub-wordmark.svg" alt="BemaHub"></div>
+        <div class="scene02-brand scene-brand-lockup"><img src="/assets/logos/bemahub-reference-mark.svg" alt=""><span class="brand-wordmark" data-asset-wrapper><img src="/assets/logos/bemahub-wordmark.svg" alt="BemaHub" data-asset-image /><strong class="brand-wordmark-fallback"><span class="brand-wordmark-bema">bema</span><span class="brand-wordmark-hub">Hub</span></strong></span></div>
         <div class="scene02-live"><strong><i></i>LIVE</strong><span>♟ 1,246</span></div>
         <header class="scene02-copy">
           <p>WELCOME</p>
