@@ -22,6 +22,14 @@ const DEFAULT_STATE = Object.freeze({
     since: '',
     until: '',
   },
+  music: {
+    track: '',
+    playing: false,
+    muted: false,
+    volume: 70,
+    position: 0,
+    startedAt: 0,
+  },
   ticker: {
     visible: true,
     paused: false,
@@ -73,9 +81,15 @@ function normalizeTickerMessages(value, legacyMessage = '', legacyId = 0) {
   return normalized.filter((item, index, all) => all.findIndex((candidate) => candidate.id === item.id) === index)
 }
 
+function normalizeMusicTrack(value) {
+  const track = String(value ?? '').trim().slice(0, 300)
+  return /^\/assets\/musics\/[^/]+\.mp3$/i.test(track) ? track : ''
+}
+
 function normalizeState(value) {
   const source = value && typeof value === 'object' ? value : {}
   const defaults = cloneDefaultState()
+  const musicVolume = Number(source.music?.volume)
   return {
     sceneId: normalizeSceneId(source.sceneId, defaults.sceneId),
     mode: MODES.has(source.mode) ? source.mode : defaults.mode,
@@ -88,6 +102,14 @@ function normalizeState(value) {
     dataRange: {
       since: normalizeDateInput(source.dataRange?.since),
       until: normalizeDateInput(source.dataRange?.until),
+    },
+    music: {
+      track: normalizeMusicTrack(source.music?.track),
+      playing: Boolean(source.music?.playing) && Boolean(normalizeMusicTrack(source.music?.track)),
+      muted: Boolean(source.music?.muted),
+      volume: Number.isFinite(musicVolume) ? Math.min(100, Math.max(0, musicVolume)) : defaults.music.volume,
+      position: Math.max(0, Number(source.music?.position) || 0),
+      startedAt: Math.max(0, Number(source.music?.startedAt) || 0),
     },
     ticker: {
       visible: source.ticker?.visible !== false,
@@ -111,6 +133,7 @@ function mergeState(current, patch) {
     ...current,
     ...(patch && typeof patch === 'object' ? patch : {}),
     dataRange: { ...current.dataRange, ...(patch?.dataRange ?? {}) },
+    music: { ...current.music, ...(patch?.music ?? {}) },
     ticker: { ...current.ticker, ...(patch?.ticker ?? {}) },
     command: { ...current.command, ...(patch?.command ?? {}) },
   }

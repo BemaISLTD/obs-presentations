@@ -69,6 +69,7 @@ let detachSharedControl
 let startSceneSetup
 let sharedSnapshot
 let lastSharedCommandSequence = -1
+let musicAudio
 
 const debugState = {
   gridVisible: false,
@@ -199,6 +200,7 @@ async function boot() {
   }
 
   if (sharedSnapshot) {
+    applySharedMusic(sharedState.music, null, context)
     applySharedTickerSettings(sharedState.ticker, sharedSnapshot.revision)
     applySharedControlCommand(sharedSnapshot, context)
     detachSharedControl?.()
@@ -229,6 +231,66 @@ function applySharedControlCommand(snapshot, context) {
   applySceneCue(app, command.cue)
   if ((command.cue === 'entry' || command.cue === LAYER_CUES.full) && !snapshot.state.animationsPaused) startSceneSetup?.()
   if (command.cue === 'exit') disposeSceneLifecycle(app)
+}
+
+function musicPlaybackPosition(music) {
+  if (!music?.playing || !music.startedAt) return Math.max(0, Number(music?.position) || 0)
+  return Math.max(0, (Number(music.position) || 0) + (Date.now() - Number(music.startedAt)) / 1000)
+}
+
+function seekMusic(audio, music) {
+  const position = musicPlaybackPosition(music)
+  const target = audio.loop && Number.isFinite(audio.duration) && audio.duration > 0
+    ? position % audio.duration
+    : position
+  try { audio.currentTime = target } catch { /* Metadata may not be available yet. */ }
+}
+
+function applySharedMusic(music, previous, context) {
+  const shouldOutputMusic = context.output === 'obs'
+    && (context.render === 'underlay' || context.render === 'composite')
+    && !context.controllerPreview
+  if (!shouldOutputMusic) {
+    musicAudio?.pause()
+    return
+  }
+
+  if (!musicAudio) {
+    musicAudio = new Audio()
+    musicAudio.preload = 'auto'
+    musicAudio.loop = true
+  }
+
+  const trackChanged = music?.track !== previous?.track
+  const timelineChanged = trackChanged
+    || music?.playing !== previous?.playing
+    || music?.position !== previous?.position
+    || music?.startedAt !== previous?.startedAt
+
+  musicAudio.volume = Math.min(1, Math.max(0, (Number(music?.volume) || 0) / 100))
+  musicAudio.muted = Boolean(music?.muted)
+
+  if (!music?.track) {
+    musicAudio.pause()
+    musicAudio.removeAttribute('src')
+    return
+  }
+
+  if (trackChanged || !musicAudio.src) {
+    musicAudio.src = music.track
+    musicAudio.load()
+  }
+  if (timelineChanged) {
+    if (musicAudio.readyState >= HTMLMediaElement.HAVE_METADATA) seekMusic(musicAudio, music)
+    else musicAudio.addEventListener('loadedmetadata', () => seekMusic(musicAudio, music), { once: true })
+  }
+
+  if (music.playing) {
+    musicAudio.play().catch((error) => console.warn('Music playback is waiting for browser autoplay permission.', error))
+  } else {
+    musicAudio.pause()
+    if (timelineChanged) seekMusic(musicAudio, music)
+  }
 }
 
 function syncSharedPresentation(nextSnapshot, context) {
@@ -262,6 +324,7 @@ function syncSharedPresentation(nextSnapshot, context) {
   app.querySelector('[data-app-shell]')?.classList.toggle('is-paused', next.animationsPaused)
   if (next.animationsPaused && !previous?.animationsPaused) disposeSceneLifecycle(app)
   if (!next.animationsPaused && previous?.animationsPaused && (context.mode === 'live' || context.mode === 'overlay')) startSceneSetup?.()
+  applySharedMusic(next.music, previous?.music, context)
   applySharedTickerSettings(next.ticker, nextSnapshot.revision)
   applySharedControlCommand(nextSnapshot, context)
 }

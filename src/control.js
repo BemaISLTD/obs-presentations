@@ -1,7 +1,7 @@
 import './control.css'
 import { LAYER_CUES } from './sceneCueEngine.js'
 import { sceneControlById, sceneControls } from './sceneControls.js'
-import { fetchSharedState, saveControlToken, sendSharedCommand, subscribeSharedState, updateSharedState } from './sharedControlClient.js'
+import { fetchAvailableMusic, fetchSharedState, saveControlToken, sendSharedCommand, subscribeSharedState, updateSharedState } from './sharedControlClient.js'
 
 const app = document.querySelector('#control-app')
 let snapshot
@@ -10,6 +10,7 @@ let busy = false
 let errorMessage = ''
 let countdownSceneId = ''
 let countdownEndsAt = 0
+let musicTracks = []
 
 function formatCountdown(totalSeconds) {
   const seconds = Math.max(0, Math.ceil(totalSeconds))
@@ -57,6 +58,12 @@ function render() {
   const previous = String(sceneNumber === 1 ? 39 : sceneNumber - 1).padStart(2, '0')
   const next = String(sceneNumber === 39 ? 1 : sceneNumber + 1).padStart(2, '0')
   const tickerMessages = Array.isArray(state.ticker.messages) ? state.ticker.messages : []
+  const music = state.music
+  const selectedTrack = musicTracks.find((track) => track.url === music.track)
+  const musicOptions = [
+    '<option value="">Select a track…</option>',
+    ...musicTracks.map((track) => `<option value="${escapeHtml(track.url)}" ${track.url === music.track ? 'selected' : ''}>${escapeHtml(track.name)}</option>`),
+  ].join('')
   const cueButtons = [
     controlButton('Reset scene', 'cue', 'reset', { kind: 'quiet' }),
     controlButton(`Entry · ${config.entryCue.label}`, 'cue', config.entryCue.id, { kind: 'primary', active: state.command.cue === config.entryCue.id }),
@@ -106,6 +113,29 @@ function render() {
               <div><h3>Animations</h3><p>Pause or resume CSS motion and scene lifecycle effects on every display.</p>${controlButton(state.animationsPaused ? 'Resume all animations' : 'Pause all animations', 'toggle-animations', null, { kind: state.animationsPaused ? 'primary' : 'quiet', active: state.animationsPaused })}</div>
               <div><h3>Background motion</h3><p>Choose video loops or force the static poster on every display.</p>${controlButton(state.backgroundVideo ? 'Use static posters' : 'Enable background video', 'toggle-background', null, { kind: 'quiet', active: !state.backgroundVideo })}</div>
               <div><h3>Presentation mode</h3><p>Live is the normal broadcast mode. Overlay and reference are for review.</p><select data-control-mode ${busy ? 'disabled' : ''}>${['live', 'overlay', 'reference'].map((mode) => `<option value="${mode}" ${mode === state.mode ? 'selected' : ''}>${mode[0].toUpperCase()}${mode.slice(1)}</option>`).join('')}</select></div>
+            </div>
+          </article>
+
+          <article class="control-panel music-panel">
+            <div class="panel-heading">
+              <div><span>Shared program audio</span><h2>Music controls</h2></div>
+              <span class="music-status ${music.playing ? 'is-playing' : ''}">${music.playing ? 'Playing' : 'Paused'}</span>
+            </div>
+            <div class="music-control-layout">
+              <label class="music-track-picker">
+                <span>Available music</span>
+                <select data-music-track ${busy ? 'disabled' : ''}>${musicOptions}</select>
+                <small>${selectedTrack ? `Selected: ${escapeHtml(selectedTrack.name)}` : musicTracks.length ? 'Choose a track to begin.' : 'No MP3 files found in public/assets/musics.'}</small>
+              </label>
+              <div class="music-transport" aria-label="Music playback">
+                ${controlButton('Play', 'music-play', null, { kind: 'primary', active: music.playing })}
+                ${controlButton('Pause', 'music-pause', null, { active: !music.playing })}
+                ${controlButton(music.muted ? 'Unmute' : 'Mute', 'music-mute', null, { kind: 'quiet', active: music.muted })}
+              </div>
+              <label class="music-volume">
+                <span><strong>Volume</strong><output data-music-volume-output>${Math.round(music.volume)}%</output></span>
+                <input type="range" min="0" max="100" step="1" value="${music.volume}" data-music-volume aria-label="Music volume" ${busy ? 'disabled' : ''}>
+              </label>
             </div>
           </article>
 
@@ -224,9 +254,37 @@ function bindControls() {
       if (action === 'clear-announcements') run(() => updateSharedState({ ticker: { messages: [], priorityMessage: '', priorityId: snapshot.state.ticker.priorityId + 1 } }))
       if (action === 'set-data-mode') run(() => updateSharedState({ dataMode: value }))
       if (action === 'clear-data-range') run(() => updateSharedState({ dataRange: { since: '', until: '' } }))
+      if (action === 'music-play' && snapshot.state.music.track) {
+        const music = snapshot.state.music
+        run(() => updateSharedState({ music: { playing: true, startedAt: Date.now() } }))
+      }
+      if (action === 'music-pause') {
+        const music = snapshot.state.music
+        const position = music.playing && music.startedAt
+          ? music.position + Math.max(0, (Date.now() - music.startedAt) / 1000)
+          : music.position
+        run(() => updateSharedState({ music: { playing: false, position, startedAt: 0 } }))
+      }
+      if (action === 'music-mute') run(() => updateSharedState({ music: { muted: !snapshot.state.music.muted } }))
     })
   })
   app.querySelector('[data-control-mode]')?.addEventListener('change', (event) => run(() => updateSharedState({ mode: event.target.value })))
+  app.querySelector('[data-music-track]')?.addEventListener('change', (event) => {
+    const track = event.target.value
+    run(() => updateSharedState({
+      music: {
+        track,
+        playing: Boolean(track) && snapshot.state.music.playing,
+        position: 0,
+        startedAt: track && snapshot.state.music.playing ? Date.now() : 0,
+      },
+    }))
+  })
+  const volume = app.querySelector('[data-music-volume]')
+  volume?.addEventListener('input', (event) => {
+    app.querySelector('[data-music-volume-output]').textContent = `${event.target.value}%`
+  })
+  volume?.addEventListener('change', (event) => run(() => updateSharedState({ music: { volume: Number(event.target.value) } })))
   app.querySelector('[data-data-range-form]')?.addEventListener('submit', (event) => {
     event.preventDefault()
     const since = new FormData(event.currentTarget).get('since')?.toString().trim() || ''
@@ -257,7 +315,9 @@ function bindControls() {
 
 async function boot() {
   try {
-    snapshot = await fetchSharedState()
+    const [initialSnapshot, musicLibrary] = await Promise.all([fetchSharedState(), fetchAvailableMusic()])
+    snapshot = initialSnapshot
+    musicTracks = Array.isArray(musicLibrary.tracks) ? musicLibrary.tracks : []
     connectionStatus = 'connected'
     render()
     subscribeSharedState((next) => {

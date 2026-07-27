@@ -59,6 +59,39 @@ test('data mode and date range are validated and persisted', () => {
   }
 })
 
+test('music playback settings are normalized and persisted', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'obs-control-music-'))
+  const databasePath = join(directory, 'state.sqlite')
+  try {
+    const store = createControlStore(databasePath)
+    assert.equal(store.read().state.music.volume, 70)
+
+    const playing = store.write({
+      music: {
+        track: '/assets/musics/Bema%20Hub.mp3',
+        playing: true,
+        muted: true,
+        volume: 120,
+        position: 12.5,
+        startedAt: 1_700_000_000_000,
+      },
+    })
+    assert.equal(playing.state.music.track, '/assets/musics/Bema%20Hub.mp3')
+    assert.equal(playing.state.music.playing, true)
+    assert.equal(playing.state.music.muted, true)
+    assert.equal(playing.state.music.volume, 100)
+    assert.equal(playing.state.music.position, 12.5)
+
+    const rejected = store.write({ music: { track: '/assets/other/not-allowed.mp3', playing: true, volume: -4 } })
+    assert.equal(rejected.state.music.track, '')
+    assert.equal(rejected.state.music.playing, false)
+    assert.equal(rejected.state.music.volume, 0)
+    store.close()
+  } finally {
+    rmSync(directory, { recursive: true, force: true })
+  }
+})
+
 test('commands increment a durable sequence and validate scene values', () => {
   const directory = mkdtempSync(join(tmpdir(), 'obs-control-command-'))
   const databasePath = join(directory, 'state.sqlite')

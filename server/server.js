@@ -1,4 +1,4 @@
-import { createReadStream, existsSync, statSync } from 'node:fs'
+import { createReadStream, existsSync, readdirSync, statSync } from 'node:fs'
 import { createServer } from 'node:http'
 import { extname, join, normalize, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -23,6 +23,7 @@ const MIME_TYPES = {
   '.jpg': 'image/jpeg',
   '.js': 'text/javascript; charset=utf-8',
   '.json': 'application/json; charset=utf-8',
+  '.mp3': 'audio/mpeg',
   '.png': 'image/png',
   '.svg': 'image/svg+xml',
   '.webm': 'video/webm',
@@ -61,6 +62,22 @@ async function handleApi(request, response, url) {
 
   if (request.method === 'GET' && url.pathname === '/api/control/state') {
     sendJson(response, 200, store.read())
+    return true
+  }
+
+  if (request.method === 'GET' && url.pathname === '/api/control/music') {
+    const musicDirectory = join(root, production ? 'dist' : 'public', 'assets', 'musics')
+    const tracks = existsSync(musicDirectory)
+      ? readdirSync(musicDirectory, { withFileTypes: true })
+        .filter((entry) => entry.isFile() && extname(entry.name).toLowerCase() === '.mp3')
+        .map((entry) => ({
+          name: entry.name.replace(/\.mp3$/i, '').replace(/[_-]+/g, ' '),
+          file: entry.name,
+          url: `/assets/musics/${encodeURIComponent(entry.name)}`,
+        }))
+        .sort((left, right) => left.name.localeCompare(right.name))
+      : []
+    sendJson(response, 200, { tracks })
     return true
   }
 

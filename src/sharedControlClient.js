@@ -1,6 +1,7 @@
 const STATE_URL = '/api/control/state'
 const COMMAND_URL = '/api/control/command'
 const EVENTS_URL = '/api/control/events'
+const MUSIC_URL = '/api/control/music'
 
 function tokenHeaders() {
   const token = sessionStorage.getItem('bemahub.obs.controlToken') || ''
@@ -28,6 +29,10 @@ export function fetchSharedState() {
   return request(STATE_URL)
 }
 
+export function fetchAvailableMusic() {
+  return request(MUSIC_URL)
+}
+
 export function updateSharedState(patch) {
   return request(STATE_URL, { method: 'PATCH', body: JSON.stringify(patch) })
 }
@@ -45,4 +50,3 @@ export function subscribeSharedState(onState, onStatus = () => {}) {
   })
   return () => events.close()
 }
-
