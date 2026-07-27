@@ -1,16 +1,18 @@
-import { createObsLiveClient, MOCK_LIVE_DATA } from './obsLiveData.js'
+import { createObsLiveClient } from './obsLiveData.js'
 
 const STORAGE_KEY = 'bemahub.obs.globalTicker.v1'
 const CHANNEL_NAME = 'bemahub-obs-global-ticker'
-const MAX_ITEMS = 40
+const MAX_ACTIVITY_ITEMS = 40
 
 const DEFAULT_STATE = Object.freeze({
   visible: true,
   paused: false,
   connected: true,
   sequence: 0,
-  items: MOCK_LIVE_DATA.activity,
+  items: [],
   priority: null,
+  sharedClearId: 0,
+  activityClearedAt: 0,
 })
 
 function escapeHtml(value) {
@@ -21,7 +23,11 @@ function readState() {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null')
     if (!saved || !Array.isArray(saved.items)) return { ...DEFAULT_STATE, items: [...DEFAULT_STATE.items] }
-    return { ...DEFAULT_STATE, ...saved, items: saved.items.slice(0, MAX_ITEMS) }
+    return {
+      ...DEFAULT_STATE,
+      ...saved,
+      items: saved.items.filter((item) => !String(item?.id || '').startsWith('mock-')),
+    }
   } catch {
     return { ...DEFAULT_STATE, items: [...DEFAULT_STATE.items] }
   }
@@ -42,7 +48,14 @@ function mergeItems(current, incoming) {
     if (seen.has(id)) return false
     seen.add(id)
     return true
-  }).slice(0, MAX_ITEMS)
+  })
+}
+
+function retainOperatorMessages(items) {
+  const normalized = normalizeItems(items)
+  const operatorMessages = normalized.filter((item) => item.event_type === 'operator_announcement')
+  const activity = normalized.filter((item) => item.event_type !== 'operator_announcement').slice(0, MAX_ACTIVITY_ITEMS)
+  return [...operatorMessages, ...activity]
 }
 
 class GlobalTickerCoordinator {
@@ -75,7 +88,11 @@ class GlobalTickerCoordinator {
 
   replaceState(state, broadcast = true) {
     if (!state || !Array.isArray(state.items)) return
-    this.state = { ...DEFAULT_STATE, ...state, items: state.items.slice(0, MAX_ITEMS) }
+    const currentClearId = Math.max(0, Number(this.state.sharedClearId) || 0)
+    const incomingClearId = Math.max(0, Number(state.sharedClearId) || 0)
+    if (incomingClearId !== currentClearId) return
+    if ((Number(state.activityClearedAt) || 0) < (Number(this.state.activityClearedAt) || 0)) return
+    this.state = { ...DEFAULT_STATE, ...state, items: retainOperatorMessages(state.items) }
     this.notify(broadcast)
   }
 
@@ -83,16 +100,30 @@ class GlobalTickerCoordinator {
     if (!settings) return
     this.state.visible = settings.visible !== false
     this.state.paused = Boolean(settings.paused)
-    const priorityId = Math.max(0, Number(settings.priorityId) || 0)
-    const message = String(settings.priorityMessage || '').trim().slice(0, 180)
-    this.state.items = this.state.items.filter((item) => !String(item.id || '').startsWith('shared-priority-'))
-    if (message) {
-      const item = { id: `shared-priority-${priorityId}`, message, event_type: 'operator_announcement', priority: 'critical', safe_for_public_display: true, timestamp: new Date().toISOString() }
-      this.state.priority = item
-      this.state.items = mergeItems(this.state.items, [item])
-    } else {
-      this.state.priority = null
+    const clearId = Math.max(0, Number(settings.clearId) || 0)
+    if (clearId !== (Number(this.state.sharedClearId) || 0)) {
+      this.state.items = []
+      this.state.sharedClearId = clearId
+      this.state.activityClearedAt = Date.now()
     }
+    this.state.items = this.state.items.filter((item) => !String(item.id || '').startsWith('shared-priority-'))
+    const sharedMessages = Array.isArray(settings.messages) && settings.messages.length
+      ? settings.messages
+      : String(settings.priorityMessage || '').trim()
+        ? [{ id: `legacy-${Math.max(0, Number(settings.priorityId) || 0)}`, message: settings.priorityMessage }]
+        : []
+    const announcements = sharedMessages
+      .map((entry) => ({
+        id: `shared-priority-${String(entry?.id || '')}`,
+        message: String(entry?.message || '').trim().slice(0, 180),
+        event_type: 'operator_announcement',
+        priority: 'critical',
+        safe_for_public_display: true,
+        timestamp: new Date().toISOString(),
+      }))
+      .filter((item) => item.message)
+    this.state.priority = announcements.at(-1) || null
+    this.state.items = retainOperatorMessages(mergeItems(announcements, this.state.items))
     this.state.sequence = Math.max(this.state.sequence + 1, Number(revision) || 0)
     this.notify(false)
   }
@@ -103,6 +134,7 @@ class GlobalTickerCoordinator {
     if (command === 'clear') {
       this.state.items = []
       this.state.priority = null
+      this.state.activityClearedAt = Date.now()
     }
     if (command === 'priority' && String(payload || '').trim()) {
       const message = String(payload).trim().slice(0, 180)
@@ -120,9 +152,15 @@ class GlobalTickerCoordinator {
   }
 
   pushActivity(items) {
-    const merged = mergeItems(this.state.items, items)
+    const clearedAt = Number(this.state.activityClearedAt) || 0
+    const incoming = normalizeItems(items).filter((item) => {
+      if (!clearedAt) return true
+      const timestamp = Date.parse(item.timestamp || '')
+      return Number.isNaN(timestamp) || timestamp > clearedAt
+    })
+    const merged = mergeItems(this.state.items, incoming)
     if (JSON.stringify(merged) === JSON.stringify(this.state.items)) return
-    this.state.items = merged
+    this.state.items = retainOperatorMessages(merged)
     this.state.sequence += 1
     this.notify()
   }
@@ -177,14 +215,14 @@ export function renderGlobalTicker({ slide, url }) {
 }
 
 function renderTrack(state) {
-  const items = state.items.length ? state.items : [{ id: 'empty', message: 'Waiting for live activity…', priority: 'low' }]
+  const items = state.items
+  if (!items.length) return ''
   const markup = items.map((item) => `<span class="global-live-ticker-item priority-${escapeHtml(item.priority || 'medium')}" data-ticker-item-id="${escapeHtml(item.id || '')}"><i>•</i>${escapeHtml(item.message)}</span>`).join('')
   return `<span class="global-live-ticker-sequence">${markup}</span><span class="global-live-ticker-sequence" aria-hidden="true">${markup}</span>`
 }
 
 function trackSignature(state) {
-  const items = state.items.length ? state.items : [{ id: 'empty', message: 'Waiting for live activity…', priority: 'low' }]
-  return items.map((item) => `${item.id || ''}\u0000${item.priority || ''}\u0000${item.message || ''}`).join('\u0001')
+  return state.items.map((item) => `${item.id || ''}\u0000${item.priority || ''}\u0000${item.message || ''}`).join('\u0001')
 }
 
 export function initGlobalTicker(root, context) {

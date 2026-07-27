@@ -126,7 +126,7 @@ export function createObsLiveClient(params = new URLSearchParams()) {
   }
 
   async function pollActivity() {
-    if (!useApi) return MOCK_LIVE_DATA.activity.map((item) => ({ ...item }))
+    if (!useApi) return []
     controller?.abort()
     controller = new AbortController()
     try {
@@ -134,7 +134,7 @@ export function createObsLiveClient(params = new URLSearchParams()) {
       return publicActivity(activity?.items)
     } catch (error) {
       if (error.name === 'AbortError') throw error
-      return MOCK_LIVE_DATA.activity.map((item) => ({ ...item }))
+      return []
     }
   }
 
@@ -190,7 +190,7 @@ export function startSceneLiveData(root, context, onActivity = () => {}) {
       if (context.slide.id === '01') updateScene01(root, data)
       if (context.slide.id === '08') updateScene08(root, data)
       if (context.slide.id === '37') updateScene37(root, data)
-      onActivity(data.activity)
+      onActivity(data.source === 'api' ? data.activity : [])
     } catch (error) {
       if (error.name !== 'AbortError') console.warn(error)
     }

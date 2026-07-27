@@ -2,6 +2,15 @@ import { mkdirSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 
+const TICKER_MESSAGE_SEED_VERSION = 1
+const DEFAULT_TICKER_MESSAGES = Object.freeze([
+  Object.freeze({ id: 'starter-welcome', message: 'Welcome to BemaHub Open Enrollment Live' }),
+  Object.freeze({ id: 'starter-build', message: 'Build connections, unlock opportunities, and grow together' }),
+  Object.freeze({ id: 'starter-loopcode', message: 'Share your LoopCode and invite someone into the community' }),
+  Object.freeze({ id: 'starter-explore', message: 'Explore the campaign and choose the access path that fits you' }),
+  Object.freeze({ id: 'starter-live', message: 'Stay with us for live updates throughout the session' }),
+])
+
 const DEFAULT_STATE = Object.freeze({
   sceneId: '01',
   mode: 'live',
@@ -16,6 +25,9 @@ const DEFAULT_STATE = Object.freeze({
   ticker: {
     visible: true,
     paused: false,
+    messages: DEFAULT_TICKER_MESSAGES,
+    messageSeedVersion: TICKER_MESSAGE_SEED_VERSION,
+    clearId: 0,
     priorityMessage: '',
     priorityId: 0,
   },
@@ -44,6 +56,23 @@ function normalizeSceneId(value, fallback = '01') {
   return number >= 1 && number <= 39 ? String(number).padStart(2, '0') : fallback
 }
 
+function normalizeTickerMessages(value, legacyMessage = '', legacyId = 0) {
+  const messages = Array.isArray(value) ? value : []
+  const normalized = messages
+    .map((item, index) => ({
+      id: String(item?.id ?? `message-${index}`).trim().slice(0, 100),
+      message: String(item?.message ?? '').trim().slice(0, 180),
+    }))
+    .filter((item) => item.id && item.message)
+  if (!normalized.length && String(legacyMessage ?? '').trim()) {
+    normalized.push({
+      id: `legacy-${Math.max(0, Number(legacyId) || 0)}`,
+      message: String(legacyMessage).trim().slice(0, 180),
+    })
+  }
+  return normalized.filter((item, index, all) => all.findIndex((candidate) => candidate.id === item.id) === index)
+}
+
 function normalizeState(value) {
   const source = value && typeof value === 'object' ? value : {}
   const defaults = cloneDefaultState()
@@ -63,6 +92,9 @@ function normalizeState(value) {
     ticker: {
       visible: source.ticker?.visible !== false,
       paused: Boolean(source.ticker?.paused),
+      messages: normalizeTickerMessages(source.ticker?.messages, source.ticker?.priorityMessage, source.ticker?.priorityId),
+      messageSeedVersion: Math.max(0, Number(source.ticker?.messageSeedVersion) || 0),
+      clearId: Math.max(0, Number(source.ticker?.clearId) || 0),
       priorityMessage: String(source.ticker?.priorityMessage ?? '').slice(0, 180),
       priorityId: Math.max(0, Number(source.ticker?.priorityId) || 0),
     },
@@ -105,6 +137,31 @@ export function createControlStore(databasePath = resolve('data/obs-control.sqli
   const updateState = database.prepare('UPDATE presentation_state SET revision = ?, state_json = ?, updated_at = ? WHERE id = 1')
   insertState.run(JSON.stringify(cloneDefaultState()), new Date().toISOString())
 
+  const storedRow = selectState.get()
+  try {
+    const storedState = JSON.parse(storedRow.state_json)
+    if ((Number(storedState?.ticker?.messageSeedVersion) || 0) < TICKER_MESSAGE_SEED_VERSION) {
+      const existingMessages = normalizeTickerMessages(
+        storedState?.ticker?.messages,
+        storedState?.ticker?.priorityMessage,
+        storedState?.ticker?.priorityId,
+      )
+      storedState.ticker = {
+        ...(storedState.ticker ?? {}),
+        messages: existingMessages.length ? existingMessages : structuredClone(DEFAULT_TICKER_MESSAGES),
+        messageSeedVersion: TICKER_MESSAGE_SEED_VERSION,
+      }
+      const migratedState = normalizeState(storedState)
+      updateState.run(
+        Number(storedRow.revision) + 1,
+        JSON.stringify(migratedState),
+        new Date().toISOString(),
+      )
+    }
+  } catch {
+    // read() below safely normalizes an invalid row without risking startup.
+  }
+
   function read() {
     const row = selectState.get()
     let state
@@ -137,4 +194,3 @@ export function createControlStore(databasePath = resolve('data/obs-control.sqli
 
   return { read, write, command, close: () => database.close() }
 }
-

@@ -142,9 +142,10 @@ transparent outside its lower thirds, tickers, and other Z3 elements.
 Only Scenes 01, 08, and 37 request scene-specific production values. All other
 walkthrough scenes remain deterministic. The global activity ticker is part of
 the foreground source and independently polls `/live-activity` on every scene.
-Its live activity queue still has a local fallback, while operator visibility,
-pause, and priority-announcement settings are stored centrally and synchronized
-to every system through the control server.
+Its live activity queue uses only public-safe backend events; canned fallback
+messages are not inserted into the ticker. Operator visibility, pause, and
+messages are stored centrally and synchronized to every system through the
+control server.
 
 The control room's **Live data source** panel switches this data between
 **Simulated**, **Backend (live)**, and **Hybrid** without editing URLs, and its

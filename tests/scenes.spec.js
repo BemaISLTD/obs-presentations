@@ -170,7 +170,7 @@ test('global ticker controls persist across scene changes without resetting the 
   await expect(footer).toHaveCSS('visibility', 'hidden')
 
   await page.locator('[data-ticker-command="clear"]').click()
-  await expect(ticker.locator('[data-ticker-item-id="empty"]').first()).toContainText('Waiting for live activity')
+  await expect(ticker.locator('[data-global-ticker-track]')).toBeEmpty()
   await page.locator('[data-ticker-priority-input]').fill('Enrollment closes in fifteen minutes')
   await page.locator('[data-ticker-command="priority"]').click()
   await expect(ticker).toContainText('Enrollment closes in fifteen minutes')

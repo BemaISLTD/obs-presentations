@@ -56,6 +56,7 @@ function render() {
   const sceneNumber = Number(state.sceneId)
   const previous = String(sceneNumber === 1 ? 39 : sceneNumber - 1).padStart(2, '0')
   const next = String(sceneNumber === 39 ? 1 : sceneNumber + 1).padStart(2, '0')
+  const tickerMessages = Array.isArray(state.ticker.messages) ? state.ticker.messages : []
   const cueButtons = [
     controlButton('Reset scene', 'cue', 'reset', { kind: 'quiet' }),
     controlButton(`Entry · ${config.entryCue.label}`, 'cue', config.entryCue.id, { kind: 'primary', active: state.command.cue === config.entryCue.id }),
@@ -87,7 +88,7 @@ function render() {
       <section class="control-layout">
         <div class="control-main-column">
           <article class="control-panel active-scene-panel">
-            <div class="panel-heading"><div><span>On air</span><h2>Scene ${state.sceneId}: ${escapeHtml(config.title)}</h2></div><div class="scene-stepper">${controlButton('← Previous', 'scene', previous, { kind: 'quiet' })}${controlButton('Next →', 'scene', next, { kind: 'quiet' })}</div></div>
+            <div class="panel-heading"><div><span>On air</span><h2>Scene ${state.sceneId}: ${escapeHtml(config.title)}</h2></div><div class="scene-stepper">${controlButton('← Previous', 'scene-full', previous, { kind: 'quiet' })}${controlButton('Next →', 'scene-full', next, { kind: 'quiet' })}</div></div>
             <div class="scene-grid" aria-label="Choose active scene">
               ${sceneControls.map((scene) => `<button type="button" data-action="scene" data-value="${scene.scene}" class="scene-picker ${scene.scene === state.sceneId ? 'is-active' : ''}" title="${escapeHtml(scene.title)}"${busy ? ' disabled' : ''}><strong>${scene.scene}</strong><span>${escapeHtml(scene.title)}</span></button>`).join('')}
             </div>
@@ -140,18 +141,23 @@ function render() {
             <div class="ticker-control-layout">
               <div class="ticker-tools">
                 <p>Visibility and motion</p>
-                <div class="ticker-actions">${controlButton(state.ticker.visible ? 'Hide ticker' : 'Show ticker', 'toggle-ticker', null, { active: !state.ticker.visible })}${controlButton(state.ticker.paused ? 'Resume ticker' : 'Pause ticker', 'toggle-ticker-pause', null, { active: state.ticker.paused })}</div>
+                <div class="ticker-actions">${controlButton(state.ticker.visible ? 'Hide ticker' : 'Show ticker', 'toggle-ticker', null, { active: !state.ticker.visible })}${controlButton(state.ticker.paused ? 'Resume ticker' : 'Pause ticker', 'toggle-ticker-pause', null, { active: state.ticker.paused })}${controlButton('Clear ticker text', 'clear-ticker-content', null, { kind: 'quiet' })}</div>
               </div>
               <form data-announcement-form>
-                <label for="priority-message">Priority announcement</label>
+                <label for="priority-message">Add ticker message</label>
                 <div class="ticker-announcement-row">
-                  <input id="priority-message" name="message" maxlength="180" value="${escapeHtml(state.ticker.priorityMessage)}" placeholder="Type a message for every connected display" ${busy ? 'disabled' : ''}>
+                  <input id="priority-message" name="message" maxlength="180" value="" placeholder="Type a message for every connected display" ${busy ? 'disabled' : ''}>
                   <div class="ticker-announcement-actions">
-                    <button type="submit" ${busy ? 'disabled' : ''}>Send announcement</button>
-                    <button type="button" data-action="clear-announcement" ${busy ? 'disabled' : ''}>Clear</button>
+                    <button type="submit" ${busy ? 'disabled' : ''}>Add message</button>
                   </div>
                 </div>
               </form>
+              <div class="ticker-message-list" aria-label="Ticker messages">
+                <div class="ticker-message-list-heading"><strong>Messages (${tickerMessages.length})</strong>${tickerMessages.length ? controlButton('Remove all', 'clear-announcements', null, { kind: 'quiet' }) : ''}</div>
+                ${tickerMessages.length
+                  ? `<ul>${tickerMessages.map((item) => `<li><span>${escapeHtml(item.message)}</span><button type="button" data-action="remove-announcement" data-value="${escapeHtml(item.id)}" aria-label="Remove ${escapeHtml(item.message)}" ${busy ? 'disabled' : ''}>Remove</button></li>`).join('')}</ul>`
+                  : '<p class="ticker-message-empty">No controller messages yet.</p>'}
+              </div>
             </div>
           </article>
         </div>
@@ -194,6 +200,7 @@ function bindControls() {
       const action = button.dataset.action
       const value = button.dataset.value
       if (action === 'scene') run(() => sendSharedCommand({ type: 'scene', cue: LAYER_CUES.background, sceneId: value }))
+      if (action === 'scene-full') run(() => sendSharedCommand({ type: 'scene', cue: LAYER_CUES.full, sceneId: value }))
       if (action === 'cue') {
         const selectedQuestion = /^question-[1-4]$/.test(value) ? Number(value.split('-')[1]) : undefined
         run(() => sendSharedCommand({ type: value === 'reset' ? 'reset' : 'cue', cue: value, selectedQuestion }))
@@ -202,7 +209,19 @@ function bindControls() {
       if (action === 'toggle-background') run(() => updateSharedState({ backgroundVideo: !snapshot.state.backgroundVideo }))
       if (action === 'toggle-ticker') run(() => updateSharedState({ ticker: { visible: !snapshot.state.ticker.visible } }))
       if (action === 'toggle-ticker-pause') run(() => updateSharedState({ ticker: { paused: !snapshot.state.ticker.paused } }))
-      if (action === 'clear-announcement') run(() => updateSharedState({ ticker: { priorityMessage: '', priorityId: snapshot.state.ticker.priorityId + 1 } }))
+      if (action === 'clear-ticker-content') run(() => updateSharedState({
+        ticker: {
+          clearId: snapshot.state.ticker.clearId + 1,
+          messages: [],
+          priorityMessage: '',
+          priorityId: snapshot.state.ticker.priorityId + 1,
+        },
+      }))
+      if (action === 'remove-announcement') {
+        const messages = snapshot.state.ticker.messages.filter((item) => item.id !== value)
+        run(() => updateSharedState({ ticker: { messages, priorityMessage: messages.at(-1)?.message || '' } }))
+      }
+      if (action === 'clear-announcements') run(() => updateSharedState({ ticker: { messages: [], priorityMessage: '', priorityId: snapshot.state.ticker.priorityId + 1 } }))
       if (action === 'set-data-mode') run(() => updateSharedState({ dataMode: value }))
       if (action === 'clear-data-range') run(() => updateSharedState({ dataRange: { since: '', until: '' } }))
     })
@@ -217,7 +236,16 @@ function bindControls() {
   app.querySelector('[data-announcement-form]')?.addEventListener('submit', (event) => {
     event.preventDefault()
     const message = new FormData(event.currentTarget).get('message')?.toString().trim() || ''
-    run(() => updateSharedState({ ticker: { priorityMessage: message, priorityId: snapshot.state.ticker.priorityId + 1, visible: true } }))
+    if (!message) return
+    const id = globalThis.crypto?.randomUUID?.() || `message-${Date.now()}-${Math.random().toString(36).slice(2)}`
+    run(() => updateSharedState({
+      ticker: {
+        messages: [...snapshot.state.ticker.messages, { id, message }],
+        priorityMessage: message,
+        priorityId: snapshot.state.ticker.priorityId + 1,
+        visible: true,
+      },
+    }))
   })
   app.querySelector('[data-token-form]')?.addEventListener('submit', (event) => {
     event.preventDefault()
