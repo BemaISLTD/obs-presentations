@@ -172,10 +172,10 @@ export function applySceneCue(root, cue) {
     return
   }
   if (cue === LAYER_CUES.full) {
-    // The background is already mounted and independently controlled by
-    // `background-in`. A full sequence should reveal only the remaining
-    // program layers so it never looks like the scene or background reloaded.
-    setLayerVisibility(stage, ['foreground', 'footer'])
+    // Full sequence is also used while navigating between scenes. The new
+    // scene has no layer visibility state to inherit, so explicitly keep its
+    // background visible along with the foreground and footer.
+    setLayerVisibility(stage, ['background', 'foreground', 'footer'])
     stage.classList.add('cue-layer-full')
     return
   }

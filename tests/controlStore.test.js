@@ -11,10 +11,11 @@ test('shared presentation state persists across store restarts', () => {
   try {
     const first = createControlStore(databasePath)
     assert.equal(first.read().state.ticker.messages.length, 5)
-    const updated = first.write({ sceneId: '8', animationsPaused: true, ticker: { visible: false } })
+    const updated = first.write({ sceneId: '8', animationsPaused: true, scene03PresenterName: 'Ada Okafor', ticker: { visible: false } })
     assert.equal(updated.revision, 1)
     assert.equal(updated.state.sceneId, '08')
     assert.equal(updated.state.animationsPaused, true)
+    assert.equal(updated.state.scene03PresenterName, 'Ada Okafor')
     assert.equal(updated.state.ticker.visible, false)
     assert.equal(updated.state.ticker.paused, false)
     first.close()
@@ -24,6 +25,7 @@ test('shared presentation state persists across store restarts', () => {
     assert.equal(persisted.revision, 1)
     assert.equal(persisted.state.sceneId, '08')
     assert.equal(persisted.state.animationsPaused, true)
+    assert.equal(persisted.state.scene03PresenterName, 'Ada Okafor')
     assert.equal(persisted.state.ticker.visible, false)
     reopened.close()
   } finally {

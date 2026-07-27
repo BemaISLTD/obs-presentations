@@ -1,8 +1,8 @@
 // Scene 01 owns these design primitives so it can be edited independently.
 const ASSET_PATHS = {
   logos: {
-    wordmark: "/assets/logos/bemahub-wordmark.svg",
-    mark: "/assets/logos/bemahub-mark.svg",
+    wordmark: "/full-logo.png",
+    mark: "/logo.png",
   },
   qr: {
     join: "/assets/qr/main-join-qr.png",
@@ -117,7 +117,7 @@ export const scene01 = {
 
         <header class="scene01-top">
           <div class="scene01-brand scene-brand-lockup">
-            <img class="scene-brand-mark" src="/assets/logos/bemahub-reference-mark.svg" alt="" data-asset-image />
+            <img class="scene-brand-mark" src="/logo.png" alt="" data-asset-image />
             <div class="scene01-wordmark" data-asset-wrapper aria-label="bemaHub">
               <img src="${ASSET_PATHS.logos.wordmark}" alt="bemaHub wordmark" data-asset-image />
               <strong class="scene01-wordmark-fallback"><span class="scene01-wordmark-bema">bema</span><span class="scene01-wordmark-hub">Hub</span></strong>
@@ -163,6 +163,9 @@ export const scene01 = {
               <div class="qr-row">
                 <div class="qr-visual">
                   <img src="${ASSET_PATHS.qr.join}" alt="Scan this QR to join" data-asset-image />
+                  <span class="scene01-qr-code-logo" aria-hidden="true">
+                    <img src="${ASSET_PATHS.logos.mark}" alt="" />
+                  </span>
                 </div>
               </div>
               <div class="pill-row scene01-qr-pills">

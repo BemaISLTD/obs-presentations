@@ -17,11 +17,37 @@ function sceneMarkup(html) {
   return <SceneMarkup html={html} />;
 }
 
+function escapeHtml(value) {
+  return String(value).replace(
+    /[&<>'"]/g,
+    (character) =>
+      ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        "'": "&#39;",
+        '"': "&quot;",
+      })[character],
+  );
+}
+
 export const scene03 = {
   presenterZone: "center-left",
-  renderUnderlay() {
+  renderUnderlay(context) {
+    const presenterName = escapeHtml(
+      context.scene03PresenterName || "Joyce Root",
+    );
     return sceneMarkup(
-      `<section class="scene proof-scene scene03 proof-enter absolute inset-0 overflow-hidden" aria-label="Host standby camera"><img class="absolute inset-0 size-full object-fill" src="${REFERENCE_PLATE}" alt="Joyce Root in the Bema Hub host studio" width="1920" height="1080" /></section>`,
+      `<section class="scene proof-scene scene03 proof-enter absolute inset-0 overflow-hidden" aria-label="Host standby camera">
+        <img class="absolute inset-0 size-full object-fill" src="${REFERENCE_PLATE}" alt="Joyce Root in the Bema Hub host studio" width="1920" height="1080" />
+        <div class="scene03-brand-replacement scene03-brand-replacement-corner"><img src="/full-logo.png" alt="Bema Hub" /></div>
+        <div class="scene03-brand-replacement scene03-brand-replacement-screen"><img src="/full-logo.png" alt="" /></div>
+        <article class="scene03-live-presenter-card" aria-label="Current presenter">
+          <span>Host</span>
+          <strong data-scene03-presenter-name>${presenterName}</strong>
+          <p>Community Manager, Bema Hub</p>
+        </article>
+      </section>`,
     );
   },
   renderForeground() {

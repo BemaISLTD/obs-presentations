@@ -103,8 +103,24 @@ test('legacy presentation controls, debug state, navigation, and cue lifecycle r
   await page.locator('[data-next-scene]').click()
   await expect(page).toHaveURL(/scene=09/)
   await expect(page.locator('[data-scene-cue-panel]')).toHaveAttribute('data-scene', '09')
+  await expect(page.getByTestId('visual-stage')).not.toHaveClass(/has-layer-cue-state/)
+  await expect(page.locator('[data-background-layer]')).toBeVisible()
+  await expect(page.locator('[data-live-layer="underlay"]')).toBeVisible()
   await page.locator('[data-previous-scene]').click()
   await expect(page).toHaveURL(/scene=08/)
+  await expect(page.getByTestId('visual-stage')).not.toHaveClass(/has-layer-cue-state/)
+  await expect(page.locator('[data-background-layer]')).toBeVisible()
+})
+
+test('full sequence reveals the background when a scene is loaded through navigation', async ({ page }) => {
+  await page.goto('/?scene=09&mode=live&output=storyboard&render=composite&paused=true&bgVideo=false&legacyControls=true&cue=full-sequence')
+  const stage = page.getByTestId('visual-stage')
+
+  await expect(stage).toHaveClass(/cue-layer-full/)
+  await expect(stage).toHaveClass(/is-layer-background-visible/)
+  await expect(stage).toHaveClass(/is-layer-foreground-visible/)
+  await expect(stage).toHaveClass(/is-layer-footer-visible/)
+  await expect(page.locator('[data-background-layer]')).toBeVisible()
 })
 
 test('Scene 04 reveal controls advance the three statements independently', async ({ page }) => {
@@ -197,6 +213,21 @@ test('global ticker controls persist across scene changes without resetting the 
   await expect(page.locator('[data-global-ticker-status]')).toHaveText(/SIM|LIVE/)
 })
 
+for (const scene of ['03', '38', '39']) {
+  test(`global ticker replaces the footer on Scene ${scene}`, async ({ page }) => {
+    await page.goto(`/?scene=${scene}&mode=live&output=storyboard&render=composite&paused=true&bgVideo=false`)
+    const stage = page.getByTestId('visual-stage')
+    const ticker = page.locator('[data-global-live-ticker]')
+
+    await expect(ticker).toBeVisible()
+    await expect(ticker).toHaveAttribute('data-scene-muted', 'false')
+    await expect(stage).toHaveClass(/is-global-ticker-active/)
+
+    const footer = page.locator('.foreground-bar, .ticker')
+    if (await footer.count()) await expect(footer).toHaveCSS('visibility', 'hidden')
+  })
+}
+
 test('shared control room synchronizes scenes, cues, animation state, and ticker across displays', async ({ browser, request }) => {
   await request.patch('/api/control/state', {
     data: {
@@ -232,6 +263,15 @@ test('shared control room synchronizes scenes, cues, animation state, and ticker
       await expect(firstDisplay.getByTestId('visual-stage')).toHaveAttribute('data-active-cue', LAYER_CUES.background)
       await expect(firstDisplay.getByTestId('visual-stage')).toHaveClass(/is-layer-background-visible/)
       await expect(firstDisplay.getByTestId('visual-stage')).not.toHaveClass(/is-layer-foreground-visible/)
+
+      await control.getByRole('button', { name: 'Next' }).click()
+      await expect(firstDisplay.locator('html')).toHaveAttribute('data-scene', '09')
+      await expect(firstDisplay.getByTestId('visual-stage')).toHaveAttribute('data-active-cue', LAYER_CUES.full)
+      await expect(firstDisplay.getByTestId('visual-stage')).toHaveClass(/is-layer-background-visible/)
+
+      await control.getByRole('button', { name: 'Previous' }).click()
+      await expect(firstDisplay.locator('html')).toHaveAttribute('data-scene', '08')
+      await expect(firstDisplay.getByTestId('visual-stage')).toHaveClass(/is-layer-background-visible/)
     })
     await test.step('play and restore scene cues', async () => {
       await control.locator('[data-action="cue"][data-value="entry"]').click()
@@ -271,6 +311,31 @@ test('shared control room synchronizes scenes, cues, animation state, and ticker
     })
     await request.post('/api/control/command', { data: { type: 'reset', cue: 'reset', sceneId: '01' } })
     await Promise.all([control.close(), firstDisplay.close(), secondDisplay.close()])
+  }
+})
+
+test('Scene 3 presenter name can be edited live from the control room', async ({ browser, request }) => {
+  await request.patch('/api/control/state', {
+    data: { sceneId: '03', mode: 'live', scene03PresenterName: 'Joyce Root' },
+  })
+
+  const control = await browser.newPage()
+  const display = await browser.newPage()
+  try {
+    await display.goto('/?sync=true&output=obs&render=composite&clean=true&paused=true&bgVideo=false')
+    await control.goto('/control')
+
+    await expect(display.locator('[data-scene03-presenter-name]')).toHaveText('Joyce Root')
+    await control.locator('#scene03-presenter-name').fill('Ada Okafor')
+    await control.getByRole('button', { name: 'Edit', exact: true }).click()
+
+    await expect.poll(async () => (await (await request.get('/api/control/state')).json()).state.scene03PresenterName).toBe('Ada Okafor')
+    await expect(display.locator('[data-scene03-presenter-name]')).toHaveText('Ada Okafor')
+  } finally {
+    await request.patch('/api/control/state', {
+      data: { sceneId: '01', scene03PresenterName: 'Joyce Root' },
+    })
+    await Promise.all([control.close(), display.close()])
   }
 })
 

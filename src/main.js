@@ -116,6 +116,7 @@ async function boot() {
   const showControls = params.get('legacyControls') === 'true' && render === 'composite' && !clean && !controllerPreview
   const controlsVisible = params.get('controls') !== 'false'
   const selectedQuestion = sharedState?.selectedQuestion ?? getSelectedQuestion(params)
+  const scene03PresenterName = sharedState?.scene03PresenterName ?? 'Joyce Root'
 
   document.documentElement.dataset.output = output
   document.documentElement.dataset.render = render
@@ -160,6 +161,7 @@ async function boot() {
     showControls,
     controlsVisible,
     selectedQuestion,
+    scene03PresenterName,
     syncEnabled,
   }
 
@@ -189,8 +191,9 @@ async function boot() {
 
   const requestedCue = params.get('cue') || (params.get('replay') === 'entry' ? 'entry' : '')
   if (requestedCue && canRenderLive && (mode === 'live' || mode === 'overlay')) {
-    applySceneCue(app, requestedCue)
-    if (requestedCue !== 'exit' && !paused) startSceneSetup()
+    if (requestedCue === 'reset') resetSceneCue(app)
+    else applySceneCue(app, requestedCue)
+    if (requestedCue !== 'exit' && requestedCue !== 'reset' && !paused) startSceneSetup()
     const settledUrl = new URL(location.href)
     settledUrl.searchParams.delete('replay')
     settledUrl.searchParams.delete('cue')
@@ -326,6 +329,10 @@ function syncSharedPresentation(nextSnapshot, context) {
   if (!next.animationsPaused && previous?.animationsPaused && (context.mode === 'live' || context.mode === 'overlay')) startSceneSetup?.()
   applySharedMusic(next.music, previous?.music, context)
   applySharedTickerSettings(next.ticker, nextSnapshot.revision)
+  const scene03PresenterName = app.querySelector('[data-scene03-presenter-name]')
+  if (scene03PresenterName && next.scene03PresenterName !== previous?.scene03PresenterName) {
+    scene03PresenterName.textContent = next.scene03PresenterName
+  }
   applySharedControlCommand(nextSnapshot, context)
 }
 
@@ -670,13 +677,15 @@ function bindDebugTools(context) {
   apply()
 }
 
-function navigatePresentation(scene, mode) {
+function navigatePresentation(scene, mode, { cue = '' } = {}) {
   const url = new URL(location.href)
   const nextScene = normalizeSceneId(scene)
   const nextMode = VALID_MODES.has(mode) ? mode : 'live'
   if (url.searchParams.get('scene') === nextScene && url.searchParams.get('mode') === nextMode) return
   url.searchParams.set('scene', nextScene)
   url.searchParams.set('mode', nextMode)
+  if (cue) url.searchParams.set('cue', cue)
+  else url.searchParams.delete('cue')
   location.assign(url)
 }
 

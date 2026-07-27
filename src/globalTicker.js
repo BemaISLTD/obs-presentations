@@ -206,7 +206,7 @@ export function applySharedTickerSettings(settings, revision) {
 }
 
 export function renderGlobalTicker({ slide, url }) {
-  const muted = url.get('ticker') === 'hide' || (['38', '39'].includes(slide.id) && url.get('ticker') !== 'show')
+  const muted = url.get('ticker') === 'hide'
   return `<section class="global-live-ticker${muted ? ' is-scene-muted' : ''}" data-global-live-ticker data-scene-muted="${muted}" aria-label="Global live activity ticker">
     <span class="global-live-ticker-label"><i></i>LIVE ACTIVITY</span>
     <div class="global-live-ticker-window"><div class="global-live-ticker-track" data-global-ticker-track></div></div>

@@ -4,9 +4,9 @@ function Markup({ html }) {
 
 const logo = `
   <div class="scene-brand-lockup absolute left-12 top-9 z-30 flex items-center gap-3">
-    <img class="h-14 w-14" src="/assets/logos/bemahub-reference-mark.svg" alt="" />
+    <img class="h-14 w-14" src="/logo.png" alt="" />
     <span class="brand-wordmark" data-asset-wrapper>
-      <img class="h-10 w-auto" src="/assets/logos/bemahub-wordmark.svg" alt="BemaHub" data-asset-image />
+      <img class="h-10 w-auto" src="/full-logo.png" alt="BemaHub" data-asset-image />
       <strong class="brand-wordmark-fallback"><span class="brand-wordmark-bema">bema</span><span class="brand-wordmark-hub">Hub</span></strong>
     </span>
   </div>`
@@ -19,7 +19,7 @@ const live = `
 export function renderTailwindUnderlay({ title, subtitle, body, titleClass = '' }) {
   return <Markup html={`
     <section class="absolute inset-0 overflow-hidden font-sans text-[#06174c]">
-      <div class="absolute inset-0 bg-gradient-to-br from-white/90 via-sky-50/75 to-indigo-100/60"></div>
+      <div class="absolute inset-0 bg-gradient-to-br from-white/20 via-sky-50/15 to-indigo-100/10"></div>
       <div class="absolute inset-y-0 left-0 w-[34%] border-r border-white/25 bg-white/10" aria-label="Presenter camera placement"></div>
       ${logo}${live}
       <header class="major-scene-heading absolute left-[35%] right-14 top-10 z-20 text-center ${titleClass}">
@@ -34,7 +34,7 @@ export function renderTailwindUnderlay({ title, subtitle, body, titleClass = '' 
 export function renderTailwindCanvas(body) {
   return <Markup html={`
     <section class="absolute inset-0 overflow-hidden font-sans text-[#06174c]">
-      <div class="absolute inset-0 bg-gradient-to-br from-white/90 via-sky-50/75 to-indigo-100/60"></div>
+      <div class="absolute inset-0 bg-gradient-to-br from-white/20 via-sky-50/15 to-indigo-100/10"></div>
       <div class="absolute inset-y-0 left-0 w-[34%] border-r border-white/25 bg-white/10" aria-label="Presenter camera placement"></div>
       ${logo}${live}${body}
     </section>`} />

@@ -17,9 +17,9 @@ function icon(name) {
 function renderBrand({ enrollment = false } = {}) {
   return `
     <div class="broadcast-brand absolute left-[62px] top-[42px] z-20 flex items-center gap-3 font-sans text-bema-navy">
-      <img class="h-14 w-auto" src="/assets/logos/bemahub-reference-mark.svg" alt="" />
+      <img class="h-14 w-auto" src="/logo.png" alt="" />
       <span class="brand-wordmark" data-asset-wrapper>
-        <img class="broadcast-wordmark h-9 w-auto" src="/assets/logos/bemahub-wordmark.svg" alt="BemaHub" data-asset-image />
+        <img class="broadcast-wordmark h-9 w-auto" src="/full-logo.png" alt="BemaHub" data-asset-image />
         <strong class="brand-wordmark-fallback"><span class="brand-wordmark-bema">bema</span><span class="brand-wordmark-hub">Hub</span></strong>
       </span>
       ${enrollment ? '<strong class="ml-3 border-l border-current/20 pl-4 text-sm font-black tracking-[.14em]">OPEN ENROLLMENT</strong><small class="text-xs font-semibold opacity-70">Your Benefits. Your Future. Our Priority.</small>' : ''}
@@ -180,7 +180,7 @@ export const scene27 = {
           <div class="grid content-center gap-5 text-[16px] font-black drop-shadow-lg"><span>▣　May 28, 2026</span><span>◷　10:00 AM – 3:30 PM ET</span><span>⌖　Bema Hub Virtual Stage</span></div>
         </header>
         <div class="mt-3 grid h-[76px] grid-cols-[.85fr_1.15fr] items-center rounded-[16px] border border-slate-200 bg-white px-5 shadow-sm">
-          <div class="flex items-center gap-3"><img class="size-12" src="/assets/logos/bemahub-reference-mark.svg" alt=""/><span><small class="block text-[13px] font-bold text-slate-500">Hosted by</small><strong class="text-[18px]">Bema Hub</strong></span></div>
+          <div class="flex items-center gap-3"><img class="size-12" src="/logo.png" alt=""/><span><small class="block text-[13px] font-bold text-slate-500">Hosted by</small><strong class="text-[18px]">Bema Hub</strong></span></div>
           <div class="flex items-center border-l pl-5"><span><small class="block text-[13px] font-bold text-slate-500">Presented by</small><strong class="text-[17px]">Community creators</strong></span><div class="ml-auto flex -space-x-3">${['amina','jordan','tierra','marcus'].map((name) => `<img class="size-12 rounded-full border-2 border-white object-cover shadow" src="/assets/generated/changemaker-${name}.png" alt=""/>`).join('')}<b class="grid size-12 place-items-center rounded-full border-2 border-white bg-blue-50 text-[13px] text-blue-600">+5</b></div></div>
         </div>
         <div class="mt-3 grid h-[310px] grid-cols-[1.05fr_.95fr] gap-4">

@@ -1162,6 +1162,7 @@
     @apply [text-align:center];
   }
   .qr-visual {
+    @apply [position:relative];
     @apply [width:230px];
     @apply [aspect-ratio:1];
     @apply [margin:0_auto];
@@ -1175,6 +1176,25 @@
     @apply [height:100%];
     @apply [object-fit:contain];
     @apply [border-radius:12px];
+  }
+  .scene01-qr-code-logo {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    display: grid;
+    width: 82px;
+    height: 46px;
+    padding: 8px;
+    place-items: center;
+    border-radius: 12px;
+    background: #fff;
+    transform: translate(-50%, -50%);
+  }
+  .scene01-qr-code-logo img {
+    width: 100%;
+    height: auto;
+    border-radius: 0;
+    object-fit: contain;
   }
   .qr-row {
     @apply [display:flex];
@@ -3102,7 +3122,12 @@
     @apply [color:#62e8ff];
   }
   html[data-scene="08"] .scene08 > .broadcast-brand {
-    @apply [filter:brightness(0)_invert(1)];
+    @apply [filter:none];
+  }
+  html[data-scene="08"] .scene08 > .broadcast-brand .brand-wordmark,
+  html[data-scene="08"] .scene08 > .broadcast-brand .broadcast-wordmark {
+    width: 320px !important;
+    height: 92px !important;
   }
   .implementation-pending {
     @apply [position:absolute];
@@ -10237,6 +10262,59 @@
     color: var(--bema-navy);
   }
 
+  .scene03-brand-replacement,
+  .scene04-brand-replacement {
+    position: absolute;
+    z-index: 2;
+    display: grid;
+    place-items: center;
+  }
+  .scene03-brand-replacement img,
+  .scene04-brand-replacement img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+  .scene03-brand-replacement-corner {
+    top: 26px;
+    left: 30px;
+    width: 310px;
+    height: 76px;
+    padding: 12px 18px;
+    border-radius: 16px;
+    background: rgba(248, 252, 255, .96);
+    box-shadow: 0 8px 26px rgba(1, 14, 52, .24);
+  }
+  .scene03-brand-replacement-screen {
+    top: 132px;
+    left: 900px;
+    width: 610px;
+    height: 132px;
+    padding: 22px 55px;
+    background: linear-gradient(90deg, #eaf2ff 0%, #f8fbff 20%, #f5f9ff 100%);
+  }
+  .scene04-brand-replacement {
+    top: 155px;
+    left: 325px;
+    width: 1170px;
+    height: 295px;
+    padding: 70px 95px;
+    border-radius: 42px;
+    background: #fff;
+    box-shadow: 0 0 60px 38px rgba(255, 255, 255, .92);
+  }
+
+  /*
+   * The supplied full logo already contains the compact symbol. Keep the
+   * compact asset available for icon-only placements, but do not render it a
+   * second time beside the full lockup in scene headers.
+   */
+  .broadcast-brand > img[src="/logo.png"]:first-child,
+  .scene-brand-lockup > img[src="/logo.png"]:first-child,
+  .scene16-app-brand > img[src="/logo.png"]:first-child {
+    display: none !important;
+  }
+
   /* Review corrections: independent Scene 04 reveals and presenter-safe headers. */
   .scene04-statement-reveal {
     position: absolute !important;
@@ -10412,5 +10490,94 @@
     .major-scene-heading > h2
   ) {
     letter-spacing: 0 !important;
+  }
+
+  /* Requested scene-specific brand refinements. */
+  html[data-scene="02"] .scene02-brand .brand-wordmark,
+  html[data-scene="02"] .scene02-brand .brand-wordmark img,
+  html[data-scene="05"] .scene05-brand .brand-wordmark,
+  html[data-scene="05"] .scene05-brand .brand-wordmark img {
+    width: 170px !important;
+    height: 48px !important;
+    flex: 0 0 170px !important;
+    object-fit: contain !important;
+  }
+  html[data-scene="02"] .scene02 .logo-pulse {
+    width: 270px;
+    height: 270px;
+  }
+  html[data-scene="02"] .scene02 .logo-mark {
+    width: 104px;
+    height: 104px;
+  }
+
+  html[data-scene="03"] .scene03-brand-replacement {
+    padding: 0;
+    background: transparent;
+    box-shadow: none;
+    backdrop-filter: blur(12px);
+  }
+  html[data-scene="03"] .scene03-brand-replacement img {
+    filter: drop-shadow(0 0 5px rgba(255, 255, 255, .9));
+  }
+  html[data-scene="03"] .scene03-live-presenter-card {
+    position: absolute;
+    z-index: 3;
+    bottom: 200px;
+    left: 54px;
+    display: flex;
+    width: 482px;
+    height: 180px;
+    flex-direction: column;
+    justify-content: center;
+    padding: 18px 30px 18px 53px;
+    overflow: hidden;
+    border: 1px solid rgba(64, 205, 255, .46);
+    border-radius: 22px;
+    color: #fff;
+    background: linear-gradient(180deg, #06183e, #020b25);
+    box-shadow: 0 14px 30px rgba(2, 11, 37, .42);
+    font-family: "Inter Variable", "Inter", "Helvetica Neue", Arial, sans-serif;
+  }
+  html[data-scene="03"] .scene03-live-presenter-card::before {
+    position: absolute;
+    top: 24px;
+    bottom: 24px;
+    left: 20px;
+    width: 5px;
+    border-radius: 5px;
+    background: #19e2ec;
+    content: "";
+  }
+  html[data-scene="03"] .scene03-live-presenter-card span {
+    color: #26e2ee;
+    font-size: 20px;
+    font-weight: 800;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+  }
+  html[data-scene="03"] .scene03-live-presenter-card strong {
+    margin-top: 4px;
+    overflow: hidden;
+    font-size: 42px;
+    font-weight: 800;
+    line-height: 1.05;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  html[data-scene="03"] .scene03-live-presenter-card p {
+    margin: 7px 0 0;
+    font-size: 22px;
+    line-height: 1.1;
+  }
+
+  html[data-scene="04"] .scene04-brand-replacement {
+    background: rgba(255, 255, 255, .4);
+    box-shadow: 0 0 42px 30px rgba(255, 255, 255, .28);
+    backdrop-filter: blur(24px);
+  }
+  html[data-scene="04"] .scene04-brand-replacement img {
+    width: 520px;
+    height: auto;
   }
 }

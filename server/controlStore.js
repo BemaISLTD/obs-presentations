@@ -17,6 +17,7 @@ const DEFAULT_STATE = Object.freeze({
   animationsPaused: false,
   backgroundVideo: true,
   selectedQuestion: 1,
+  scene03PresenterName: 'Joyce Root',
   dataMode: 'simulated',
   dataRange: {
     since: '',
@@ -98,6 +99,8 @@ function normalizeState(value) {
     selectedQuestion: Number(source.selectedQuestion) >= 1 && Number(source.selectedQuestion) <= 4
       ? Number(source.selectedQuestion)
       : defaults.selectedQuestion,
+    scene03PresenterName: String(source.scene03PresenterName ?? defaults.scene03PresenterName).trim().slice(0, 80)
+      || defaults.scene03PresenterName,
     dataMode: DATA_MODES.has(source.dataMode) ? source.dataMode : defaults.dataMode,
     dataRange: {
       since: normalizeDateInput(source.dataRange?.since),

@@ -14,8 +14,8 @@ function renderTicker(items, variant = 'local') {
 
 const ASSET_PATHS = {
   logos: {
-    wordmark: '/assets/logos/bemahub-wordmark.svg',
-    mark: '/assets/logos/bemahub-reference-mark.svg',
+    wordmark: '/full-logo.png',
+    mark: '/logo.png',
   },
   qr: {
     join: '/assets/qr/main-join-qr.png',

@@ -107,6 +107,18 @@ function render() {
             <div class="continuous-effects"><strong>Continuous effects in this scene</strong><p>${config.continuousEffects.map(escapeHtml).join(' · ')}</p></div>
           </article>
 
+          <article class="control-panel scene03-presenter-panel">
+            <div class="panel-heading"><div><span>Scene 03</span><h2>Presenter card</h2></div></div>
+            <form data-scene03-presenter-form>
+              <label for="scene03-presenter-name">Presenter name</label>
+              <div class="scene03-presenter-row">
+                <input id="scene03-presenter-name" name="presenterName" maxlength="80" value="${escapeHtml(state.scene03PresenterName)}" placeholder="Enter the presenter’s name" ${busy ? 'disabled' : ''}>
+                <button type="submit" ${busy ? 'disabled' : ''}>Edit</button>
+              </div>
+              <p>Updates the Scene 3 on-air presenter card immediately on every connected display.</p>
+            </form>
+          </article>
+
           <article class="control-panel settings-panel">
             <div class="panel-heading"><div><span>Global settings</span><h2>Playback and output behavior</h2></div></div>
             <div class="settings-grid">
@@ -290,6 +302,12 @@ function bindControls() {
     const since = new FormData(event.currentTarget).get('since')?.toString().trim() || ''
     if (!since) return
     run(() => updateSharedState({ dataRange: { since: new Date(`${since}T00:00:00Z`).toISOString(), until: '' } }))
+  })
+  app.querySelector('[data-scene03-presenter-form]')?.addEventListener('submit', (event) => {
+    event.preventDefault()
+    const scene03PresenterName = new FormData(event.currentTarget).get('presenterName')?.toString().trim() || ''
+    if (!scene03PresenterName) return
+    run(() => updateSharedState({ scene03PresenterName }))
   })
   app.querySelector('[data-announcement-form]')?.addEventListener('submit', (event) => {
     event.preventDefault()
