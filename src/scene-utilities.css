@@ -9968,17 +9968,13 @@
     visibility: visible;
     animation: controller-footer-in 620ms cubic-bezier(.2, .8, .2, 1) both;
   }
-  .visual-stage.cue-layer-full [data-layer-animation-target="background"] {
-    visibility: visible;
-    animation: controller-background-in 750ms cubic-bezier(.2, .8, .2, 1) both;
-  }
   .visual-stage.cue-layer-full [data-layer-animation-target="foreground"] {
     visibility: visible;
-    animation: controller-foreground-in 700ms 650ms cubic-bezier(.2, .8, .2, 1) both;
+    animation: controller-foreground-in 700ms cubic-bezier(.2, .8, .2, 1) both;
   }
   .visual-stage.cue-layer-full [data-layer-animation-target="footer"] {
     visibility: visible;
-    animation: controller-footer-in 620ms 1300ms cubic-bezier(.2, .8, .2, 1) both;
+    animation: controller-footer-in 620ms 650ms cubic-bezier(.2, .8, .2, 1) both;
   }
   .visual-stage.cue-entry .live-composition {
     animation: controller-entry 700ms cubic-bezier(.2, .8, .2, 1) both;

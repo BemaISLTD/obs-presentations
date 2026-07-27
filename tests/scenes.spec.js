@@ -90,6 +90,7 @@ test('legacy presentation controls, debug state, navigation, and cue lifecycle r
   await expect(page.getByTestId('visual-stage')).toHaveClass(/is-layer-background-visible/)
   await expect(page.getByTestId('visual-stage')).toHaveClass(/is-layer-foreground-visible/)
   await expect(page.getByTestId('visual-stage')).toHaveClass(/is-layer-footer-visible/)
+  await expect(page.locator('[data-layer-animation-target="background"]').first()).not.toHaveCSS('animation-name', 'controller-background-in')
   await page.locator('[data-trigger-cue="entry"]').click()
   await expect(page.getByTestId('visual-stage')).toHaveAttribute('data-active-cue', 'entry')
   const duringCue = sceneControlById['08'].duringCues[0].id
@@ -240,6 +241,11 @@ test('shared control room synchronizes scenes, cues, animation state, and ticker
       await control.locator('[data-action="cue"][data-value="foreground-in"]').click()
       await expect(firstDisplay.getByTestId('visual-stage')).toHaveClass(/is-layer-foreground-visible/)
       await expect(secondDisplay.getByTestId('visual-stage')).toHaveClass(/is-layer-foreground-visible/)
+      const displayUrl = firstDisplay.url()
+      await control.locator(`[data-action="cue"][data-value="${LAYER_CUES.full}"]`).click()
+      await expect(firstDisplay).toHaveURL(displayUrl)
+      await expect(firstDisplay.getByTestId('visual-stage')).toHaveClass(/cue-layer-full/)
+      await expect(firstDisplay.locator('[data-layer-animation-target="background"]').first()).not.toHaveCSS('animation-name', 'controller-background-in')
     })
     await test.step('apply global animation and ticker settings', async () => {
       await control.locator('[data-action="toggle-animations"]').click()
@@ -252,7 +258,7 @@ test('shared control room synchronizes scenes, cues, animation state, and ticker
     await test.step('send a shared priority announcement', async () => {
       await control.locator('#priority-message').fill('Enrollment closes in ten minutes')
       await expect(control.locator('#priority-message')).toHaveValue('Enrollment closes in ten minutes')
-      await control.getByRole('button', { name: 'Send announcement' }).click()
+      await control.getByRole('button', { name: 'Add message' }).click()
       await expect.poll(() => announcementPayload?.ticker?.priorityMessage).toBe('Enrollment closes in ten minutes')
       await expect.poll(async () => (await (await request.get('/api/control/state')).json()).state.ticker.priorityMessage).toBe('Enrollment closes in ten minutes')
       await expect(firstDisplay.locator('[data-global-live-ticker]')).toContainText('Enrollment closes in ten minutes')
