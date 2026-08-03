@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 -c \"import pptx\")",
+      "Bash(pip3 show *)",
+      "Bash(npx playwright *)",
+      "Bash(npm install *)",
+      "Bash(pip3 install *)",
+      "Bash(python3 -m venv /private/tmp/claude-501/-Users-humphrey-Documents-GitHub-obs-presentations/72b42955-44b2-4244-9dfd-b52cd9b08f3b/scratchpad/venv)",
+      "Bash(/private/tmp/claude-501/-Users-humphrey-Documents-GitHub-obs-presentations/72b42955-44b2-4244-9dfd-b52cd9b08f3b/scratchpad/venv/bin/pip install *)",
+      "Bash(/private/tmp/claude-501/-Users-humphrey-Documents-GitHub-obs-presentations/72b42955-44b2-4244-9dfd-b52cd9b08f3b/scratchpad/venv/bin/python -c \"import pptx; print\\(pptx.__version__\\)\")",
+      "Bash(ls ~/Library/Caches/ms-playwright/ 2>&1)",
+      "Read(//Users/humphrey/Library/Caches/ms-playwright/**)",
+      "Bash(REVIEW_BASE_URL=http://127.0.0.1:4173 node /private/tmp/claude-501/-Users-humphrey-Documents-GitHub-obs-presentations/72b42955-44b2-4244-9dfd-b52cd9b08f3b/scratchpad/capture-slides.mjs)",
+      "Bash(node scripts/capture-slides.mjs)",
+      "Bash(python3 -c ' *)",
+      "Bash(/private/tmp/claude-501/-Users-humphrey-Documents-GitHub-obs-presentations/72b42955-44b2-4244-9dfd-b52cd9b08f3b/scratchpad/venv/bin/python -c ' *)",
+      "Bash(/private/tmp/claude-501/-Users-humphrey-Documents-GitHub-obs-presentations/72b42955-44b2-4244-9dfd-b52cd9b08f3b/scratchpad/venv/bin/python /private/tmp/claude-501/-Users-humphrey-Documents-GitHub-obs-presentations/72b42955-44b2-4244-9dfd-b52cd9b08f3b/scratchpad/build_pptx.py)"
+    ]
+  }
+}
