@@ -347,7 +347,7 @@ test('control room remains scrollable and usable on tablet and mobile viewports'
     await page.setViewportSize(viewport)
     await expect(page.locator('.ticker-panel')).toBeVisible()
     await expect(page.locator('#priority-message')).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Send announcement' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Add message' })).toBeVisible()
     const dimensions = await page.evaluate(() => ({
       viewportWidth: window.innerWidth,
       documentWidth: document.documentElement.scrollWidth,
@@ -539,4 +539,37 @@ test('@visual scene 32 overlay comparison', async ({ page }) => {
   await page.goto('/?scene=32&mode=overlay&output=storyboard&render=composite&paused=true&bgVideo=false&ticker=hide')
   await expect(page.locator('[data-comparison-controls]')).toBeVisible()
   await expect(page).toHaveScreenshot('scene-32-overlay-comparison.png')
+})
+
+test('named OBS layer routes resolve to their physical layer', async ({ page }) => {
+  await page.goto('/presentation')
+  await expect(page).toHaveURL(/render=underlay/)
+  await expect(page.locator('[data-live-layer="underlay"]')).toBeVisible()
+  expect(await page.locator('[data-live-layer="foreground"]').count()).toBe(0)
+
+  await page.goto('/ticker')
+  await expect(page).toHaveURL(/render=foreground/)
+  await expect(page.locator('[data-live-layer="foreground"]')).toBeAttached()
+  expect(await page.locator('[data-live-layer="underlay"]').count()).toBe(0)
+
+  // The ticker page composites over the camera, so it must stay transparent.
+  const backgrounds = await page.evaluate(() => [
+    getComputedStyle(document.documentElement).backgroundColor,
+    getComputedStyle(document.body).backgroundColor,
+    getComputedStyle(document.querySelector('.visual-stage')).backgroundColor,
+  ])
+  backgrounds.forEach((color) => expect(color).toBe('rgba(0, 0, 0, 0)'))
+})
+
+test('presenter cue plans resolve to presenter state', async () => {
+  const { presenterStateForCue } = await import('../src/sceneControls.js')
+  // A graphics-only scene must retire the camera on entry.
+  expect(presenterStateForCue('01', 'entry')).toEqual({ visible: false })
+  // A camera scene brings the presenter in on entry and out on exit.
+  expect(presenterStateForCue('03', 'entry')).toMatchObject({ visible: true, preset: 'full' })
+  expect(presenterStateForCue('03', 'exit')).toEqual({ visible: false })
+  // Cues with no presenter intent leave the current state alone.
+  expect(presenterStateForCue('03', 'some-other-cue')).toBeNull()
+  // Reset always clears the camera.
+  expect(presenterStateForCue('03', 'reset')).toEqual({ visible: false })
 })

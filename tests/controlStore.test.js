@@ -148,3 +148,61 @@ test('starter ticker messages are seeded once and stay deleted', () => {
     rmSync(directory, { recursive: true, force: true })
   }
 })
+
+test('obs connection settings are validated and persisted', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'obs-control-obs-config-'))
+  const databasePath = join(directory, 'state.sqlite')
+  try {
+    const store = createControlStore(databasePath)
+    const defaults = store.read().state.obs
+    assert.equal(defaults.host, '127.0.0.1')
+    assert.equal(defaults.port, 4455)
+    assert.equal(defaults.sources.presenter.sourceName, '', 'no source name may be hard-coded')
+
+    const configured = store.write({
+      obs: { host: '192.168.1.40', port: 4460, password: 'secret', sceneName: 'OPEN ENROLLMENT MASTER' },
+    })
+    assert.equal(configured.state.obs.host, '192.168.1.40')
+    assert.equal(configured.state.obs.port, 4460)
+    assert.equal(configured.state.obs.sceneName, 'OPEN ENROLLMENT MASTER')
+
+    const invalidPort = store.write({ obs: { port: 70000 } })
+    assert.equal(invalidPort.state.obs.port, 4460, 'an out-of-range port keeps the last good value')
+
+    store.close()
+    const reopened = createControlStore(databasePath)
+    assert.equal(reopened.read().state.obs.host, '192.168.1.40')
+    reopened.close()
+  } finally {
+    rmSync(directory, { recursive: true, force: true })
+  }
+})
+
+test('obs sources are an extensible keyed registry', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'obs-control-obs-sources-'))
+  const databasePath = join(directory, 'state.sqlite')
+  try {
+    const store = createControlStore(databasePath)
+    const named = store.write({ obs: { sources: { presenter: { sourceName: 'Camo Camera' } } } })
+    assert.equal(named.state.obs.sources.presenter.sourceName, 'Camo Camera')
+    assert.equal(named.state.obs.sources.presenter.visible, false)
+
+    const second = store.write({ obs: { sources: { guestCamera: { label: 'Guest', sourceName: 'Guest Phone' } } } })
+    assert.equal(second.state.obs.sources.guestCamera.sourceName, 'Guest Phone')
+    assert.equal(second.state.obs.sources.presenter.sourceName, 'Camo Camera', 'patching one source keeps the others')
+
+    const shown = store.write({ obs: { sources: { presenter: { visible: true, preset: 'lower-right' } } } })
+    assert.equal(shown.state.obs.sources.presenter.visible, true)
+    assert.equal(shown.state.obs.sources.presenter.preset, 'lower-right')
+
+    const badPreset = store.write({ obs: { sources: { presenter: { preset: 'not-a-preset' } } } })
+    assert.equal(badPreset.state.obs.sources.presenter.preset, 'lower-right')
+
+    const removed = store.write({ obs: { sources: { guestCamera: null } } })
+    assert.equal(removed.state.obs.sources.guestCamera, undefined)
+    assert.ok(removed.state.obs.sources.presenter, 'the presenter role always survives')
+    store.close()
+  } finally {
+    rmSync(directory, { recursive: true, force: true })
+  }
+})

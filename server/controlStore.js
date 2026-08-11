@@ -11,9 +11,29 @@ const DEFAULT_TICKER_MESSAGES = Object.freeze([
   Object.freeze({ id: 'starter-live', message: 'Stay with us for live updates throughout the session' }),
 ])
 
+// OBS-controlled video sources are configuration, never hard-coded names. Each
+// entry is keyed by a stable role id ('presenter', later 'presenter2', 'guest')
+// so additional cameras are a data change rather than a code change.
+const DEFAULT_OBS_SOURCES = Object.freeze({
+  presenter: Object.freeze({
+    label: 'Presenter',
+    sourceName: '',
+    visible: false,
+    preset: 'full',
+  }),
+})
+
 const DEFAULT_STATE = Object.freeze({
   sceneId: '01',
   mode: 'live',
+  obs: Object.freeze({
+    host: '127.0.0.1',
+    port: 4455,
+    password: '',
+    sceneName: '',
+    autoConnect: false,
+    sources: DEFAULT_OBS_SOURCES,
+  }),
   animationsPaused: false,
   backgroundVideo: true,
   selectedQuestion: 1,
@@ -49,6 +69,51 @@ const DEFAULT_STATE = Object.freeze({
 
 const MODES = new Set(['reference', 'overlay', 'live'])
 const DATA_MODES = new Set(['simulated', 'live', 'hybrid'])
+
+// Placement presets a presenter source can occupy. Version one only drives
+// visibility; the transform work for each preset lands behind these same names.
+const OBS_PRESETS = new Set(['full', 'lower-right', 'lower-left', 'center', 'pip'])
+const OBS_SOURCE_KEY = /^[a-zA-Z][a-zA-Z0-9_-]{0,39}$/
+
+// `value` has already been merged over the stored source by mergeObs, so it is
+// the authority. The fallback only fills fields the merged value never had, and
+// an invalid preset falls back to the merged value's own preset before 'full'.
+function normalizeObsSource(value, fallback) {
+  const source = value && typeof value === 'object' ? value : {}
+  const base = fallback ?? { label: 'Source', sourceName: '', visible: false, preset: 'full' }
+  const preset = OBS_PRESETS.has(source.preset)
+    ? source.preset
+    : OBS_PRESETS.has(base.preset) ? base.preset : 'full'
+  return {
+    label: String(source.label ?? base.label).trim().slice(0, 60) || 'Source',
+    sourceName: String(source.sourceName ?? base.sourceName).trim().slice(0, 200),
+    visible: Boolean(source.visible ?? base.visible),
+    preset,
+  }
+}
+
+function normalizeObsSources(value) {
+  const source = value && typeof value === 'object' ? value : {}
+  const keys = Object.keys(source).filter((key) => OBS_SOURCE_KEY.test(key)).slice(0, 12)
+  const entries = keys.map((key) => [key, normalizeObsSource(source[key], DEFAULT_OBS_SOURCES[key])])
+  // The presenter role always exists so cues and the operator UI have a target.
+  if (!entries.some(([key]) => key === 'presenter')) {
+    entries.unshift(['presenter', normalizeObsSource(undefined, DEFAULT_OBS_SOURCES.presenter)])
+  }
+  return Object.fromEntries(entries)
+}
+
+function normalizeObs(value, defaults) {
+  const source = value && typeof value === 'object' ? value : {}
+  return {
+    host: String(source.host ?? defaults.host).trim().slice(0, 120) || defaults.host,
+    port: isValidPort(source.port) ? Number(source.port) : defaults.port,
+    password: String(source.password ?? defaults.password).slice(0, 200),
+    sceneName: String(source.sceneName ?? defaults.sceneName).trim().slice(0, 200),
+    autoConnect: Boolean(source.autoConnect ?? defaults.autoConnect),
+    sources: normalizeObsSources(source.sources ?? defaults.sources),
+  }
+}
 
 function normalizeDateInput(value) {
   const text = String(value ?? '').trim().slice(0, 40)
@@ -94,6 +159,7 @@ function normalizeState(value) {
   return {
     sceneId: normalizeSceneId(source.sceneId, defaults.sceneId),
     mode: MODES.has(source.mode) ? source.mode : defaults.mode,
+    obs: normalizeObs(source.obs, defaults.obs),
     animationsPaused: Boolean(source.animationsPaused),
     backgroundVideo: source.backgroundVideo !== false,
     selectedQuestion: Number(source.selectedQuestion) >= 1 && Number(source.selectedQuestion) <= 4
@@ -131,10 +197,34 @@ function normalizeState(value) {
   }
 }
 
+function isValidPort(value) {
+  const port = Number(value)
+  return Number.isInteger(port) && port > 0 && port <= 65535
+}
+
+function mergeObs(current, patch) {
+  if (!patch || typeof patch !== 'object') return current
+  // Drop an out-of-range port here so the stored value survives the patch,
+  // rather than falling back to the frozen default inside normalizeObs.
+  if ('port' in patch && !isValidPort(patch.port)) patch = { ...patch, port: current.port }
+  const sources = { ...current.sources }
+  // Patch sources per key so updating one camera never drops the others. An
+  // unrecognized preset is dropped here, where the stored value is still in
+  // scope, so a bad patch keeps the last good placement instead of resetting.
+  Object.entries(patch.sources ?? {}).forEach(([key, value]) => {
+    if (value === null) { delete sources[key]; return }
+    const incoming = { ...(value && typeof value === 'object' ? value : {}) }
+    if ('preset' in incoming && !OBS_PRESETS.has(incoming.preset)) delete incoming.preset
+    sources[key] = { ...(sources[key] ?? {}), ...incoming }
+  })
+  return { ...current, ...patch, sources }
+}
+
 function mergeState(current, patch) {
   const next = {
     ...current,
     ...(patch && typeof patch === 'object' ? patch : {}),
+    obs: mergeObs(current.obs, patch?.obs),
     dataRange: { ...current.dataRange, ...(patch?.dataRange ?? {}) },
     music: { ...current.music, ...(patch?.music ?? {}) },
     ticker: { ...current.ticker, ...(patch?.ticker ?? {}) },

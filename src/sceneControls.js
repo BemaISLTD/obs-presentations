@@ -1,5 +1,61 @@
 const cue = (id, label) => ({ id, label })
 
+// Presenter intent per scene, expressed as state rather than OBS commands.
+// `entry` is applied when the scene's entry/full-sequence cue fires, `exit`
+// when its exit cue fires, and any `cues` entry overrides both for a specific
+// during-cue. A scene with no entry here hides the presenter, so a camera never
+// stays on air into a full-screen graphics scene by accident.
+const presenter = (entry, exit = { visible: false }, cues = {}) => ({ entry, exit, cues })
+
+const HIDDEN = Object.freeze({ visible: false })
+const FULL = Object.freeze({ visible: true, preset: 'full' })
+const LOWER_RIGHT = Object.freeze({ visible: true, preset: 'lower-right' })
+const PIP = Object.freeze({ visible: true, preset: 'pip' })
+
+const SCENE_PRESENTER_PLANS = Object.freeze({
+  '02': presenter(PIP),
+  '03': presenter(FULL, HIDDEN, { 'reveal-lower-third': FULL }),
+  '05': presenter(FULL),
+  '06': presenter(LOWER_RIGHT),
+  '07': presenter(LOWER_RIGHT),
+  '08': presenter(PIP),
+  '09': presenter(PIP),
+  '10': presenter(PIP),
+  '11': presenter(PIP),
+  '12': presenter(PIP),
+  '13': presenter(PIP),
+  '14': presenter(LOWER_RIGHT),
+  '18': presenter(PIP),
+  '19': presenter(PIP),
+  '24': presenter(LOWER_RIGHT),
+  '25': presenter(LOWER_RIGHT),
+  '33': presenter(LOWER_RIGHT),
+  '34': presenter(LOWER_RIGHT),
+  '35': presenter(FULL),
+  '36': presenter(FULL),
+  '37': presenter(PIP),
+  '39': presenter(LOWER_RIGHT),
+})
+
+/**
+ * Resolves the presenter state a scene/cue combination should produce.
+ * Returns null when the cue carries no presenter intent, so the current state
+ * is left untouched.
+ */
+export function presenterStateForCue(sceneId, cueId) {
+  const plan = SCENE_PRESENTER_PLANS[sceneId]
+  if (cueId === 'reset') return HIDDEN
+  if (!plan) {
+    // Scenes with no plan are full-screen graphics: clear the camera on entry
+    // and leave every other cue alone.
+    return cueId === 'entry' || cueId === 'full-sequence' ? HIDDEN : null
+  }
+  if (Object.hasOwn(plan.cues, cueId)) return plan.cues[cueId]
+  if (cueId === 'entry' || cueId === 'full-sequence') return plan.entry
+  if (cueId === 'exit') return plan.exit
+  return null
+}
+
 const SCENE_DURATIONS_SECONDS = Object.freeze({
   '01': 600,
   '02': 120,

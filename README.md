@@ -4,6 +4,20 @@ Browser-based 1920×1080 OBS scenes with independent underlay (Z0 + Z1) and
 transparent foreground (Z3) outputs. The live presenter camera remains an OBS
 source between those two browser sources.
 
+The React control room is the show controller for all three layers: it drives
+the background presentation, the transparent ticker/foreground, and — over OBS
+WebSocket — the presenter camera. OBS remains the compositor and final video
+output.
+
+```
+                     CONTROLLER
+        ┌────────────────┼────────────────┐
+        ↓                ↓                ↓
+   /presentation      /ticker        OBS WebSocket
+                                          ↓
+                                   Presenter camera
+```
+
 ## Run locally
 
 ```sh
@@ -47,6 +61,9 @@ Reset, Entry, Background/Foreground/Footer entrances, Full Sequence, every
 scene-specific During cue, and Exit. It also controls global animation pause,
 background video/posters, live/reference/overlay mode, the ticker, and priority
 announcements. Scene 36 question selection follows its active scene controls.
+The **OBS connection** panel connects to OBS, selects the scene and presenter
+source to control, and provides manual Show/Hide for the presenter camera; see
+"OBS control and the presenter camera" below.
 
 The **Live data source** panel controls where Scenes 01, 08, 37, and the global
 ticker read their numbers from: **Simulated**, **Backend (live)**, or **Hybrid**.
@@ -90,9 +107,20 @@ can be used in a browser preview without adding controls to the OBS output.
 
 ## OBS browser-source URLs
 
+For step-by-step instructions on building the master scene, enabling OBS
+WebSocket, and running the show, see [the OBS setup guide](./docs/obs.md).
+
 Replace `08` with the required two-digit scene number.
 
 Recommended synchronized sources (the scene number comes from the control room):
+
+- Background presentation — `BASE_URL/presentation`
+- Ticker / foreground — `BASE_URL/ticker`
+- Composite program — `BASE_URL/program`
+
+These are the addresses to paste into OBS. Each one is a short alias that
+redirects to the equivalent canonical URL below, so OBS can be pointed at a bare
+path with no query string to maintain:
 
 - Underlay — `BASE_URL/?sync=true&output=obs&render=underlay&clean=true`
 - Foreground — `BASE_URL/?sync=true&output=obs&render=foreground&clean=true`
@@ -130,12 +158,93 @@ together without a camera source. The background poster is part of the underlay;
 
 In OBS, create the sources in this order from back to front:
 
-1. Underlay browser source
-2. Presenter camera source
-3. Foreground browser source
+1. Underlay browser source — `BASE_URL/presentation`
+2. Presenter camera source — Camo, a capture card, NDI, or a webcam
+3. Foreground browser source — `BASE_URL/ticker`
+
+Listed top-to-bottom in the OBS source list, that master scene reads:
+
+```
+OPEN ENROLLMENT MASTER
+  1. Ticker / Foreground   Browser Source   BASE_URL/ticker
+  2. Presenter Camera      Video Capture Device / Camo / NDI
+  3. Presentation          Browser Source   BASE_URL/presentation
+```
+
+OBS composites the live presenter between the two browser sources. Both pages
+follow the same shared cue state, so they can never drift apart: the controller
+remains the single source of truth for what each layer is showing.
 
 Set both browser sources to 1920×1080. The foreground page is genuinely
 transparent outside its lower thirds, tickers, and other Z3 elements.
+
+## OBS control and the presenter camera
+
+The control room connects directly to OBS over OBS WebSocket v5 and drives the
+live presenter camera alongside the browser layers. Enable **Tools → WebSocket
+Server Settings** in OBS, then fill in the **OBS connection** panel on
+`/control`.
+
+Host, port, and password are operator settings stored in the shared database, so
+the controller can run on the OBS computer (`127.0.0.1:4455`) or on another
+device on the same router (`192.168.x.x:4455`). Nothing here requires the
+Internet; the protocol client is implemented in-repo against the browser's own
+WebSocket and has no runtime dependency to install.
+
+Once connected, the panel queries OBS for its scenes and for the sources inside
+the selected scene, and offers both as dropdowns. Every value can also be typed
+by hand, which is the fallback when OBS is closed or source discovery is not
+wanted. **No OBS scene or source name is hard-coded anywhere in the app** — they
+are configuration, stored per source role:
+
+```js
+obs = {
+  host: '127.0.0.1',
+  port: 4455,
+  password: '',
+  sceneName: 'OPEN ENROLLMENT MASTER',
+  sources: {
+    presenter: { label: 'Presenter', sourceName: 'Camo Camera', visible: false, preset: 'full' },
+  },
+}
+```
+
+`sources` is a keyed registry rather than a single presenter field, so
+additional cameras (`presenter2`, `guestCamera`, `audienceCamera`) are a data
+change and not a code change. The first version ships the `presenter` role and
+its Show/Hide controls for manual testing.
+
+If OBS is closed, refuses the password, or disconnects mid-show, the panel shows
+the reason and the presentation controller keeps running normally — scene, cue,
+ticker, and data controls are unaffected. Presenter state is still recorded, and
+is re-applied to OBS on the next successful connection.
+
+### Presenter cues
+
+Presenter visibility is part of the cue system, not a separate set of buttons.
+Each scene declares its presenter intent in `src/sceneControls.js`, so a single
+operator action moves every layer at once:
+
+```
+Next cue → background scene + ticker/foreground + presenter camera
+```
+
+Scene 03's entry cue brings the camera in full-frame and its exit cue takes it
+out; graphics-only scenes retire the camera on entry so it can never be left on
+air under a full-screen layout. Cues with no presenter intent leave the camera
+exactly as it is. Because cues and the manual Show/Hide buttons both write the
+same shared state, the two can never disagree.
+
+Placement presets (`full`, `lower-right`, `lower-left`, `center`, `pip`) are
+declared in `src/obsPresenterDirector.js`. Version one applies them as an
+immediate transform plus a visibility toggle. Animated entrances and exits —
+slide, fade, scale, PiP-to-fullscreen — replace the body of
+`applyPresenterState()` without changing a single caller, because callers
+describe the state they want rather than issuing OBS commands:
+
+```js
+applyPresenterState(client, { sourceName: 'Presenter Camera', visible: true, preset: 'lower-right' })
+```
 
 ## Live data and the global ticker
 

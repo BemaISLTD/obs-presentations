@@ -1,6 +1,8 @@
 import './control.css'
+import { createObsController } from './obsController.js'
+import { PRESENTER_PRESETS } from './obsPresenterDirector.js'
 import { LAYER_CUES } from './sceneCueEngine.js'
-import { sceneControlById, sceneControls } from './sceneControls.js'
+import { presenterStateForCue, sceneControlById, sceneControls } from './sceneControls.js'
 import { fetchAvailableMusic, fetchSharedState, saveControlToken, sendSharedCommand, subscribeSharedState, updateSharedState } from './sharedControlClient.js'
 
 const app = document.querySelector('#control-app')
@@ -11,6 +13,10 @@ let errorMessage = ''
 let countdownSceneId = ''
 let countdownEndsAt = 0
 let musicTracks = []
+
+// The OBS connection lives in the controller only. Presentation pages never
+// talk to OBS, so a failure here can never affect the program output.
+const obs = createObsController({ onChange: () => render() })
 
 function formatCountdown(totalSeconds) {
   const seconds = Math.max(0, Math.ceil(totalSeconds))
@@ -42,6 +48,108 @@ function escapeHtml(value) {
 function controlButton(label, action, value, options = {}) {
   const classes = ['control-button', options.kind ? `is-${options.kind}` : '', options.active ? 'is-active' : ''].filter(Boolean).join(' ')
   return `<button type="button" class="${classes}" data-action="${action}"${value == null ? '' : ` data-value="${escapeHtml(value)}"`}${busy ? ' disabled' : ''}>${escapeHtml(label)}</button>`
+}
+
+// OBS runs outside the browser, so the source list shows a full address the
+// operator can copy. This resolves to the LAN host when the control room is
+// opened from another device, which is exactly the address OBS needs.
+function layerUrl(path) {
+  return new URL(path, window.location.origin).href
+}
+
+const OBS_STATUS_COPY = Object.freeze({
+  connected: 'Connected',
+  connecting: 'Connecting…',
+  disconnected: 'Disconnected',
+  error: 'Disconnected',
+})
+
+function renderObsSourceRow(key, source, obsState) {
+  const knownSource = !source.sourceName || obsState.sources.includes(source.sourceName)
+  const options = [
+    '<option value="">Select a source…</option>',
+    ...obsState.sources.map((name) => `<option value="${escapeHtml(name)}" ${name === source.sourceName ? 'selected' : ''}>${escapeHtml(name)}</option>`),
+    // Keep a configured name selectable even when OBS is closed or the name was
+    // typed manually, so the setting is never silently lost.
+    !knownSource ? `<option value="${escapeHtml(source.sourceName)}" selected>${escapeHtml(source.sourceName)} (not in scene)</option>` : '',
+  ].join('')
+
+  return `
+    <div class="obs-source-row" data-obs-source-row="${escapeHtml(key)}">
+      <div class="obs-source-heading">
+        <strong>${escapeHtml(source.label || key)}</strong>
+        <span class="obs-source-state ${source.visible ? 'is-live' : ''}">${source.visible ? 'On air' : 'Hidden'}</span>
+      </div>
+      <label class="obs-field">
+        <span>OBS source</span>
+        <select data-obs-source-select="${escapeHtml(key)}" ${busy || !obsState.sources.length ? 'disabled' : ''}>${options}</select>
+      </label>
+      <label class="obs-field">
+        <span>Or type the source name</span>
+        <input type="text" data-obs-source-name="${escapeHtml(key)}" value="${escapeHtml(source.sourceName)}" maxlength="200" placeholder="Presenter Camera" ${busy ? 'disabled' : ''}>
+      </label>
+      <label class="obs-field">
+        <span>Placement preset</span>
+        <select data-obs-source-preset="${escapeHtml(key)}" ${busy ? 'disabled' : ''}>
+          ${Object.entries(PRESENTER_PRESETS).map(([id, preset]) => `<option value="${id}" ${id === source.preset ? 'selected' : ''}>${escapeHtml(preset.label)}</option>`).join('')}
+        </select>
+      </label>
+      <div class="obs-source-actions">
+        ${controlButton('Show', 'obs-source-show', key, { kind: 'primary', active: source.visible })}
+        ${controlButton('Hide', 'obs-source-hide', key, { active: !source.visible })}
+      </div>
+    </div>`
+}
+
+function renderObsPanel(state) {
+  const obsState = obs.getState()
+  const config = state.obs
+  const statusLabel = OBS_STATUS_COPY[obsState.status] ?? 'Disconnected'
+  const sceneOptions = [
+    '<option value="">Select a scene…</option>',
+    ...obsState.scenes.map((name) => `<option value="${escapeHtml(name)}" ${name === config.sceneName ? 'selected' : ''}>${escapeHtml(name)}</option>`),
+    config.sceneName && !obsState.scenes.includes(config.sceneName)
+      ? `<option value="${escapeHtml(config.sceneName)}" selected>${escapeHtml(config.sceneName)}${obsState.scenes.length ? ' (not in OBS)' : ''}</option>`
+      : '',
+  ].join('')
+
+  return `
+    <article class="control-panel obs-panel">
+      <div class="panel-heading">
+        <div><span>Live video layer</span><h2>OBS connection</h2></div>
+        <span class="obs-status"><i class="obs-status-dot is-${escapeHtml(obsState.status)}"></i>${escapeHtml(statusLabel)}</span>
+      </div>
+
+      ${obsState.error ? `<p class="obs-error" role="status">${escapeHtml(obsState.error)}</p>` : ''}
+
+      <form class="obs-connection-form" data-obs-connection-form>
+        <label class="obs-field"><span>Host</span><input type="text" name="host" value="${escapeHtml(config.host)}" placeholder="127.0.0.1" ${busy ? 'disabled' : ''}></label>
+        <label class="obs-field"><span>Port</span><input type="number" name="port" min="1" max="65535" value="${escapeHtml(config.port)}" ${busy ? 'disabled' : ''}></label>
+        <label class="obs-field"><span>Password</span><input type="password" name="password" value="${escapeHtml(config.password)}" autocomplete="off" placeholder="Optional" ${busy ? 'disabled' : ''}></label>
+        <div class="obs-connection-actions">
+          <button type="submit" ${busy ? 'disabled' : ''}>${obsState.connected ? 'Reconnect' : 'Connect'}</button>
+          <button type="button" data-action="obs-disconnect" ${busy || !obsState.connected ? 'disabled' : ''}>Disconnect</button>
+        </div>
+        <p class="obs-hint">Runs entirely on the local network. Use the OBS computer's LAN address when the controller is on another device.</p>
+      </form>
+
+      <div class="obs-scene-picker">
+        <label class="obs-field">
+          <span>Scene to control</span>
+          <select data-obs-scene ${busy || !obsState.scenes.length ? 'disabled' : ''}>${sceneOptions}</select>
+        </label>
+        <label class="obs-field">
+          <span>Or type the scene name</span>
+          <input type="text" data-obs-scene-name value="${escapeHtml(config.sceneName)}" maxlength="200" placeholder="OPEN ENROLLMENT MASTER" ${busy ? 'disabled' : ''}>
+        </label>
+        ${controlButton(obsState.discovering ? 'Refreshing…' : 'Refresh from OBS', 'obs-refresh', null, { kind: 'quiet' })}
+      </div>
+
+      <div class="obs-source-list">
+        ${Object.entries(config.sources).map(([key, source]) => renderObsSourceRow(key, source, obsState)).join('')}
+      </div>
+      <p class="obs-hint">Presenter visibility is also driven by scene cues. Showing or hiding here updates the same shared state, so cues and manual control never disagree.</p>
+    </article>`
 }
 
 function render() {
@@ -106,6 +214,8 @@ function render() {
             <div class="cue-grid">${cueButtons}</div>
             <div class="continuous-effects"><strong>Continuous effects in this scene</strong><p>${config.continuousEffects.map(escapeHtml).join(' · ')}</p></div>
           </article>
+
+          ${renderObsPanel(state)}
 
           <article class="control-panel scene03-presenter-panel">
             <div class="panel-heading"><div><span>Scene 03</span><h2>Presenter card</h2></div></div>
@@ -208,13 +318,27 @@ function render() {
           <article class="control-panel preview-panel">
             <div class="panel-heading"><div><span>Synced monitor</span><h2>Program preview</h2></div><a href="/?sync=true&output=obs&render=composite&clean=true" target="_blank" rel="noreferrer">Open ↗</a></div>
             <div class="preview-frame"><iframe src="/?sync=true&output=obs&render=composite&clean=true&controllerPreview=true" title="Synced program preview"></iframe></div>
+            <div class="preview-layer-links">
+              <a href="/presentation" target="_blank" rel="noreferrer"><strong>Presentation ↗</strong><small>Background layer</small></a>
+              <a href="/ticker" target="_blank" rel="noreferrer"><strong>Ticker ↗</strong><small>Transparent foreground</small></a>
+              <a href="/program" target="_blank" rel="noreferrer"><strong>Program ↗</strong><small>Both layers combined</small></a>
+            </div>
           </article>
           <article class="control-panel source-panel">
             <div class="panel-heading"><div><span>OBS browser sources</span><h2>Synced URLs</h2></div></div>
-            <a href="/?sync=true&output=obs&render=underlay&clean=true" target="_blank">Underlay (behind camera)</a>
-            <a href="/?sync=true&output=obs&render=foreground&clean=true" target="_blank">Foreground (above camera)</a>
-            <a href="/?sync=true&output=obs&render=composite&clean=true" target="_blank">Composite program</a>
-            <p>All URLs keep their own physical layer while following the active scene, mode, cues, ticker, and animation settings.</p>
+            <p class="source-panel-intro">Paste these into OBS, top of the list first. The presenter camera goes between them.</p>
+            <ol class="source-url-list">
+              <li><a href="/ticker" target="_blank" rel="noreferrer">${escapeHtml(layerUrl('/ticker'))}</a><span>Ticker / foreground — above the camera</span></li>
+              <li class="source-url-camera"><span>Presenter camera — your OBS video source</span></li>
+              <li><a href="/presentation" target="_blank" rel="noreferrer">${escapeHtml(layerUrl('/presentation'))}</a><span>Background presentation — behind the camera</span></li>
+            </ol>
+            <p>Each URL keeps its own physical layer while following the active scene, mode, cues, ticker, and animation settings. Set both browser sources to 1920×1080.</p>
+            <details class="source-url-legacy">
+              <summary>Full query-string URLs</summary>
+              <a href="/?sync=true&output=obs&render=underlay&clean=true" target="_blank" rel="noreferrer">Underlay (behind camera)</a>
+              <a href="/?sync=true&output=obs&render=foreground&clean=true" target="_blank" rel="noreferrer">Foreground (above camera)</a>
+              <a href="/?sync=true&output=obs&render=composite&clean=true" target="_blank" rel="noreferrer">Composite program</a>
+            </details>
           </article>
           <details class="control-panel security-panel">
             <summary>Control server token</summary>
@@ -229,6 +353,29 @@ function render() {
   updateSceneCountdownDisplay()
 }
 
+/**
+ * Runs one operator action across every layer.
+ *
+ * A cue is a single show-control decision: it moves the background scene, the
+ * ticker/foreground, and the presenter camera together. The presenter half is
+ * written into the same shared state the operator's manual Show/Hide buttons
+ * use, so cues and manual control can never disagree, and it is persisted even
+ * when OBS is disconnected.
+ */
+async function runCue({ type, cue, sceneId, selectedQuestion }) {
+  const targetScene = sceneId ?? snapshot.state.sceneId
+  const presenterState = presenterStateForCue(targetScene, cue)
+  if (presenterState) {
+    const presenter = snapshot.state.obs.sources.presenter
+    const changed = presenter.visible !== presenterState.visible
+      || (presenterState.preset && presenter.preset !== presenterState.preset)
+    // Only write when the cue actually changes the presenter, so unrelated cues
+    // do not add revisions or re-issue OBS calls.
+    if (changed) await updateSharedState({ obs: { sources: { presenter: presenterState } } })
+  }
+  return sendSharedCommand({ type, cue, sceneId, selectedQuestion })
+}
+
 async function run(action) {
   busy = true
   errorMessage = ''
@@ -241,11 +388,11 @@ function bindControls() {
     button.addEventListener('click', () => {
       const action = button.dataset.action
       const value = button.dataset.value
-      if (action === 'scene') run(() => sendSharedCommand({ type: 'scene', cue: LAYER_CUES.background, sceneId: value }))
-      if (action === 'scene-full') run(() => sendSharedCommand({ type: 'scene', cue: LAYER_CUES.full, sceneId: value }))
+      if (action === 'scene') run(() => runCue({ type: 'scene', cue: LAYER_CUES.background, sceneId: value }))
+      if (action === 'scene-full') run(() => runCue({ type: 'scene', cue: LAYER_CUES.full, sceneId: value }))
       if (action === 'cue') {
         const selectedQuestion = /^question-[1-4]$/.test(value) ? Number(value.split('-')[1]) : undefined
-        run(() => sendSharedCommand({ type: value === 'reset' ? 'reset' : 'cue', cue: value, selectedQuestion }))
+        run(() => runCue({ type: value === 'reset' ? 'reset' : 'cue', cue: value, selectedQuestion }))
       }
       if (action === 'toggle-animations') run(() => updateSharedState({ animationsPaused: !snapshot.state.animationsPaused }))
       if (action === 'toggle-background') run(() => updateSharedState({ backgroundVideo: !snapshot.state.backgroundVideo }))
@@ -278,6 +425,59 @@ function bindControls() {
         run(() => updateSharedState({ music: { playing: false, position, startedAt: 0 } }))
       }
       if (action === 'music-mute') run(() => updateSharedState({ music: { muted: !snapshot.state.music.muted } }))
+      if (action === 'obs-disconnect') {
+        obs.disconnect()
+        run(() => updateSharedState({ obs: { autoConnect: false } }))
+      }
+      if (action === 'obs-refresh') obs.discover(snapshot.state.obs.sceneName)
+      if (action === 'obs-source-show' || action === 'obs-source-hide') {
+        const visible = action === 'obs-source-show'
+        run(() => updateSharedState({ obs: { sources: { [value]: { visible } } } }))
+      }
+    })
+  })
+
+  app.querySelector('[data-obs-connection-form]')?.addEventListener('submit', (event) => {
+    event.preventDefault()
+    const form = new FormData(event.currentTarget)
+    const obsConfig = {
+      host: form.get('host')?.toString().trim() || '127.0.0.1',
+      port: Number(form.get('port')) || 4455,
+      password: form.get('password')?.toString() || '',
+    }
+    run(async () => {
+      const saved = await updateSharedState({ obs: obsConfig })
+      const connected = await obs.connect({ ...obsConfig, sceneName: saved.state.obs.sceneName })
+      if (!connected) return saved
+      await obs.syncSources(saved.state.obs, { force: true })
+      return updateSharedState({ obs: { autoConnect: true } })
+    })
+  })
+
+  const applySceneName = (sceneName) => run(async () => {
+    const saved = await updateSharedState({ obs: { sceneName } })
+    await obs.discover(sceneName)
+    return saved
+  })
+  app.querySelector('[data-obs-scene]')?.addEventListener('change', (event) => applySceneName(event.target.value))
+  app.querySelector('[data-obs-scene-name]')?.addEventListener('change', (event) => applySceneName(event.target.value.trim()))
+
+  app.querySelectorAll('[data-obs-source-select]').forEach((select) => {
+    select.addEventListener('change', (event) => {
+      const key = select.dataset.obsSourceSelect
+      run(() => updateSharedState({ obs: { sources: { [key]: { sourceName: event.target.value } } } }))
+    })
+  })
+  app.querySelectorAll('[data-obs-source-name]').forEach((input) => {
+    input.addEventListener('change', (event) => {
+      const key = input.dataset.obsSourceName
+      run(() => updateSharedState({ obs: { sources: { [key]: { sourceName: event.target.value.trim() } } } }))
+    })
+  })
+  app.querySelectorAll('[data-obs-source-preset]').forEach((select) => {
+    select.addEventListener('change', (event) => {
+      const key = select.dataset.obsSourcePreset
+      run(() => updateSharedState({ obs: { sources: { [key]: { preset: event.target.value } } } }))
     })
   })
   app.querySelector('[data-control-mode]')?.addEventListener('change', (event) => run(() => updateSharedState({ mode: event.target.value })))
@@ -338,11 +538,19 @@ async function boot() {
     musicTracks = Array.isArray(musicLibrary.tracks) ? musicLibrary.tracks : []
     connectionStatus = 'connected'
     render()
+    // Reconnect to OBS automatically once the operator has connected before, so
+    // reloading the control room does not require re-entering the connection.
+    if (snapshot.state.obs.autoConnect) {
+      obs.connect(snapshot.state.obs).then((ok) => { if (ok) obs.syncSources(snapshot.state.obs, { force: true }) })
+    }
     subscribeSharedState((next) => {
       if (next.revision <= snapshot.revision) return
       snapshot = next
       errorMessage = ''
       render()
+      // Mirror the new shared state onto OBS. This is a no-op when nothing
+      // OBS-related changed, and silently skipped when OBS is not connected.
+      obs.syncSources(next.state.obs)
     }, (status) => { connectionStatus = status; render() })
   } catch (error) {
     errorMessage = error.message
