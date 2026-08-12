@@ -365,3 +365,32 @@ test('music follows the scene without interrupting itself', () => {
     rmSync(directory, { recursive: true, force: true })
   }
 })
+
+test('a paused bed can be resumed and never strands itself', () => {
+  // The music bed stopping with no way back is a silent show. Pausing is the
+  // operator's call; nothing else may leave playback stuck off.
+  const directory = mkdtempSync(join(tmpdir(), 'obs-control-music-resume-'))
+  try {
+    const store = createControlStore(join(directory, 'state.sqlite'))
+    const vocal = '/assets/musics/Bema%20Hub.mp3'
+    store.write({ music: { track: vocal, playing: true, startedAt: Date.now() } })
+
+    // An explicit pause holds, including across a same-bed scene change.
+    const paused = store.write({ music: { playing: false, position: 30, startedAt: 0 } })
+    assert.equal(paused.state.music.playing, false)
+    assert.equal(store.command({ type: 'scene', cue: 'entry', sceneId: '02' }).state.music.playing, false)
+
+    // Resuming works from that state, keeping the position it paused at.
+    const resumed = store.write({ music: { playing: true, startedAt: Date.now() } })
+    assert.equal(resumed.state.music.playing, true)
+    assert.equal(resumed.state.music.position, 30)
+
+    // Crossing to the other bed while playing keeps playing.
+    const crossed = store.command({ type: 'scene', cue: 'entry', sceneId: '03' })
+    assert.equal(crossed.state.music.playing, true, 'a bed change must not silence the show')
+    assert.ok(crossed.state.music.startedAt > 0, 'the new bed carries a start time so clients can seek')
+    store.close()
+  } finally {
+    rmSync(directory, { recursive: true, force: true })
+  }
+})

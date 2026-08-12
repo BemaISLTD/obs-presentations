@@ -590,25 +590,13 @@ async function runCue({ type, cue, sceneId, selectedQuestion }) {
   // would leave the previous scene's camera framing on air.
   const intentCue = sceneId && sceneId !== snapshot.state.sceneId ? 'entry' : cue
   const presenterState = presenterStateForCue(targetScene, intentCue)
-  if (presenterState) {
-    // One operator action moves the whole show together (§19): the scene's own
-    // plan decides whether the camera is on air and which placement it takes,
-    // so nobody has to remember to hide the camera between scenes. Dragging
-    // still overrides freely — until the next cue that carries placement.
-    const geometry = presenterState.preset ? presetGeometry(presenterState.preset) : null
-    const current = snapshot.state.presenter
-    const visibleChanged = snapshot.state.layers.presenter !== presenterState.visible
-    const placementChanged = Boolean(geometry)
-      && (current.x !== geometry.x || current.y !== geometry.y
-        || current.width !== geometry.width || current.height !== geometry.height)
-    // Skip the write when nothing actually differs, so unrelated cues do not
-    // add revisions or disturb the camera.
-    if (visibleChanged || placementChanged) {
-      await updateSharedState({
-        layers: { presenter: presenterState.visible },
-        ...(geometry ? { presenter: geometry } : {}),
-      })
-    }
+  // Cues decide *whether* the camera is on air, never where it sits. The
+  // operator frames the card once and it stays exactly there for the whole
+  // show — a scene silently resizing it is not something anyone can recover
+  // from mid-broadcast. Placement changes only when the operator asks, through
+  // a drag, a preset button, or the numeric fields.
+  if (presenterState && snapshot.state.layers.presenter !== presenterState.visible) {
+    await updateSharedState({ layers: { presenter: presenterState.visible } })
   }
   return sendSharedCommand({ type, cue, sceneId, selectedQuestion })
 }

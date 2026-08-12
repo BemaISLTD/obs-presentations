@@ -49,14 +49,25 @@ function listMusicTracks() {
 function seedMusicTrack() {
   const snapshot = store.read()
   const { music, sceneId } = snapshot.state
-  if (!music.autoplay || music.track) return
+  if (!music.autoplay) return
   const tracks = listMusicTracks()
   if (!tracks.length) return
   // Start on the bed the opening scene calls for, falling back to whatever is
   // present if that file is missing from this deployment.
-  const wanted = music.followScene ? trackForScene(sceneId) : ''
+  const wanted = music.followScene ? trackForScene(sceneId) : music.track
   const chosen = tracks.find((track) => track.url === wanted) ?? tracks[0]
-  store.write({ music: { track: chosen.url, playing: true, autoplay: false, position: 0, startedAt: Date.now() } })
+  // Resume rather than restart when a track is already selected and running:
+  // a server restart mid-show should not drop the listener back to zero.
+  const alreadyRunning = music.track === chosen.url && music.playing
+  if (alreadyRunning) return
+  store.write({
+    music: {
+      track: chosen.url,
+      playing: true,
+      position: music.track === chosen.url ? music.position : 0,
+      startedAt: Date.now(),
+    },
+  })
   console.log(`Background music bed: ${chosen.name}`)
 }
 

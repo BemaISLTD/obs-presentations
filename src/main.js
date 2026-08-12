@@ -76,6 +76,7 @@ let presenterRuntimeState
 let cameraReportTimer
 let reportCameras
 let lastCameraRequestSequence = -1
+let audioUnlockArmed = false
 
 const debugState = {
   gridVisible: false,
@@ -288,6 +289,12 @@ function mountPresenterRuntime(context) {
         // Device labels only exist once a camera has actually opened, so the
         // first report is unlabelled. Re-report when the open completes.
         if (state.camera.deviceLabel && state.camera.deviceLabel !== previous?.deviceLabel) reportCameras?.()
+        // Granting camera access lifts the page's autoplay restriction, so a
+        // bed that was blocked at load can usually start the moment the camera
+        // comes up — without anyone clicking anything.
+        if (state.camera.status === 'ready' && previous?.status !== 'ready') {
+          musicAudio?.play().catch(() => { /* Still blocked; the gesture listener covers it. */ })
+        }
       },
     })
     if (context.syncEnabled) startCameraReporting()
@@ -428,7 +435,7 @@ function applySharedMusic(music, previous, context) {
   }
 
   if (music.playing) {
-    musicAudio.play().then(hideAudioUnlockPrompt).catch(showAudioUnlockPrompt)
+    musicAudio.play().catch(armAudioUnlock)
   } else {
     musicAudio.pause()
     if (timelineChanged) seekMusic(musicAudio, music)
@@ -436,28 +443,27 @@ function applySharedMusic(music, previous, context) {
 }
 
 /**
- * Offers a one-click unlock when the browser refuses to autoplay the bed.
+ * Starts the bed on the first interaction with the page, invisibly.
  *
- * Autoplay policy needs a user gesture before audio may start. The prompt is
- * the only reliable way to get one, and it removes itself the moment playback
- * succeeds so it never sits over a live program.
+ * Browsers refuse to play audio until the page has received a user gesture;
+ * that policy cannot be bypassed from script. Rather than putting a badge on
+ * the program output, we listen for any gesture anywhere — the click that
+ * focuses the window, going fullscreen, a keypress — and start the music then.
+ * In practice the operator's own setup clicks satisfy it before the audience
+ * sees anything, and nothing is ever drawn over the show.
  */
-function showAudioUnlockPrompt() {
-  if (document.querySelector('[data-audio-unlock]')) return
-  const button = document.createElement('button')
-  button.type = 'button'
-  button.dataset.audioUnlock = 'true'
-  button.textContent = '🔊 Click to enable background music'
-  // Sits at the top so it never covers the ticker, which is live program area.
-  button.style.cssText = 'position:fixed;left:50%;top:24px;z-index:9999;transform:translateX(-50%);border:1px solid #22d3ee;border-radius:999px;background:rgba(2,8,23,.92);padding:14px 22px;color:#e0f2fe;font:700 14px Inter,sans-serif;cursor:pointer'
-  button.addEventListener('click', () => {
-    musicAudio?.play().then(hideAudioUnlockPrompt).catch(() => {})
-  })
-  document.body.append(button)
-}
-
-function hideAudioUnlockPrompt() {
-  document.querySelector('[data-audio-unlock]')?.remove()
+function armAudioUnlock() {
+  if (audioUnlockArmed) return
+  audioUnlockArmed = true
+  const events = ['pointerdown', 'keydown', 'touchstart']
+  const unlock = () => {
+    musicAudio?.play().then(() => {
+      events.forEach((name) => window.removeEventListener(name, unlock, true))
+      audioUnlockArmed = false
+    }).catch(() => { /* Still blocked; stay armed for the next gesture. */ })
+  }
+  // Capture phase, so a gesture is seen even if something stops propagation.
+  events.forEach((name) => window.addEventListener(name, unlock, true))
 }
 
 function syncSharedPresentation(nextSnapshot, context) {

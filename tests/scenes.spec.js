@@ -694,3 +694,51 @@ test('scene music beds are consistent and cover every scene', async () => {
   expect(musicChangesBetween('02', '03')).toBe(true)
   expect(musicChangesBetween('13', '14')).toBe(true)
 })
+
+test('scene changes never move or resize the presenter card', async ({ page, request }) => {
+  // The operator frames the camera once for the venue. A scene silently
+  // resizing it is not recoverable mid-broadcast, so placement is theirs alone.
+  const framing = { x: 220, y: 140, width: 700, height: 394 }
+  await request.patch('/api/control/state', { data: { layers: { presenter: true }, presenter: framing } })
+
+  await page.goto('/control')
+  await page.waitForSelector('[data-presenter-box]')
+
+  const geometry = async () => {
+    const state = await (await request.get('/api/control/state')).json()
+    return {
+      placement: (({ x, y, width, height }) => ({ x, y, width, height }))(state.state.presenter),
+      onAir: state.state.layers.presenter,
+    }
+  }
+
+  // Scenes whose plans previously forced full / lower-right / pip / hidden.
+  for (const scene of ['03', '06', '08', '35']) {
+    await page.locator(`[data-action="scene"][data-value="${scene}"]`).click()
+    await page.waitForTimeout(600)
+    const current = await geometry()
+    expect(current.placement).toEqual(framing)
+    expect(current.onAir).toBe(true)
+  }
+
+  // Visibility still follows the scene: a graphics-only scene retires the
+  // camera, and doing so must not disturb its framing either.
+  await page.locator('[data-action="scene"][data-value="01"]').click()
+  await page.waitForTimeout(600)
+  const hidden = await geometry()
+  expect(hidden.onAir).toBe(false)
+  expect(hidden.placement).toEqual(framing)
+})
+
+test('the audience output never shows an audio permission badge', async ({ page }) => {
+  // Autoplay policy cannot be bypassed, but the program page is what an
+  // audience sees: the unlock must be invisible and gesture-driven, never a
+  // control drawn over the show.
+  await page.goto('/program')
+  await page.waitForTimeout(1500)
+  expect(await page.locator('[data-audio-unlock]').count()).toBe(0)
+
+  // Nothing anywhere on the output may be asking for audio permission.
+  const text = await page.locator('body').innerText()
+  expect(text).not.toMatch(/enable background music|click to enable|allow audio/i)
+})
