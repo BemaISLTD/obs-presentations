@@ -663,3 +663,34 @@ test('a camera failure never takes down the program', async ({ page }) => {
   const text = await page.locator('[data-program-stage]').innerText()
   expect(text).not.toMatch(/permission denied|NotAllowedError/i)
 })
+
+test('scene music beds are consistent and cover every scene', async () => {
+  const { MUSIC_TRACKS, musicRoleForScene, trackForScene, musicChangesBetween } = await import('../src/sceneMusic.js')
+  const { trackForScene: serverTrackForScene } = await import('../server/controlStore.js')
+
+  // The vocal bed opens and celebrates; the instrumental sits under speech.
+  const vocalScenes = ['01', '02', '04', '05', '14', '23', '34', '35', '37']
+  vocalScenes.forEach((scene) => {
+    expect(musicRoleForScene(scene)).toBe('vocal')
+    expect(trackForScene(scene)).toBe(MUSIC_TRACKS.vocal)
+  })
+
+  // Every remaining scene runs the instrumental, including 38 and 39.
+  const allScenes = Array.from({ length: 39 }, (_, index) => String(index + 1).padStart(2, '0'))
+  allScenes.filter((scene) => !vocalScenes.includes(scene)).forEach((scene) => {
+    expect(musicRoleForScene(scene)).toBe('instrumental')
+  })
+
+  // The server resolves the same bed as the browser; the two maps are
+  // duplicated for module-boundary reasons and must never drift apart.
+  allScenes.forEach((scene) => {
+    expect(serverTrackForScene(scene)).toBe(trackForScene(scene))
+  })
+
+  // Moving inside one bed must not count as a change — that is what keeps the
+  // music playing across most scene advances.
+  expect(musicChangesBetween('01', '02')).toBe(false)
+  expect(musicChangesBetween('06', '07')).toBe(false)
+  expect(musicChangesBetween('02', '03')).toBe(true)
+  expect(musicChangesBetween('13', '14')).toBe(true)
+})

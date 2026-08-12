@@ -9,6 +9,7 @@ import {
   presetGeometry,
 } from './presenter/presenterPresets.js'
 import { LAYER_CUES } from './sceneCueEngine.js'
+import { musicRoleForScene, trackForScene } from './sceneMusic.js'
 import { presenterStateForCue, sceneControlById, sceneControls } from './sceneControls.js'
 import { fetchAvailableMusic, fetchSharedState, saveControlToken, sendSharedCommand, subscribeSharedState, updateSharedState } from './sharedControlClient.js'
 
@@ -384,7 +385,10 @@ function render() {
               <label class="music-track-picker">
                 <span>Available music</span>
                 <select data-music-track ${busy ? 'disabled' : ''}>${musicOptions}</select>
-                <small>${selectedTrack ? `Selected: ${escapeHtml(selectedTrack.name)}` : musicTracks.length ? 'Choose a track to begin.' : 'No MP3 files found in public/assets/musics.'}</small>
+                <small>${music.followScene
+                  ? `Following the scene: <strong>${musicRoleForScene(state.sceneId) === 'vocal' ? 'Bema Hub' : 'Bema Hub instrumental'}</strong>`
+                  : selectedTrack ? `Pinned: ${escapeHtml(selectedTrack.name)}` : musicTracks.length ? 'Choose a track to begin.' : 'No MP3 files found in public/assets/musics.'}</small>
+                ${controlButton(music.followScene ? 'Pin this track' : 'Follow the scene', 'toggle-music-follow', null, { kind: 'quiet', active: !music.followScene })}
               </label>
               <div class="music-transport" aria-label="Music playback">
                 ${controlButton('Play', 'music-play', null, { kind: 'primary', active: music.playing })}
@@ -744,6 +748,20 @@ function bindControls() {
         run(() => updateSharedState({ music: { playing: false, position, startedAt: 0 } }))
       }
       if (action === 'music-mute') run(() => updateSharedState({ music: { muted: !snapshot.state.music.muted } }))
+      if (action === 'toggle-music-follow') {
+        const followScene = !snapshot.state.music.followScene
+        // Returning to scene-following adopts the current scene's bed at once,
+        // rather than waiting for the next scene change to correct it.
+        const track = followScene ? trackForScene(snapshot.state.sceneId) : snapshot.state.music.track
+        const changed = track !== snapshot.state.music.track
+        run(() => updateSharedState({
+          music: {
+            followScene,
+            track,
+            ...(changed ? { position: 0, startedAt: snapshot.state.music.playing ? Date.now() : 0 } : {}),
+          },
+        }))
+      }
       if (action === 'toggle-layer') run(() => updateSharedState({ layers: { [value]: !snapshot.state.layers[value] } }))
       if (action === 'presenter-preset') {
         const preset = PRESENTER_PRESETS[value]
@@ -840,8 +858,11 @@ function bindControls() {
   app.querySelector('[data-control-mode]')?.addEventListener('change', (event) => run(() => updateSharedState({ mode: event.target.value })))
   app.querySelector('[data-music-track]')?.addEventListener('change', (event) => {
     const track = event.target.value
+    // Choosing a track by hand is an override: pin it, or the next scene change
+    // would immediately replace it with that scene's bed.
     run(() => updateSharedState({
       music: {
+        followScene: false,
         track,
         playing: Boolean(track) && snapshot.state.music.playing,
         position: 0,

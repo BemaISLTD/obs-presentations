@@ -2,7 +2,7 @@ import { createReadStream, existsSync, readdirSync, statSync } from 'node:fs'
 import { createServer } from 'node:http'
 import { extname, join, normalize, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { createControlStore } from './controlStore.js'
+import { createControlStore, trackForScene } from './controlStore.js'
 
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)))
 const production = process.argv.includes('--production')
@@ -48,12 +48,16 @@ function listMusicTracks() {
 // second-guess them.
 function seedMusicTrack() {
   const snapshot = store.read()
-  const { music } = snapshot.state
+  const { music, sceneId } = snapshot.state
   if (!music.autoplay || music.track) return
-  const [first] = listMusicTracks()
-  if (!first) return
-  store.write({ music: { track: first.url, playing: true, autoplay: false, position: 0, startedAt: Date.now() } })
-  console.log(`Background music bed: ${first.name}`)
+  const tracks = listMusicTracks()
+  if (!tracks.length) return
+  // Start on the bed the opening scene calls for, falling back to whatever is
+  // present if that file is missing from this deployment.
+  const wanted = music.followScene ? trackForScene(sceneId) : ''
+  const chosen = tracks.find((track) => track.url === wanted) ?? tracks[0]
+  store.write({ music: { track: chosen.url, playing: true, autoplay: false, position: 0, startedAt: Date.now() } })
+  console.log(`Background music bed: ${chosen.name}`)
 }
 
 function sendJson(response, status, value) {

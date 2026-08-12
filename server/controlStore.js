@@ -91,6 +91,9 @@ const DEFAULT_STATE = Object.freeze({
     track: '',
     playing: true,
     autoplay: true,
+    // When true, the active scene chooses the bed. The operator can pin a
+    // specific track instead, and their choice then survives scene changes.
+    followScene: true,
     muted: false,
     volume: 25,
     position: 0,
@@ -271,6 +274,40 @@ function normalizeTickerMessages(value, legacyMessage = '', legacyId = 0) {
   return normalized.filter((item, index, all) => all.findIndex((candidate) => candidate.id === item.id) === index)
 }
 
+// Scene music beds. Duplicated from src/sceneMusic.js rather than imported,
+// because the server must not depend on browser modules; the two are asserted
+// to agree in tests.
+const MUSIC_TRACKS = Object.freeze({
+  vocal: '/assets/musics/Bema%20Hub.mp3',
+  instrumental: '/assets/musics/beat-bema.MP3',
+})
+const VOCAL_SCENES = new Set(['01', '02', '04', '05', '14', '23', '34', '35', '37'])
+
+export function trackForScene(sceneId) {
+  return VOCAL_SCENES.has(normalizeSceneId(sceneId, '01')) ? MUSIC_TRACKS.vocal : MUSIC_TRACKS.instrumental
+}
+
+/**
+ * The music patch a move to `nextScene` implies, or null to leave music alone.
+ *
+ * Returning null is the common case and the important one: most scene changes
+ * keep the same bed, and the music must play straight through them rather than
+ * restarting every time the operator advances. Only a genuine change of bed
+ * produces a patch.
+ */
+function musicPatchForScene(state, nextScene) {
+  if (state.music.followScene === false) return null
+  const target = trackForScene(nextScene)
+  if (state.music.track === target) return null
+  return {
+    track: target,
+    // Each bed starts from its own beginning; carrying the previous position
+    // across would drop the listener into the middle of a different piece.
+    position: 0,
+    startedAt: state.music.playing ? Date.now() : 0,
+  }
+}
+
 function normalizeMusicTrack(value) {
   const track = String(value ?? '').trim().slice(0, 300)
   return /^\/assets\/musics\/[^/]+\.mp3$/i.test(track) ? track : ''
@@ -311,6 +348,7 @@ function normalizeState(value) {
       // When autoplay is on, the output page picks the first available track on
       // its own, so the operator never has to start the bed by hand.
       autoplay: source.music?.autoplay !== false,
+      followScene: source.music?.followScene !== false,
       muted: Boolean(source.music?.muted),
       volume: Number.isFinite(musicVolume) ? Math.min(100, Math.max(0, musicVolume)) : defaults.music.volume,
       position: Math.max(0, Number(source.music?.position) || 0),
@@ -412,6 +450,14 @@ export function createControlStore(databasePath = resolve('data/obs-control.sqli
 
   function write(patch) {
     const current = read()
+    // A scene change can arrive as a plain state patch as well as a command, so
+    // the bed is resolved here too. An explicit music patch always wins, which
+    // is what lets the operator pin a track by hand.
+    if (patch?.sceneId != null && !patch.music) {
+      const nextScene = normalizeSceneId(patch.sceneId, current.state.sceneId)
+      const musicPatch = musicPatchForScene(current.state, nextScene)
+      if (musicPatch) patch = { ...patch, music: musicPatch }
+    }
     const state = mergeState(current.state, patch)
     const revision = current.revision + 1
     const updatedAt = new Date().toISOString()
@@ -430,6 +476,8 @@ export function createControlStore(databasePath = resolve('data/obs-control.sqli
     }
     if (sceneId != null) patch.sceneId = sceneId
     if (selectedQuestion != null) patch.selectedQuestion = selectedQuestion
+    // write() resolves the scene's music bed for both this path and plain
+    // state patches, so the decision lives in exactly one place.
     return write(patch)
   }
 

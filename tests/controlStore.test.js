@@ -325,3 +325,43 @@ test('camera devices reported by the program page are stored and bounded', () =>
     rmSync(directory, { recursive: true, force: true })
   }
 })
+
+test('music follows the scene without interrupting itself', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'obs-control-scene-music-'))
+  try {
+    const store = createControlStore(join(directory, 'state.sqlite'))
+    const vocal = '/assets/musics/Bema%20Hub.mp3'
+    const instrumental = '/assets/musics/beat-bema.MP3'
+
+    store.write({ sceneId: '01', music: { track: vocal, playing: true, position: 0, startedAt: Date.now() } })
+    assert.equal(store.read().state.music.track, vocal)
+
+    // Advancing inside one bed must leave playback completely alone: this is
+    // what stops the music restarting every time the operator changes scene.
+    store.write({ music: { position: 75 } })
+    const sameBed = store.command({ type: 'scene', cue: 'entry', sceneId: '02' })
+    assert.equal(sameBed.state.music.track, vocal)
+    assert.equal(sameBed.state.music.position, 75, 'playback position survives a same-bed scene change')
+
+    // Crossing to a scene on the other bed switches, and starts it from zero.
+    const crossed = store.command({ type: 'scene', cue: 'entry', sceneId: '03' })
+    assert.equal(crossed.state.music.track, instrumental)
+    assert.equal(crossed.state.music.position, 0)
+
+    store.write({ music: { position: 42 } })
+    const stillInstrumental = store.command({ type: 'scene', cue: 'entry', sceneId: '06' })
+    assert.equal(stillInstrumental.state.music.position, 42, 'instrumental scenes also play straight through')
+
+    // A scene change arriving as a plain state patch resolves the bed too.
+    const patched = store.write({ sceneId: '14' })
+    assert.equal(patched.state.music.track, vocal)
+
+    // Pinning a track makes the operator's choice survive scene changes.
+    store.write({ music: { followScene: false, track: instrumental } })
+    const pinned = store.command({ type: 'scene', cue: 'entry', sceneId: '35' })
+    assert.equal(pinned.state.music.track, instrumental, 'a pinned track ignores the scene bed')
+    store.close()
+  } finally {
+    rmSync(directory, { recursive: true, force: true })
+  }
+})
