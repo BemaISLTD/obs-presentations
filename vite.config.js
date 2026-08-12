@@ -14,12 +14,16 @@ export default defineConfig({
       ],
     },
   },
-  base: "./",
+  // Absolute, because the app is served from nested routes (/program,
+  // /camera-setup) and the MediaPipe WASM/model assets are loaded at runtime
+  // from absolute paths that must resolve identically from every route.
+  base: "/",
   build: {
     rollupOptions: {
       input: {
         presentation: resolve(import.meta.dirname, "index.html"),
         control: resolve(import.meta.dirname, "control.html"),
+        cameraSetup: resolve(import.meta.dirname, "camera-setup.html"),
       },
     },
   },

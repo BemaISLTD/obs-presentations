@@ -7,23 +7,12 @@
 // caller, because callers never issue OBS commands directly.
 
 import { OBS_REQUESTS } from './obsWebSocketClient.js'
+// Placements come from the renderer-neutral module (§8), so the browser layer
+// and OBS cannot drift apart. `full` yields no transform: it means "leave the
+// source exactly as the operator framed it in OBS".
+import { presetToObsTransform } from './presenter/presenterPresets.js'
 
-// Placement presets, in 1920x1080 canvas coordinates. `full` deliberately holds
-// no transform: it means "leave the source exactly as the operator framed it in
-// OBS", which is the safe default for a single full-frame camera.
-export const PRESENTER_PRESETS = Object.freeze({
-  full: { label: 'Full frame', transform: null },
-  'lower-right': { label: 'Lower right', transform: { positionX: 1180, positionY: 490, scale: 0.36 } },
-  'lower-left': { label: 'Lower left', transform: { positionX: 120, positionY: 490, scale: 0.36 } },
-  center: { label: 'Center', transform: { positionX: 480, positionY: 135, scale: 0.5 } },
-  pip: { label: 'Picture in picture', transform: { positionX: 1360, positionY: 700, scale: 0.28 } },
-})
-
-export const PRESENTER_PRESET_IDS = Object.freeze(Object.keys(PRESENTER_PRESETS))
-
-export function isPresenterPreset(value) {
-  return Object.hasOwn(PRESENTER_PRESETS, String(value))
-}
+export { PRESENTER_PRESETS, PRESENTER_PRESET_IDS, isPresenterPreset } from './presenter/presenterPresets.js'
 
 /**
  * Resolves the numeric sceneItemId for a named source inside a named scene.
@@ -52,12 +41,12 @@ export async function applyPresenterState(client, { sceneName, sourceName, visib
   if (!sourceName) throw new Error('Select or enter the OBS source to control first.')
 
   const sceneItemId = await resolveSceneItemId(client, sceneName, sourceName)
-  const placement = PRESENTER_PRESETS[preset] ?? PRESENTER_PRESETS.full
+  const transform = presetToObsTransform(preset)
 
   // Place the source before toggling visibility, so a preset change never pops
   // on screen mid-move. A future slide/fade implementation replaces this single
   // call with a tween and keeps the same call site.
-  if (placement.transform) await applyTransform(client, sceneName, sceneItemId, placement.transform)
+  if (transform) await applyTransform(client, sceneName, sceneItemId, transform)
 
   await client.request(OBS_REQUESTS.setSceneItemEnabled, {
     sceneName,

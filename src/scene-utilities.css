@@ -998,6 +998,23 @@
   .countdown-clock.pulse {
     @apply [animation-duration:1s];
   }
+  /* At zero the clock holds 00:00 and blinks red so the operator can see the
+     scene is over at a glance. Nothing reloads or advances on its own. */
+  .countdown-clock.is-complete {
+    @apply [animation:countdown-complete-blink_1s_step-end_infinite];
+    @apply [color:#fb3b57];
+    @apply [text-shadow:0_0_18px_rgba(251,_59,_87,_0.55)];
+  }
+  .countdown-clock.is-complete .clock-segment,
+  .countdown-clock.is-complete .clock-divider {
+    @apply [color:inherit];
+    @apply [text-shadow:inherit];
+  }
+  @keyframes countdown-complete-blink {
+    50% {
+      opacity: 0.25;
+    }
+  }
   .scene01-stage-platform {
     @apply [position:absolute];
     @apply [left:50%];

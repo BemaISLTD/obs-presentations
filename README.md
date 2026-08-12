@@ -1,21 +1,24 @@
-# BemaHub OBS Presentation System
+# BemaHub Presentation System
 
-Browser-based 1920×1080 OBS scenes with independent underlay (Z0 + Z1) and
-transparent foreground (Z3) outputs. The live presenter camera remains an OBS
-source between those two browser sources.
+A fully web-based 1920×1080 broadcast system. Every layer — background,
+foreground, presenter camera, and ticker — composites inside one browser page at
+`BASE_URL/program`. There is no OBS and no external compositor: the browser is
+the whole show.
 
-The React control room is the show controller for all three layers: it drives
-the background presentation, the transparent ticker/foreground, and — over OBS
-WebSocket — the presenter camera. OBS remains the compositor and final video
-output.
+The control room drives all four layers over shared state, and can hide or show
+any of them independently. The presenter camera is captured in the browser with
+`getUserMedia`, and its card is dragged, resized, and shaped from the controller.
 
 ```
-                     CONTROLLER
-        ┌────────────────┼────────────────┐
-        ↓                ↓                ↓
-   /presentation      /ticker        OBS WebSocket
-                                          ↓
-                                   Presenter camera
+                    CONTROL ROOM  (BASE_URL/control)
+                          │  shared state over SSE
+                          ↓
+                    /program  ── one page, four stacked layers
+                          │
+       ┌──────────┬───────┴───────┬──────────┐
+       ↓          ↓               ↓          ↓
+   background  foreground   presenter cam   ticker
+                            (system webcam)
 ```
 
 ## Run locally
@@ -61,9 +64,9 @@ Reset, Entry, Background/Foreground/Footer entrances, Full Sequence, every
 scene-specific During cue, and Exit. It also controls global animation pause,
 background video/posters, live/reference/overlay mode, the ticker, and priority
 announcements. Scene 36 question selection follows its active scene controls.
-The **OBS connection** panel connects to OBS, selects the scene and presenter
-source to control, and provides manual Show/Hide for the presenter camera; see
-"OBS control and the presenter camera" below.
+The **Layers on air** panel shows all four layers with their current state and
+takes any of them on or off air in one click. The **Presenter card** panel
+controls the webcam layer; see "The presenter camera" below.
 
 The **Live data source** panel controls where Scenes 01, 08, 37, and the global
 ticker read their numbers from: **Simulated**, **Backend (live)**, or **Hybrid**.
@@ -103,33 +106,36 @@ Click the browser preview once so it has keyboard focus, then use:
   remain compatible with the canonical `output=obs&render=...` URLs below.
 
 Navigation wraps at both ends. It also works with `clean=true`, so the shortcuts
-can be used in a browser preview without adding controls to the OBS output.
+can be used in a browser preview without adding controls to the program output.
 
-## OBS browser-source URLs
+## Output URLs
 
-For step-by-step instructions on building the master scene, enabling OBS
-WebSocket, and running the show, see [the OBS setup guide](./docs/obs.md).
+**`BASE_URL/program` is the show.** Open it on the machine holding the webcam,
+put it full screen on the output display, and grant camera permission once. All
+four layers composite in that single page.
 
 Replace `08` with the required two-digit scene number.
 
-Recommended synchronized sources (the scene number comes from the control room):
+The split-layer routes remain available for review and for any workflow that
+still wants the halves separately:
 
-- Background presentation — `BASE_URL/presentation`
-- Ticker / foreground — `BASE_URL/ticker`
 - Composite program — `BASE_URL/program`
+- Background presentation only — `BASE_URL/presentation`
+- Ticker / foreground only — `BASE_URL/ticker`
 
-These are the addresses to paste into OBS. Each one is a short alias that
-redirects to the equivalent canonical URL below, so OBS can be pointed at a bare
-path with no query string to maintain:
+Each is a short alias that redirects to the equivalent canonical URL:
 
 - Underlay — `BASE_URL/?sync=true&output=obs&render=underlay&clean=true`
 - Foreground — `BASE_URL/?sync=true&output=obs&render=foreground&clean=true`
 - Composite — `BASE_URL/?sync=true&output=obs&render=composite&clean=true`
 
-All three retain their own OBS layer role while following the same active scene
-and commands. Plain `BASE_URL/` is also synchronized and defaults to a full-screen
-composite. Use `sync=false` or omit `sync=true` on a URL containing `scene=...`
-when an isolated, manually selected development view is required.
+All three follow the same active scene and commands. Plain `BASE_URL/` is also
+synchronized and defaults to a full-screen composite. Use `sync=false` or omit
+`sync=true` on a URL containing `scene=...` when an isolated, manually selected
+development view is required.
+
+The camera and the background music bed only run on the composite page, so
+opening a second review tab can never double the audio or seize the webcam.
 
 Static development URLs:
 
@@ -156,68 +162,87 @@ transparent graphics placed over the presenter. Use `composite` to review both
 together without a camera source. The background poster is part of the underlay;
 `bgVideo=false` explicitly forces that poster instead of a future video loop.
 
-In OBS, create the sources in this order from back to front:
+## Layers
 
-1. Underlay browser source — `BASE_URL/presentation`
-2. Presenter camera source — Camo, a capture card, NDI, or a webcam
-3. Foreground browser source — `BASE_URL/ticker`
-
-Listed top-to-bottom in the OBS source list, that master scene reads:
+The four layers stack inside the program page, bottom to top:
 
 ```
-OPEN ENROLLMENT MASTER
-  1. Ticker / Foreground   Browser Source   BASE_URL/ticker
-  2. Presenter Camera      Video Capture Device / Camo / NDI
-  3. Presentation          Browser Source   BASE_URL/presentation
+program page (1920×1080)
+  4. ticker       ── bottom live activity bar
+  3. presenter    ── system webcam card, freely positioned
+  2. foreground   ── scene cards, text, data
+  1. background   ── scene artwork and video loops
 ```
 
-OBS composites the live presenter between the two browser sources. Both pages
-follow the same shared cue state, so they can never drift apart: the controller
-remains the single source of truth for what each layer is showing.
+The **Layers on air** panel in the control room hides or shows any of them
+independently and instantly on every connected display. Hiding a layer never
+disturbs the others, and hiding the presenter releases the camera so the
+hardware light goes out.
 
-Set both browser sources to 1920×1080. The foreground page is genuinely
-transparent outside its lower thirds, tickers, and other Z3 elements.
+## The presenter camera
 
-## OBS control and the presenter camera
+The camera is captured in the browser by the program page itself, using
+`getUserMedia` against the system webcam, with AI background removal producing
+genuine transparency. There is no capture software and no external compositor.
 
-The control room connects directly to OBS over OBS WebSocket v5 and drives the
-live presenter camera alongside the browser layers. Enable **Tools → WebSocket
-Server Settings** in OBS, then fill in the **OBS connection** panel on
-`/control`.
+Camera hardware is **machine-local**: the computer running `/program` owns it.
+Configure it there at `BASE_URL/camera-setup`, which offers device selection,
+raw and background-removed previews, and live diagnostics (permission, actual
+resolution and FPS, segmentation status and delegate). The choice is saved in
+that browser's `localStorage` by both id and label, so a device that changes id
+between restarts is still matched by name.
 
-Host, port, and password are operator settings stored in the shared database, so
-the controller can run on the OBS computer (`127.0.0.1:4455`) or on another
-device on the same router (`192.168.x.x:4455`). Nothing here requires the
-Internet; the protocol client is implemented in-repo against the browser's own
-WebSocket and has no runtime dependency to install.
+Browsers only expose cameras on a secure origin, so serve the program page over
+**HTTPS or `localhost`**. Permission is granted once per browser, on the machine
+that runs the output display.
 
-Once connected, the panel queries OBS for its scenes and for the sources inside
-the selected scene, and offers both as dropdowns. Every value can also be typed
-by hand, which is the fallback when OBS is closed or source discovery is not
-wanted. **No OBS scene or source name is hard-coded anywhere in the app** — they
-are configuration, stored per source role:
+The **Presenter card** panel controls the layer:
+
+- **Drag** the box on the stage preview to move it, or pull a corner to resize.
+- **Presets** — full frame, lower right, lower left, center stage, picture in
+  picture, side panel.
+- **Numeric fields** for exact left/top/width/height in stage pixels.
+- **Shape** (rounded, square, circle), **scaling** (fill or fit),
+  **mirroring**, and an optional **name badge**.
+- **AI background removal** on/off, with **mask threshold** and **edge feather**
+  for tuning hair and hand edges against your room.
+
+Geometry is stored in 1920×1080 stage pixels, so the box the operator drags and
+the card rendered on air are described by the same numbers. Values are clamped
+to the stage, meaning a card can never be dropped somewhere it cannot be
+retrieved. Dragging writes once on release rather than on every pointer frame,
+and geometry updates mutate the live element instead of re-rendering it, so
+moving the card never interrupts the video stream.
 
 ```js
-obs = {
-  host: '127.0.0.1',
-  port: 4455,
-  password: '',
-  sceneName: 'OPEN ENROLLMENT MASTER',
-  sources: {
-    presenter: { label: 'Presenter', sourceName: 'Camo Camera', visible: false, preset: 'full' },
-  },
+presenter = {
+  deviceId: '',        // '' uses the system default camera
+  x: 1320, y: 620, width: 520, height: 293,
+  shape: 'rounded', fit: 'cover', mirrored: true,
+  label: '', showLabel: false,
 }
 ```
 
-`sources` is a keyed registry rather than a single presenter field, so
-additional cameras (`presenter2`, `guestCamera`, `audienceCamera`) are a data
-change and not a code change. The first version ships the `presenter` role and
-its Show/Hide controls for manual testing.
+## Offline operation
 
-If OBS is closed, refuses the password, or disconnects mid-show, the panel shows
-the reason and the presentation controller keeps running normally — scene, cue,
-ticker, and data controls are unaffected. Presenter state is still recorded, and
-is re-applied to OBS on the next successful connection.
+The AI model and its WebAssembly runtime are vendored into the repository at
+`public/mediapipe/wasm` and `public/models`, and loaded from local paths. No CDN
+is contacted at show time. To verify on the show machine: build, start, then
+disconnect the network and confirm `/program` still renders, segments, and plays
+music.
+
+## OBS (optional, legacy)
+
+OBS is no longer required to assemble the presentation, and the browser is the
+presentation engine. Two uses remain:
+
+- **Recorder/encoder.** Point OBS at the finished browser window with a Window
+  or Display Capture. It receives one completed composition instead of
+  rebuilding the layers as separate sources.
+- **Legacy presenter output.** The collapsed **OBS presenter output** panel at
+  the bottom of `/control` can additionally drive a physical camera source
+  inside OBS. It reads the same generic presenter state the browser layer uses,
+  so the two renderers cannot disagree. Disabled by default.
 
 ### Presenter cues
 
@@ -232,19 +257,26 @@ Next cue → background scene + ticker/foreground + presenter camera
 Scene 03's entry cue brings the camera in full-frame and its exit cue takes it
 out; graphics-only scenes retire the camera on entry so it can never be left on
 air under a full-screen layout. Cues with no presenter intent leave the camera
-exactly as it is. Because cues and the manual Show/Hide buttons both write the
-same shared state, the two can never disagree.
+exactly as it is. Because cues and the manual on-air button both write the same
+shared state, the two can never disagree.
 
-Placement presets (`full`, `lower-right`, `lower-left`, `center`, `pip`) are
-declared in `src/obsPresenterDirector.js`. Version one applies them as an
-immediate transform plus a visibility toggle. Animated entrances and exits —
-slide, fade, scale, PiP-to-fullscreen — replace the body of
-`applyPresenterState()` without changing a single caller, because callers
-describe the state they want rather than issuing OBS commands:
+A scene's declared preset name is resolved to stage geometry by
+`PRESENTER_PRESETS` in `src/control.js`, so a cue and a preset button produce
+exactly the same placement.
 
-```js
-applyPresenterState(client, { sourceName: 'Presenter Camera', visible: true, preset: 'lower-right' })
-```
+## Background music
+
+Music runs as an ambient bed under every scene rather than as a per-scene cue.
+The server adopts the first track in `public/assets/musics` on first start and
+plays it looped at a low default volume (25%), so speech stays intelligible.
+
+The control room's **Music controls** panel changes the track, plays, pauses,
+mutes, and sets the volume for every display at once. Playback position is
+shared, so a display that joins late lands at the right point in the track.
+
+Browsers block audio until a page has received a user gesture. When that
+happens the program page shows a one-click **"Click to enable background
+music"** prompt, which removes itself as soon as playback starts.
 
 ## Live data and the global ticker
 
@@ -357,6 +389,6 @@ composite output; committed Chromium snapshots cover all live composites and
 the key storyboard shells. Use `npm run test:visual:update` only when an
 intentional visual change has been reviewed.
 
-For OBS captures, always include `clean=true`. Use `paused=true` when a still,
+For program captures, always include `clean=true`. Use `paused=true` when a still,
 fully composed frame is needed; browser animation and background video playback
 will be frozen.

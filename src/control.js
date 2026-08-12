@@ -1,6 +1,13 @@
 import './control.css'
 import { createObsController } from './obsController.js'
-import { PRESENTER_PRESETS } from './obsPresenterDirector.js'
+import {
+  MIN_PRESENTER_SIZE,
+  PRESENTER_PRESETS,
+  STAGE_HEIGHT,
+  STAGE_WIDTH,
+  matchPreset,
+  presetGeometry,
+} from './presenter/presenterPresets.js'
 import { LAYER_CUES } from './sceneCueEngine.js'
 import { presenterStateForCue, sceneControlById, sceneControls } from './sceneControls.js'
 import { fetchAvailableMusic, fetchSharedState, saveControlToken, sendSharedCommand, subscribeSharedState, updateSharedState } from './sharedControlClient.js'
@@ -13,10 +20,20 @@ let errorMessage = ''
 let countdownSceneId = ''
 let countdownEndsAt = 0
 let musicTracks = []
+// Set while a drag is in flight so incoming shared state cannot re-render the
+// stage out from under the operator's pointer mid-gesture.
+let draggingPresenter = false
 
-// The OBS connection lives in the controller only. Presentation pages never
-// talk to OBS, so a failure here can never affect the program output.
+// OBS is optional and lives entirely in the controller (§24). Presentation
+// pages never talk to it, so a failure here cannot affect program output.
 const obs = createObsController({ onChange: () => render() })
+
+const LAYER_META = Object.freeze([
+  { key: 'background', label: 'Background', hint: 'Scene artwork and video loops' },
+  { key: 'foreground', label: 'Foreground', hint: 'Scene cards, text, and data' },
+  { key: 'presenter', label: 'Presenter camera', hint: 'Live webcam card' },
+  { key: 'ticker', label: 'Ticker', hint: 'Bottom live activity bar' },
+])
 
 function formatCountdown(totalSeconds) {
   const seconds = Math.max(0, Math.ceil(totalSeconds))
@@ -57,6 +74,29 @@ function layerUrl(path) {
   return new URL(path, window.location.origin).href
 }
 
+function renderLayerPanel(state) {
+  const layers = state.layers
+  return `
+    <article class="control-panel layer-panel">
+      <div class="panel-heading">
+        <div><span>Composite output</span><h2>Layers on air</h2></div>
+        <span class="layer-count">${LAYER_META.filter((layer) => layers[layer.key]).length} / ${LAYER_META.length} visible</span>
+      </div>
+      <div class="layer-grid">
+        ${LAYER_META.map((layer) => {
+          const on = layers[layer.key] === true
+          return `
+            <button type="button" class="layer-toggle ${on ? 'is-on' : ''}" data-action="toggle-layer" data-value="${layer.key}" aria-pressed="${on}" ${busy ? 'disabled' : ''}>
+              <span class="layer-toggle-state">${on ? 'On air' : 'Hidden'}</span>
+              <strong>${escapeHtml(layer.label)}</strong>
+              <small>${escapeHtml(layer.hint)}</small>
+            </button>`
+        }).join('')}
+      </div>
+      <p class="layer-hint">Every layer stacks in the single program page. Hiding one takes it off air instantly on every connected display.</p>
+    </article>`
+}
+
 const OBS_STATUS_COPY = Object.freeze({
   connected: 'Connected',
   connecting: 'Connecting…',
@@ -64,44 +104,15 @@ const OBS_STATUS_COPY = Object.freeze({
   error: 'Disconnected',
 })
 
-function renderObsSourceRow(key, source, obsState) {
-  const knownSource = !source.sourceName || obsState.sources.includes(source.sourceName)
-  const options = [
-    '<option value="">Select a source…</option>',
-    ...obsState.sources.map((name) => `<option value="${escapeHtml(name)}" ${name === source.sourceName ? 'selected' : ''}>${escapeHtml(name)}</option>`),
-    // Keep a configured name selectable even when OBS is closed or the name was
-    // typed manually, so the setting is never silently lost.
-    !knownSource ? `<option value="${escapeHtml(source.sourceName)}" selected>${escapeHtml(source.sourceName)} (not in scene)</option>` : '',
-  ].join('')
-
-  return `
-    <div class="obs-source-row" data-obs-source-row="${escapeHtml(key)}">
-      <div class="obs-source-heading">
-        <strong>${escapeHtml(source.label || key)}</strong>
-        <span class="obs-source-state ${source.visible ? 'is-live' : ''}">${source.visible ? 'On air' : 'Hidden'}</span>
-      </div>
-      <label class="obs-field">
-        <span>OBS source</span>
-        <select data-obs-source-select="${escapeHtml(key)}" ${busy || !obsState.sources.length ? 'disabled' : ''}>${options}</select>
-      </label>
-      <label class="obs-field">
-        <span>Or type the source name</span>
-        <input type="text" data-obs-source-name="${escapeHtml(key)}" value="${escapeHtml(source.sourceName)}" maxlength="200" placeholder="Presenter Camera" ${busy ? 'disabled' : ''}>
-      </label>
-      <label class="obs-field">
-        <span>Placement preset</span>
-        <select data-obs-source-preset="${escapeHtml(key)}" ${busy ? 'disabled' : ''}>
-          ${Object.entries(PRESENTER_PRESETS).map(([id, preset]) => `<option value="${id}" ${id === source.preset ? 'selected' : ''}>${escapeHtml(preset.label)}</option>`).join('')}
-        </select>
-      </label>
-      <div class="obs-source-actions">
-        ${controlButton('Show', 'obs-source-show', key, { kind: 'primary', active: source.visible })}
-        ${controlButton('Hide', 'obs-source-hide', key, { active: !source.visible })}
-      </div>
-    </div>`
-}
-
-function renderObsPanel(state) {
+/**
+ * Optional OBS renderer (§24).
+ *
+ * The browser is the presentation engine; this exists so a site that still
+ * drives a physical OBS camera source can do so from the same presenter state.
+ * It is collapsed and last on the page because it is not part of the normal
+ * in-house workflow.
+ */
+function renderObsLegacyPanel(state) {
   const obsState = obs.getState()
   const config = state.obs
   const statusLabel = OBS_STATUS_COPY[obsState.status] ?? 'Disconnected'
@@ -112,43 +123,167 @@ function renderObsPanel(state) {
       ? `<option value="${escapeHtml(config.sceneName)}" selected>${escapeHtml(config.sceneName)}${obsState.scenes.length ? ' (not in OBS)' : ''}</option>`
       : '',
   ].join('')
+  const sourceOptions = [
+    '<option value="">Select a source…</option>',
+    ...obsState.sources.map((name) => `<option value="${escapeHtml(name)}" ${name === config.sourceName ? 'selected' : ''}>${escapeHtml(name)}</option>`),
+    config.sourceName && !obsState.sources.includes(config.sourceName)
+      ? `<option value="${escapeHtml(config.sourceName)}" selected>${escapeHtml(config.sourceName)} (not in scene)</option>`
+      : '',
+  ].join('')
 
   return `
-    <article class="control-panel obs-panel">
-      <div class="panel-heading">
-        <div><span>Live video layer</span><h2>OBS connection</h2></div>
+    <details class="control-panel obs-legacy-panel" ${config.enabled ? 'open' : ''}>
+      <summary>
+        <span class="obs-legacy-summary">
+          <strong>OBS presenter output (legacy)</strong>
+          <small>Optional. Not required for the browser program page.</small>
+        </span>
         <span class="obs-status"><i class="obs-status-dot is-${escapeHtml(obsState.status)}"></i>${escapeHtml(statusLabel)}</span>
+      </summary>
+
+      <p class="obs-hint">The browser program page is the presentation engine. Enable this only to also drive a camera source inside OBS from the same presenter state.</p>
+      <div class="obs-legacy-enable">
+        ${controlButton(config.enabled ? 'Disable OBS output' : 'Enable OBS output', 'toggle-obs-enabled', null, { kind: config.enabled ? 'quiet' : 'primary', active: config.enabled })}
       </div>
 
-      ${obsState.error ? `<p class="obs-error" role="status">${escapeHtml(obsState.error)}</p>` : ''}
-
-      <form class="obs-connection-form" data-obs-connection-form>
-        <label class="obs-field"><span>Host</span><input type="text" name="host" value="${escapeHtml(config.host)}" placeholder="127.0.0.1" ${busy ? 'disabled' : ''}></label>
-        <label class="obs-field"><span>Port</span><input type="number" name="port" min="1" max="65535" value="${escapeHtml(config.port)}" ${busy ? 'disabled' : ''}></label>
-        <label class="obs-field"><span>Password</span><input type="password" name="password" value="${escapeHtml(config.password)}" autocomplete="off" placeholder="Optional" ${busy ? 'disabled' : ''}></label>
-        <div class="obs-connection-actions">
-          <button type="submit" ${busy ? 'disabled' : ''}>${obsState.connected ? 'Reconnect' : 'Connect'}</button>
-          <button type="button" data-action="obs-disconnect" ${busy || !obsState.connected ? 'disabled' : ''}>Disconnect</button>
+      ${config.enabled ? `
+        ${obsState.error ? `<p class="obs-error" role="status">${escapeHtml(obsState.error)}</p>` : ''}
+        <form class="obs-connection-form" data-obs-connection-form>
+          <label class="obs-field"><span>Host</span><input type="text" name="host" value="${escapeHtml(config.host)}" placeholder="127.0.0.1" ${busy ? 'disabled' : ''}></label>
+          <label class="obs-field"><span>Port</span><input type="number" name="port" min="1" max="65535" value="${escapeHtml(config.port)}" ${busy ? 'disabled' : ''}></label>
+          <label class="obs-field"><span>Password</span><input type="password" name="password" value="${escapeHtml(config.password)}" autocomplete="off" placeholder="Optional" ${busy ? 'disabled' : ''}></label>
+          <div class="obs-connection-actions">
+            <button type="submit" ${busy ? 'disabled' : ''}>${obsState.connected ? 'Reconnect' : 'Connect'}</button>
+            <button type="button" data-action="obs-disconnect" ${busy || !obsState.connected ? 'disabled' : ''}>Disconnect</button>
+          </div>
+        </form>
+        <div class="obs-scene-picker">
+          <label class="obs-field"><span>Scene</span><select data-obs-scene ${busy || !obsState.scenes.length ? 'disabled' : ''}>${sceneOptions}</select></label>
+          <label class="obs-field"><span>Presenter source</span><select data-obs-source ${busy || !obsState.sources.length ? 'disabled' : ''}>${sourceOptions}</select></label>
+          ${controlButton(obsState.discovering ? 'Refreshing…' : 'Refresh from OBS', 'obs-refresh', null, { kind: 'quiet' })}
         </div>
-        <p class="obs-hint">Runs entirely on the local network. Use the OBS computer's LAN address when the controller is on another device.</p>
+        <p class="obs-hint">Visibility and placement follow the same presenter state the browser layer uses, so the two renderers can never disagree.</p>
+      ` : ''}
+    </details>`
+}
+
+// A camera list is only meaningful for the machine that will open it, so this
+// shows what the program page reported about itself rather than enumerating the
+// controller's own webcams. That is what makes the picker correct when the
+// control room is a laptop in another room.
+const CAMERA_REPORT_STALE_MS = 60_000
+
+function renderCameraPicker(state) {
+  const camera = state.camera ?? { devices: [] }
+  const devices = camera.devices ?? []
+  const reported = Number(camera.reportedAt) || 0
+  const online = reported > 0 && Date.now() - reported < CAMERA_REPORT_STALE_MS
+  const pending = camera.requestedId && camera.requestedId !== camera.activeId
+
+  if (!online) {
+    return `
+      <div class="camera-picker is-offline">
+        <div class="camera-picker-heading"><span>Camera</span><em>Program page not connected</em></div>
+        <p>Open <a href="/program" target="_blank" rel="noreferrer">/program</a> on the presentation computer. Its cameras appear here once it is running.</p>
+      </div>`
+  }
+
+  const options = [
+    `<option value="">Default camera</option>`,
+    ...devices.map((device) => `<option value="${escapeHtml(device.deviceId)}" ${device.deviceId === camera.activeId ? 'selected' : ''}>${escapeHtml(device.label)}</option>`),
+  ].join('')
+
+  return `
+    <div class="camera-picker">
+      <div class="camera-picker-heading">
+        <span>Camera on the presentation computer</span>
+        <em>${devices.length} available${pending ? ' · switching…' : ''}</em>
+      </div>
+      <div class="camera-picker-row">
+        <select data-camera-select ${busy ? 'disabled' : ''}>${options}</select>
+        ${controlButton('Refresh', 'camera-refresh', null, { kind: 'quiet' })}
+      </div>
+      <small>${camera.activeLabel ? `On air: ${escapeHtml(camera.activeLabel)}` : 'No camera open yet.'} Phones and USB cameras appear here once the presentation computer sees them.</small>
+    </div>`
+}
+
+// The drag surface is a scaled copy of the 1920x1080 stage. Rendering it at a
+// fixed aspect ratio means pointer deltas convert to stage pixels with one
+// multiply, and the operator sees the true framing rather than an abstraction.
+function renderPresenterPanel(state) {
+  const presenter = state.presenter
+  const live = state.layers.presenter === true
+  const activePreset = matchPreset(presenter)
+
+  const left = (presenter.x / STAGE_WIDTH) * 100
+  const top = (presenter.y / STAGE_HEIGHT) * 100
+  const width = (presenter.width / STAGE_WIDTH) * 100
+  const height = (presenter.height / STAGE_HEIGHT) * 100
+
+  return `
+    <article class="control-panel presenter-panel">
+      <div class="panel-heading">
+        <div><span>Web camera layer</span><h2>Presenter card</h2></div>
+        <span class="presenter-state ${live ? 'is-live' : ''}">${live ? 'On air' : 'Hidden'}</span>
+      </div>
+
+      <div class="presenter-actions">
+        ${controlButton(live ? 'Take presenter off air' : 'Put presenter on air', 'toggle-layer', 'presenter', { kind: live ? 'danger' : 'primary', active: live })}
+      </div>
+
+      <div class="presenter-stage" data-presenter-stage aria-label="Drag to position the presenter card">
+        <div class="presenter-stage-grid" aria-hidden="true"></div>
+        <div class="presenter-box ${live ? 'is-live' : ''}" data-presenter-box style="left:${left}%;top:${top}%;width:${width}%;height:${height}%">
+          <span class="presenter-box-label">Presenter</span>
+          <i class="presenter-handle" data-presenter-handle="nw"></i>
+          <i class="presenter-handle" data-presenter-handle="ne"></i>
+          <i class="presenter-handle" data-presenter-handle="sw"></i>
+          <i class="presenter-handle" data-presenter-handle="se"></i>
+        </div>
+      </div>
+      <p class="presenter-hint">Drag the box to move it, or pull a corner to resize. Changes apply live to every display.</p>
+
+      <div class="presenter-preset-row">
+        ${Object.values(PRESENTER_PRESETS).map((preset) => controlButton(preset.label, 'presenter-preset', preset.id, { kind: 'quiet', active: activePreset === preset.id })).join('')}
+      </div>
+
+      ${renderCameraPicker(state)}
+
+      <div class="presenter-settings">
+        <label class="obs-field"><span>Background removal</span><select data-presenter-removal ${busy ? 'disabled' : ''}><option value="true" ${presenter.backgroundRemoval ? 'selected' : ''}>AI removal on</option><option value="false" ${presenter.backgroundRemoval ? '' : 'selected'}>Off (plain camera)</option></select></label>
+        <label class="obs-field"><span>Shape</span><select data-presenter-shape ${busy ? 'disabled' : ''}>${['rounded', 'square', 'circle'].map((shape) => `<option value="${shape}" ${shape === presenter.shape ? 'selected' : ''}>${shape[0].toUpperCase()}${shape.slice(1)}</option>`).join('')}</select></label>
+        <label class="obs-field"><span>Scaling</span><select data-presenter-fit ${busy ? 'disabled' : ''}>${['cover', 'contain'].map((fit) => `<option value="${fit}" ${fit === presenter.fit ? 'selected' : ''}>${fit === 'cover' ? 'Fill the card' : 'Fit inside'}</option>`).join('')}</select></label>
+        <label class="obs-field"><span>Mirror image</span><select data-presenter-mirrored ${busy ? 'disabled' : ''}><option value="true" ${presenter.mirrored ? 'selected' : ''}>Mirrored</option><option value="false" ${presenter.mirrored ? '' : 'selected'}>Not mirrored</option></select></label>
+      </div>
+
+      <div class="presenter-edge-row">
+        <label class="obs-field"><span>Mask threshold <output data-mask-threshold-output>${Number(presenter.maskThreshold).toFixed(2)}</output></span><input type="range" min="0.05" max="0.95" step="0.05" value="${presenter.maskThreshold}" data-presenter-threshold ${busy ? 'disabled' : ''}></label>
+        <label class="obs-field"><span>Edge feather <output data-edge-feather-output>${Number(presenter.edgeFeather).toFixed(2)}</output></span><input type="range" min="0" max="0.5" step="0.01" value="${presenter.edgeFeather}" data-presenter-feather ${busy ? 'disabled' : ''}></label>
+      </div>
+
+      <p class="presenter-hint">
+        Camera hardware is configured on the presentation computer.
+        <a href="/camera-setup" target="_blank" rel="noreferrer">Open camera setup ↗</a>
+      </p>
+
+      <div class="presenter-numbers">
+        ${['x', 'y', 'width', 'height'].map((field) => `
+          <label class="obs-field">
+            <span>${field === 'x' ? 'Left (px)' : field === 'y' ? 'Top (px)' : field === 'width' ? 'Width (px)' : 'Height (px)'}</span>
+            <input type="number" data-presenter-number="${field}" value="${Math.round(presenter[field])}" min="0" max="${field === 'x' || field === 'width' ? STAGE_WIDTH : STAGE_HEIGHT}" ${busy ? 'disabled' : ''}>
+          </label>`).join('')}
+      </div>
+
+      <form class="presenter-name-form" data-presenter-label-form>
+        <label class="obs-field">
+          <span>Name badge</span>
+          <input type="text" name="label" maxlength="80" value="${escapeHtml(presenter.label)}" placeholder="Name shown on the card" ${busy ? 'disabled' : ''}>
+        </label>
+        <div class="presenter-name-actions">
+          <button type="submit" ${busy ? 'disabled' : ''}>Save name</button>
+          ${controlButton(presenter.showLabel ? 'Hide badge' : 'Show badge', 'toggle-presenter-label', null, { kind: 'quiet', active: presenter.showLabel })}
+        </div>
       </form>
-
-      <div class="obs-scene-picker">
-        <label class="obs-field">
-          <span>Scene to control</span>
-          <select data-obs-scene ${busy || !obsState.scenes.length ? 'disabled' : ''}>${sceneOptions}</select>
-        </label>
-        <label class="obs-field">
-          <span>Or type the scene name</span>
-          <input type="text" data-obs-scene-name value="${escapeHtml(config.sceneName)}" maxlength="200" placeholder="OPEN ENROLLMENT MASTER" ${busy ? 'disabled' : ''}>
-        </label>
-        ${controlButton(obsState.discovering ? 'Refreshing…' : 'Refresh from OBS', 'obs-refresh', null, { kind: 'quiet' })}
-      </div>
-
-      <div class="obs-source-list">
-        ${Object.entries(config.sources).map(([key, source]) => renderObsSourceRow(key, source, obsState)).join('')}
-      </div>
-      <p class="obs-hint">Presenter visibility is also driven by scene cues. Showing or hiding here updates the same shared state, so cues and manual control never disagree.</p>
     </article>`
 }
 
@@ -188,8 +323,8 @@ function render() {
       <header class="control-header">
         <div>
           <p class="control-eyebrow">BemaHub Open Enrollment</p>
-          <h1>OBS Control Room</h1>
-          <p>One shared state controls every connected presentation and OBS browser source.</p>
+          <h1>Show Control Room</h1>
+          <p>One shared state drives every layer of the program page — background, foreground, presenter camera, and ticker.</p>
         </div>
         <div class="connection-card">
           <span class="connection-dot is-${connectionStatus}"></span>
@@ -215,7 +350,9 @@ function render() {
             <div class="continuous-effects"><strong>Continuous effects in this scene</strong><p>${config.continuousEffects.map(escapeHtml).join(' · ')}</p></div>
           </article>
 
-          ${renderObsPanel(state)}
+          ${renderLayerPanel(state)}
+
+          ${renderPresenterPanel(state)}
 
           <article class="control-panel scene03-presenter-panel">
             <div class="panel-heading"><div><span>Scene 03</span><h2>Presenter card</h2></div></div>
@@ -312,33 +449,23 @@ function render() {
               </div>
             </div>
           </article>
+
+          ${renderObsLegacyPanel(state)}
         </div>
 
         <aside class="control-side-column">
           <article class="control-panel preview-panel">
             <div class="panel-heading"><div><span>Synced monitor</span><h2>Program preview</h2></div><a href="/?sync=true&output=obs&render=composite&clean=true" target="_blank" rel="noreferrer">Open ↗</a></div>
             <div class="preview-frame"><iframe src="/?sync=true&output=obs&render=composite&clean=true&controllerPreview=true" title="Synced program preview"></iframe></div>
-            <div class="preview-layer-links">
-              <a href="/presentation" target="_blank" rel="noreferrer"><strong>Presentation ↗</strong><small>Background layer</small></a>
-              <a href="/ticker" target="_blank" rel="noreferrer"><strong>Ticker ↗</strong><small>Transparent foreground</small></a>
-              <a href="/program" target="_blank" rel="noreferrer"><strong>Program ↗</strong><small>Both layers combined</small></a>
-            </div>
+            <p class="preview-note">The preview shows every layer except the camera, which only opens on the real program page.</p>
           </article>
           <article class="control-panel source-panel">
-            <div class="panel-heading"><div><span>OBS browser sources</span><h2>Synced URLs</h2></div></div>
-            <p class="source-panel-intro">Paste these into OBS, top of the list first. The presenter camera goes between them.</p>
+            <div class="panel-heading"><div><span>Display output</span><h2>Program URL</h2></div></div>
+            <p class="source-panel-intro">Open this on the machine with the webcam and put it full screen on the output display. It is the entire show — all four layers composited in one page.</p>
             <ol class="source-url-list">
-              <li><a href="/ticker" target="_blank" rel="noreferrer">${escapeHtml(layerUrl('/ticker'))}</a><span>Ticker / foreground — above the camera</span></li>
-              <li class="source-url-camera"><span>Presenter camera — your OBS video source</span></li>
-              <li><a href="/presentation" target="_blank" rel="noreferrer">${escapeHtml(layerUrl('/presentation'))}</a><span>Background presentation — behind the camera</span></li>
+              <li><a href="/program" target="_blank" rel="noreferrer">${escapeHtml(layerUrl('/program'))}</a><span>Full program — background, foreground, presenter, ticker</span></li>
             </ol>
-            <p>Each URL keeps its own physical layer while following the active scene, mode, cues, ticker, and animation settings. Set both browser sources to 1920×1080.</p>
-            <details class="source-url-legacy">
-              <summary>Full query-string URLs</summary>
-              <a href="/?sync=true&output=obs&render=underlay&clean=true" target="_blank" rel="noreferrer">Underlay (behind camera)</a>
-              <a href="/?sync=true&output=obs&render=foreground&clean=true" target="_blank" rel="noreferrer">Foreground (above camera)</a>
-              <a href="/?sync=true&output=obs&render=composite&clean=true" target="_blank" rel="noreferrer">Composite program</a>
-            </details>
+            <p>The camera needs permission once, on that page. Serve over HTTPS or localhost, or the browser will block webcam access.</p>
           </article>
           <details class="control-panel security-panel">
             <summary>Control server token</summary>
@@ -354,6 +481,96 @@ function render() {
 }
 
 /**
+ * Makes the presenter box draggable and resizable on the scaled stage.
+ *
+ * Two things keep this smooth. The box is moved directly in CSS during the
+ * gesture rather than waiting for a server round trip, so it tracks the pointer
+ * at screen rate; and the state is written once on release rather than on every
+ * pointer frame, so a drag costs one revision instead of hundreds. `render()`
+ * is suppressed while dragging so an unrelated state update cannot yank the
+ * element out from under the pointer.
+ */
+function bindPresenterStage() {
+  const stage = app.querySelector('[data-presenter-stage]')
+  const box = app.querySelector('[data-presenter-box]')
+  if (!stage || !box) return
+
+  const startGesture = (event, handle) => {
+    event.preventDefault()
+    event.stopPropagation()
+    const bounds = stage.getBoundingClientRect()
+    // One scale factor converts pointer pixels to stage pixels in both axes,
+    // because the surface holds a true 16:9 aspect ratio.
+    const scale = STAGE_WIDTH / bounds.width
+    const origin = { ...snapshot.state.presenter }
+    const startX = event.clientX
+    const startY = event.clientY
+    draggingPresenter = true
+    box.classList.add('is-dragging')
+
+    const onMove = (moveEvent) => {
+      const deltaX = (moveEvent.clientX - startX) * scale
+      const deltaY = (moveEvent.clientY - startY) * scale
+      const next = handle
+        ? resizeGeometry(origin, handle, deltaX, deltaY)
+        : {
+          ...origin,
+          x: clamp(origin.x + deltaX, 0, STAGE_WIDTH - origin.width),
+          y: clamp(origin.y + deltaY, 0, STAGE_HEIGHT - origin.height),
+        }
+      box.style.left = `${(next.x / STAGE_WIDTH) * 100}%`
+      box.style.top = `${(next.y / STAGE_HEIGHT) * 100}%`
+      box.style.width = `${(next.width / STAGE_WIDTH) * 100}%`
+      box.style.height = `${(next.height / STAGE_HEIGHT) * 100}%`
+      box.dataset.pendingGeometry = JSON.stringify(next)
+    }
+
+    const onUp = () => {
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onUp)
+      box.classList.remove('is-dragging')
+      draggingPresenter = false
+      const pending = box.dataset.pendingGeometry
+      delete box.dataset.pendingGeometry
+      if (!pending) return
+      const geometry = JSON.parse(pending)
+      runQuietly(() => updateSharedState({ presenter: geometry }), syncPresenterNumbers)
+    }
+
+    window.addEventListener('pointermove', onMove)
+    window.addEventListener('pointerup', onUp)
+  }
+
+  box.addEventListener('pointerdown', (event) => {
+    if (event.target.dataset.presenterHandle) return
+    startGesture(event, null)
+  })
+  box.querySelectorAll('[data-presenter-handle]').forEach((handle) => {
+    handle.addEventListener('pointerdown', (event) => startGesture(event, handle.dataset.presenterHandle))
+  })
+}
+
+function clamp(value, min, max) {
+  return Math.round(Math.min(Math.max(value, min), Math.max(min, max)))
+}
+
+// Resizing from a corner moves the two edges that corner touches and leaves the
+// opposite corner pinned, which is what makes the gesture feel physical.
+function resizeGeometry(origin, handle, deltaX, deltaY) {
+  const right = origin.x + origin.width
+  const bottom = origin.y + origin.height
+  const west = handle.includes('w')
+  const north = handle.includes('n')
+
+  const x = west ? clamp(origin.x + deltaX, 0, right - MIN_PRESENTER_SIZE) : origin.x
+  const y = north ? clamp(origin.y + deltaY, 0, bottom - MIN_PRESENTER_SIZE) : origin.y
+  const width = west ? right - x : clamp(origin.width + deltaX, MIN_PRESENTER_SIZE, STAGE_WIDTH - origin.x)
+  const height = north ? bottom - y : clamp(origin.height + deltaY, MIN_PRESENTER_SIZE, STAGE_HEIGHT - origin.y)
+  return { x, y, width, height }
+}
+
+
+/**
  * Runs one operator action across every layer.
  *
  * A cue is a single show-control decision: it moves the background scene, the
@@ -364,14 +581,30 @@ function render() {
  */
 async function runCue({ type, cue, sceneId, selectedQuestion }) {
   const targetScene = sceneId ?? snapshot.state.sceneId
-  const presenterState = presenterStateForCue(targetScene, cue)
+  // Moving to a scene adopts that scene's entry intent even when the cue that
+  // carries the move has none of its own (§19). Without this, switching scenes
+  // would leave the previous scene's camera framing on air.
+  const intentCue = sceneId && sceneId !== snapshot.state.sceneId ? 'entry' : cue
+  const presenterState = presenterStateForCue(targetScene, intentCue)
   if (presenterState) {
-    const presenter = snapshot.state.obs.sources.presenter
-    const changed = presenter.visible !== presenterState.visible
-      || (presenterState.preset && presenter.preset !== presenterState.preset)
-    // Only write when the cue actually changes the presenter, so unrelated cues
-    // do not add revisions or re-issue OBS calls.
-    if (changed) await updateSharedState({ obs: { sources: { presenter: presenterState } } })
+    // One operator action moves the whole show together (§19): the scene's own
+    // plan decides whether the camera is on air and which placement it takes,
+    // so nobody has to remember to hide the camera between scenes. Dragging
+    // still overrides freely — until the next cue that carries placement.
+    const geometry = presenterState.preset ? presetGeometry(presenterState.preset) : null
+    const current = snapshot.state.presenter
+    const visibleChanged = snapshot.state.layers.presenter !== presenterState.visible
+    const placementChanged = Boolean(geometry)
+      && (current.x !== geometry.x || current.y !== geometry.y
+        || current.width !== geometry.width || current.height !== geometry.height)
+    // Skip the write when nothing actually differs, so unrelated cues do not
+    // add revisions or disturb the camera.
+    if (visibleChanged || placementChanged) {
+      await updateSharedState({
+        layers: { presenter: presenterState.visible },
+        ...(geometry ? { presenter: geometry } : {}),
+      })
+    }
   }
   return sendSharedCommand({ type, cue, sceneId, selectedQuestion })
 }
@@ -381,6 +614,92 @@ async function run(action) {
   errorMessage = ''
   render()
   try { snapshot = await action() } catch (error) { errorMessage = error.message } finally { busy = false; render() }
+}
+
+/**
+ * Saves without re-rendering the page.
+ *
+ * A drag or resize already painted the result on screen, and it leaves the
+ * pointer over a handle the operator may be about to use again. Re-rendering
+ * would rebuild the panel underneath them — the flash that reads as the page
+ * refreshing — so geometry writes update the live numbers in place instead.
+ */
+async function runQuietly(action, onSaved) {
+  errorMessage = ''
+  try {
+    snapshot = await action()
+    onSaved?.()
+  } catch (error) {
+    errorMessage = error.message
+    render()
+  }
+}
+
+/** Syncs the numeric fields to state without touching the drag surface. */
+function syncPresenterNumbers() {
+  const presenter = snapshot.state.presenter
+  app.querySelectorAll('[data-presenter-number]').forEach((input) => {
+    input.value = String(Math.round(presenter[input.dataset.presenterNumber]))
+  })
+}
+
+/** Live-updates the readout while dragging, and saves once on release. */
+function bindPresenterSlider(inputSelector, outputSelector, field) {
+  const input = app.querySelector(inputSelector)
+  const output = app.querySelector(outputSelector)
+  input?.addEventListener('input', (event) => {
+    if (output) output.textContent = Number(event.target.value).toFixed(2)
+  })
+  input?.addEventListener('change', (event) => {
+    runQuietly(() => updateSharedState({ presenter: { [field]: Number(event.target.value) } }))
+  })
+}
+
+/**
+ * Mirrors generic presenter state onto OBS (§24, §7).
+ *
+ * OBS becomes one renderer of the same intent the browser layer renders, so
+ * the two can never disagree. A no-op when OBS is disabled or disconnected.
+ */
+async function syncObsPresenter(state, options = {}) {
+  if (!state.obs.enabled || !state.obs.sourceName) return
+  await obs.applyPresenter({
+    sceneName: state.obs.sceneName,
+    sourceName: state.obs.sourceName,
+    visible: state.layers.presenter === true,
+    preset: matchPreset(state.presenter),
+  }, options).catch((error) => console.warn('OBS presenter sync failed.', error))
+}
+
+const GEOMETRY_FIELDS = ['x', 'y', 'width', 'height']
+
+/**
+ * True when the only difference between two states is presenter geometry.
+ *
+ * Comparing everything else as JSON keeps this honest as state grows: a new
+ * field added later fails the check and falls back to a full render rather
+ * than being silently ignored here.
+ */
+function onlyPresenterGeometryChanged(previous, next) {
+  if (!previous || !next) return false
+  const strip = (state) => {
+    const presenter = { ...state.presenter }
+    GEOMETRY_FIELDS.forEach((field) => delete presenter[field])
+    return JSON.stringify({ ...state, presenter })
+  }
+  if (strip(previous) !== strip(next)) return false
+  return GEOMETRY_FIELDS.some((field) => previous.presenter[field] !== next.presenter[field])
+}
+
+/** Moves the drag box to match state, for changes that did not come from a drag. */
+function syncPresenterBox() {
+  const box = app.querySelector('[data-presenter-box]')
+  if (!box) return
+  const { x, y, width, height } = snapshot.state.presenter
+  box.style.left = `${(x / STAGE_WIDTH) * 100}%`
+  box.style.top = `${(y / STAGE_HEIGHT) * 100}%`
+  box.style.width = `${(width / STAGE_WIDTH) * 100}%`
+  box.style.height = `${(height / STAGE_HEIGHT) * 100}%`
 }
 
 function bindControls() {
@@ -425,60 +744,98 @@ function bindControls() {
         run(() => updateSharedState({ music: { playing: false, position, startedAt: 0 } }))
       }
       if (action === 'music-mute') run(() => updateSharedState({ music: { muted: !snapshot.state.music.muted } }))
+      if (action === 'toggle-layer') run(() => updateSharedState({ layers: { [value]: !snapshot.state.layers[value] } }))
+      if (action === 'presenter-preset') {
+        const preset = PRESENTER_PRESETS[value]
+        if (preset) {
+          runQuietly(
+            () => updateSharedState({ presenter: { x: preset.x, y: preset.y, width: preset.width, height: preset.height } }),
+            () => { syncPresenterBox(); syncPresenterNumbers() },
+          )
+        }
+      }
+      if (action === 'toggle-presenter-label') run(() => updateSharedState({ presenter: { showLabel: !snapshot.state.presenter.showLabel } }))
+      if (action === 'camera-refresh') {
+        // Re-requesting the device already on air makes the program page
+        // re-enumerate and republish, which picks up newly attached hardware.
+        run(() => updateSharedState({
+          camera: {
+            requestedId: snapshot.state.camera?.activeId || '',
+            requestSequence: (Number(snapshot.state.camera?.requestSequence) || 0) + 1,
+          },
+        }))
+      }
+      if (action === 'toggle-obs-enabled') {
+        const enabled = !snapshot.state.obs.enabled
+        if (!enabled) obs.disconnect()
+        run(() => updateSharedState({ obs: { enabled, ...(enabled ? {} : { autoConnect: false }) } }))
+      }
       if (action === 'obs-disconnect') {
         obs.disconnect()
         run(() => updateSharedState({ obs: { autoConnect: false } }))
       }
       if (action === 'obs-refresh') obs.discover(snapshot.state.obs.sceneName)
-      if (action === 'obs-source-show' || action === 'obs-source-hide') {
-        const visible = action === 'obs-source-show'
-        run(() => updateSharedState({ obs: { sources: { [value]: { visible } } } }))
-      }
     })
   })
 
+  bindPresenterStage()
+
+  app.querySelector('[data-camera-select]')?.addEventListener('change', (event) => {
+    // Bumping the sequence is what marks this as a new request; the program
+    // page applies it and reports back which device actually opened.
+    run(() => updateSharedState({
+      camera: {
+        requestedId: event.target.value,
+        requestSequence: (Number(snapshot.state.camera?.requestSequence) || 0) + 1,
+      },
+    }))
+  })
+  app.querySelector('[data-presenter-removal]')?.addEventListener('change', (event) => run(() => updateSharedState({ presenter: { backgroundRemoval: event.target.value === 'true' } })))
+  bindPresenterSlider('[data-presenter-threshold]', '[data-mask-threshold-output]', 'maskThreshold')
+  bindPresenterSlider('[data-presenter-feather]', '[data-edge-feather-output]', 'edgeFeather')
+  app.querySelector('[data-presenter-shape]')?.addEventListener('change', (event) => run(() => updateSharedState({ presenter: { shape: event.target.value } })))
+  app.querySelector('[data-presenter-fit]')?.addEventListener('change', (event) => run(() => updateSharedState({ presenter: { fit: event.target.value } })))
+  app.querySelector('[data-presenter-mirrored]')?.addEventListener('change', (event) => run(() => updateSharedState({ presenter: { mirrored: event.target.value === 'true' } })))
+  app.querySelectorAll('[data-presenter-number]').forEach((input) => {
+    input.addEventListener('change', (event) => {
+      const field = input.dataset.presenterNumber
+      runQuietly(
+        () => updateSharedState({ presenter: { [field]: Number(event.target.value) } }),
+        () => { syncPresenterBox(); syncPresenterNumbers() },
+      )
+    })
+  })
   app.querySelector('[data-obs-connection-form]')?.addEventListener('submit', (event) => {
     event.preventDefault()
     const form = new FormData(event.currentTarget)
-    const obsConfig = {
+    const config = {
       host: form.get('host')?.toString().trim() || '127.0.0.1',
       port: Number(form.get('port')) || 4455,
       password: form.get('password')?.toString() || '',
     }
     run(async () => {
-      const saved = await updateSharedState({ obs: obsConfig })
-      const connected = await obs.connect({ ...obsConfig, sceneName: saved.state.obs.sceneName })
+      const saved = await updateSharedState({ obs: config })
+      const connected = await obs.connect({ ...config, sceneName: saved.state.obs.sceneName })
       if (!connected) return saved
-      await obs.syncSources(saved.state.obs, { force: true })
+      await syncObsPresenter(saved.state, { force: true })
       return updateSharedState({ obs: { autoConnect: true } })
     })
   })
-
-  const applySceneName = (sceneName) => run(async () => {
-    const saved = await updateSharedState({ obs: { sceneName } })
-    await obs.discover(sceneName)
-    return saved
-  })
-  app.querySelector('[data-obs-scene]')?.addEventListener('change', (event) => applySceneName(event.target.value))
-  app.querySelector('[data-obs-scene-name]')?.addEventListener('change', (event) => applySceneName(event.target.value.trim()))
-
-  app.querySelectorAll('[data-obs-source-select]').forEach((select) => {
-    select.addEventListener('change', (event) => {
-      const key = select.dataset.obsSourceSelect
-      run(() => updateSharedState({ obs: { sources: { [key]: { sourceName: event.target.value } } } }))
+  app.querySelector('[data-obs-scene]')?.addEventListener('change', (event) => {
+    const sceneName = event.target.value
+    run(async () => {
+      const saved = await updateSharedState({ obs: { sceneName } })
+      await obs.discover(sceneName)
+      return saved
     })
   })
-  app.querySelectorAll('[data-obs-source-name]').forEach((input) => {
-    input.addEventListener('change', (event) => {
-      const key = input.dataset.obsSourceName
-      run(() => updateSharedState({ obs: { sources: { [key]: { sourceName: event.target.value.trim() } } } }))
-    })
+  app.querySelector('[data-obs-source]')?.addEventListener('change', (event) => {
+    run(() => updateSharedState({ obs: { sourceName: event.target.value } }))
   })
-  app.querySelectorAll('[data-obs-source-preset]').forEach((select) => {
-    select.addEventListener('change', (event) => {
-      const key = select.dataset.obsSourcePreset
-      run(() => updateSharedState({ obs: { sources: { [key]: { preset: event.target.value } } } }))
-    })
+  app.querySelector('[data-presenter-label-form]')?.addEventListener('submit', (event) => {
+    event.preventDefault()
+    const label = new FormData(event.currentTarget).get('label')?.toString().trim() || ''
+    run(() => updateSharedState({ presenter: { label, showLabel: Boolean(label) } }))
   })
   app.querySelector('[data-control-mode]')?.addEventListener('change', (event) => run(() => updateSharedState({ mode: event.target.value })))
   app.querySelector('[data-music-track]')?.addEventListener('change', (event) => {
@@ -538,19 +895,30 @@ async function boot() {
     musicTracks = Array.isArray(musicLibrary.tracks) ? musicLibrary.tracks : []
     connectionStatus = 'connected'
     render()
-    // Reconnect to OBS automatically once the operator has connected before, so
-    // reloading the control room does not require re-entering the connection.
-    if (snapshot.state.obs.autoConnect) {
-      obs.connect(snapshot.state.obs).then((ok) => { if (ok) obs.syncSources(snapshot.state.obs, { force: true }) })
+    // Reconnect to OBS only when the operator has enabled the legacy renderer
+    // before; browser-only shows never open a socket (§24).
+    if (snapshot.state.obs.enabled && snapshot.state.obs.autoConnect) {
+      obs.connect(snapshot.state.obs).then((ok) => { if (ok) syncObsPresenter(snapshot.state, { force: true }) })
     }
     subscribeSharedState((next) => {
       if (next.revision <= snapshot.revision) return
+      const previous = snapshot.state
       snapshot = next
       errorMessage = ''
+      // A re-render mid-drag would replace the element the pointer is holding.
+      // The drag writes its own result on release, so skipping here is safe.
+      if (draggingPresenter) return
+      // A geometry-only change — including this operator's own write echoing
+      // back — moves the box in place. Rebuilding the panel here is what made
+      // resizing look like the page was refreshing.
+      // Mirror onto OBS when the legacy renderer is enabled; a no-op otherwise.
+      syncObsPresenter(next.state)
+      if (onlyPresenterGeometryChanged(previous, next.state)) {
+        syncPresenterBox()
+        syncPresenterNumbers()
+        return
+      }
       render()
-      // Mirror the new shared state onto OBS. This is a no-op when nothing
-      // OBS-related changed, and silently skipped when OBS is not connected.
-      obs.syncSources(next.state.obs)
     }, (status) => { connectionStatus = status; render() })
   } catch (error) {
     errorMessage = error.message

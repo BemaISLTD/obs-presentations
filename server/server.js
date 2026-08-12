@@ -29,6 +29,33 @@ const MIME_TYPES = {
   '.webm': 'video/webm',
 }
 
+function listMusicTracks() {
+  const musicDirectory = join(root, production ? 'dist' : 'public', 'assets', 'musics')
+  if (!existsSync(musicDirectory)) return []
+  return readdirSync(musicDirectory, { withFileTypes: true })
+    .filter((entry) => entry.isFile() && extname(entry.name).toLowerCase() === '.mp3')
+    .map((entry) => ({
+      name: entry.name.replace(/\.mp3$/i, '').replace(/[_-]+/g, ' '),
+      file: entry.name,
+      url: `/assets/musics/${encodeURIComponent(entry.name)}`,
+    }))
+    .sort((left, right) => left.name.localeCompare(right.name))
+}
+
+// The music bed is meant to be running before anyone touches the controller,
+// so on first start we adopt the first available track. Once the operator has
+// chosen (or deliberately cleared) a track, autoplay is off and we never
+// second-guess them.
+function seedMusicTrack() {
+  const snapshot = store.read()
+  const { music } = snapshot.state
+  if (!music.autoplay || music.track) return
+  const [first] = listMusicTracks()
+  if (!first) return
+  store.write({ music: { track: first.url, playing: true, autoplay: false, position: 0, startedAt: Date.now() } })
+  console.log(`Background music bed: ${first.name}`)
+}
+
 function sendJson(response, status, value) {
   response.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' })
   response.end(JSON.stringify(value))
@@ -66,18 +93,7 @@ async function handleApi(request, response, url) {
   }
 
   if (request.method === 'GET' && url.pathname === '/api/control/music') {
-    const musicDirectory = join(root, production ? 'dist' : 'public', 'assets', 'musics')
-    const tracks = existsSync(musicDirectory)
-      ? readdirSync(musicDirectory, { withFileTypes: true })
-        .filter((entry) => entry.isFile() && extname(entry.name).toLowerCase() === '.mp3')
-        .map((entry) => ({
-          name: entry.name.replace(/\.mp3$/i, '').replace(/[_-]+/g, ' '),
-          file: entry.name,
-          url: `/assets/musics/${encodeURIComponent(entry.name)}`,
-        }))
-        .sort((left, right) => left.name.localeCompare(right.name))
-      : []
-    sendJson(response, 200, { tracks })
+    sendJson(response, 200, { tracks: listMusicTracks() })
     return true
   }
 
@@ -113,35 +129,40 @@ async function handleApi(request, response, url) {
   return false
 }
 
-// Named OBS browser-source routes. Each one is the existing presentation app
-// pinned to a single physical layer, so /presentation and /ticker stay in sync
-// through the same shared control state rather than running as separate shows.
+// /program is the finished show: every layer plus the browser presenter camera.
+// The split routes stay for the legacy OBS workflow, and deliberately never
+// own a camera — only the complete composition does (§17).
 const LAYER_ROUTES = new Map([
-  ['/presentation', 'underlay'],
-  ['/ticker', 'foreground'],
-  ['/program', 'composite'],
+  ['/program', { render: 'composite', camera: 'browser' }],
+  ['/presentation', { render: 'underlay', camera: 'none' }],
+  ['/ticker', { render: 'foreground', camera: 'none' }],
 ])
 
 function layerRouteFor(pathname) {
   return LAYER_ROUTES.get(pathname.replace(/\/+$/, '') || '/')
 }
 
-// The layer routes carry no query string of their own, so OBS can be pointed at
-// a bare URL. Operator overrides on the URL still win over these defaults.
-function layerRouteSearch(render, search) {
+// The layer routes carry no query string of their own, so a display can be
+// pointed at a bare URL. Operator overrides on the URL still win over these
+// defaults — except the camera flag, which is a property of the route itself.
+function layerRouteSearch(route, search) {
   const params = new URLSearchParams(search)
   if (!params.has('sync')) params.set('sync', 'true')
   params.set('output', 'obs')
-  params.set('render', render)
+  params.set('render', route.render)
+  params.set('camera', route.camera)
   if (!params.has('clean')) params.set('clean', 'true')
   return `?${params}`
 }
 
 function serveStatic(response, pathname) {
   const dist = join(root, 'dist')
-  const requested = pathname === '/control' || pathname === '/control/'
+  const page = pathname.replace(/\/+$/, '') || '/'
+  const requested = page === '/control'
     ? '/control.html'
-    : pathname === '/' || layerRouteFor(pathname) ? '/index.html' : pathname
+    : page === '/camera-setup'
+      ? '/camera-setup.html'
+      : page === '/' || layerRouteFor(pathname) ? '/index.html' : pathname
   const safePath = normalize(requested).replace(/^(\.\.(\/|\\|$))+/, '')
   let filePath = join(dist, safePath)
   if (!filePath.startsWith(dist) || !existsSync(filePath) || statSync(filePath).isDirectory()) filePath = join(dist, 'index.html')
@@ -161,7 +182,9 @@ const server = createServer(async (request, response) => {
       return
     }
     if (production) { serveStatic(response, url.pathname); return }
-    if (url.pathname === '/control' || url.pathname === '/control/') request.url = `/control.html${url.search}`
+    const devPage = url.pathname.replace(/\/+$/, '') || '/'
+    if (devPage === '/control') request.url = `/control.html${url.search}`
+    if (devPage === '/camera-setup') request.url = `/camera-setup.html${url.search}`
     vite.middlewares(request, response, (error) => {
       if (error) { vite.ssrFixStacktrace(error); console.error(error); response.statusCode = 500; response.end('Vite server error') }
     })
@@ -181,8 +204,11 @@ const heartbeat = setInterval(() => {
   eventClients.forEach((client) => client.write(': heartbeat\n\n'))
 }, 20_000)
 
+seedMusicTrack()
+
 server.listen(port, host, () => {
-  console.log(`OBS presentation server: http://${host === '0.0.0.0' ? 'localhost' : host}:${port}`)
+  console.log(`Presentation server: http://${host === '0.0.0.0' ? 'localhost' : host}:${port}`)
+  console.log(`Program output: http://${host === '0.0.0.0' ? 'localhost' : host}:${port}/program`)
   console.log(`Operator controls: http://${host === '0.0.0.0' ? 'localhost' : host}:${port}/control`)
   console.log(`Shared SQLite state: ${process.env.OBS_DB_PATH || join(root, 'data/obs-control.sqlite')}`)
 })

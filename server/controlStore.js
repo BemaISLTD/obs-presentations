@@ -11,29 +11,71 @@ const DEFAULT_TICKER_MESSAGES = Object.freeze([
   Object.freeze({ id: 'starter-live', message: 'Stay with us for live updates throughout the session' }),
 ])
 
-// OBS-controlled video sources are configuration, never hard-coded names. Each
-// entry is keyed by a stable role id ('presenter', later 'presenter2', 'guest')
-// so additional cameras are a data change rather than a code change.
-const DEFAULT_OBS_SOURCES = Object.freeze({
-  presenter: Object.freeze({
-    label: 'Presenter',
-    sourceName: '',
-    visible: false,
-    preset: 'full',
-  }),
+// Every visual layer stacks in one browser page, so the operator's only job is
+// deciding which ones are on air. Order here is bottom-to-top on the stage.
+const DEFAULT_LAYERS = Object.freeze({
+  background: true,
+  foreground: true,
+  presenter: false,
+  ticker: true,
+})
+
+// The presenter camera is a web capture placed on the same 1920x1080 stage as
+// every other layer, so its geometry is stored in stage pixels rather than as
+// CSS. The controller drags a box in those coordinates and the output page
+// renders it verbatim, which keeps preview and program identical.
+const DEFAULT_PRESENTER = Object.freeze({
+  x: 1320,
+  y: 620,
+  width: 520,
+  height: 293,
+  shape: 'rounded',
+  mirrored: true,
+  fit: 'cover',
+  label: '',
+  showLabel: false,
+  // AI background removal, and the two knobs that tune its edges (§12).
+  backgroundRemoval: true,
+  edgeFeather: 0.08,
+  maskThreshold: 0.5,
+})
+
+// The camera hardware attached to the machine running /program.
+//
+// Device *choice* is still machine-local (§5) — the show computer decides which
+// camera it can actually open. What lives here is a published mirror of that
+// machine's device list, so a controller on another laptop can see the real
+// options and ask for one, rather than listing its own webcams. `requestedId`
+// is an operator request; the program page resolves and confirms it in `active`.
+const DEFAULT_CAMERA = Object.freeze({
+  devices: [],
+  activeId: '',
+  activeLabel: '',
+  requestedId: '',
+  requestSequence: 0,
+  reportedAt: 0,
+})
+
+// OBS is retained as an optional downstream renderer (§24). It reads the same
+// generic presenter state the browser does, so OBS is one renderer of show
+// intent rather than the place that intent lives.
+const DEFAULT_OBS = Object.freeze({
+  enabled: false,
+  host: '127.0.0.1',
+  port: 4455,
+  password: '',
+  sceneName: '',
+  sourceName: '',
+  autoConnect: false,
 })
 
 const DEFAULT_STATE = Object.freeze({
   sceneId: '01',
   mode: 'live',
-  obs: Object.freeze({
-    host: '127.0.0.1',
-    port: 4455,
-    password: '',
-    sceneName: '',
-    autoConnect: false,
-    sources: DEFAULT_OBS_SOURCES,
-  }),
+  layers: DEFAULT_LAYERS,
+  presenter: DEFAULT_PRESENTER,
+  camera: DEFAULT_CAMERA,
+  obs: DEFAULT_OBS,
   animationsPaused: false,
   backgroundVideo: true,
   selectedQuestion: 1,
@@ -43,11 +85,14 @@ const DEFAULT_STATE = Object.freeze({
     since: '',
     until: '',
   },
+  // Music is ambient bed rather than a cue: it runs under every scene at a low
+  // default so speech stays intelligible, and only the operator changes it.
   music: {
     track: '',
-    playing: false,
+    playing: true,
+    autoplay: true,
     muted: false,
-    volume: 70,
+    volume: 25,
     position: 0,
     startedAt: 0,
   },
@@ -70,50 +115,129 @@ const DEFAULT_STATE = Object.freeze({
 const MODES = new Set(['reference', 'overlay', 'live'])
 const DATA_MODES = new Set(['simulated', 'live', 'hybrid'])
 
-// Placement presets a presenter source can occupy. Version one only drives
-// visibility; the transform work for each preset lands behind these same names.
-const OBS_PRESETS = new Set(['full', 'lower-right', 'lower-left', 'center', 'pip'])
-const OBS_SOURCE_KEY = /^[a-zA-Z][a-zA-Z0-9_-]{0,39}$/
+// The layer keys are fixed: they map one-to-one onto the stacked elements the
+// stage renders, so an unknown key is a bug rather than an extension point.
+const LAYER_KEYS = Object.freeze(['background', 'foreground', 'presenter', 'ticker'])
 
-// `value` has already been merged over the stored source by mergeObs, so it is
-// the authority. The fallback only fills fields the merged value never had, and
-// an invalid preset falls back to the merged value's own preset before 'full'.
-function normalizeObsSource(value, fallback) {
+const PRESENTER_SHAPES = new Set(['rounded', 'square', 'circle'])
+const PRESENTER_FITS = new Set(['cover', 'contain'])
+
+// The stage the operator is positioning against. Geometry is clamped to it so a
+// dropped card can never land off screen where it cannot be dragged back.
+const STAGE_WIDTH = 1920
+const STAGE_HEIGHT = 1080
+const MIN_PRESENTER_SIZE = 120
+
+function clampNumber(value, fallback, min, max) {
+  const number = Number(value)
+  if (!Number.isFinite(number)) return fallback
+  return Math.min(max, Math.max(min, Math.round(number)))
+}
+
+function normalizeLayers(value, defaults) {
   const source = value && typeof value === 'object' ? value : {}
-  const base = fallback ?? { label: 'Source', sourceName: '', visible: false, preset: 'full' }
-  const preset = OBS_PRESETS.has(source.preset)
-    ? source.preset
-    : OBS_PRESETS.has(base.preset) ? base.preset : 'full'
+  return Object.fromEntries(LAYER_KEYS.map((key) => [
+    key,
+    typeof source[key] === 'boolean' ? source[key] : defaults[key],
+  ]))
+}
+
+// Size is clamped before position so the position clamp knows the real extent,
+// which keeps a card that was resized larger than the stage anchored at 0.
+function normalizePresenter(value, defaults) {
+  const source = value && typeof value === 'object' ? value : {}
+  const width = clampNumber(source.width, defaults.width, MIN_PRESENTER_SIZE, STAGE_WIDTH)
+  const height = clampNumber(source.height, defaults.height, MIN_PRESENTER_SIZE, STAGE_HEIGHT)
   return {
-    label: String(source.label ?? base.label).trim().slice(0, 60) || 'Source',
-    sourceName: String(source.sourceName ?? base.sourceName).trim().slice(0, 200),
-    visible: Boolean(source.visible ?? base.visible),
-    preset,
+    x: clampNumber(source.x, defaults.x, 0, Math.max(0, STAGE_WIDTH - width)),
+    y: clampNumber(source.y, defaults.y, 0, Math.max(0, STAGE_HEIGHT - height)),
+    width,
+    height,
+    shape: PRESENTER_SHAPES.has(source.shape) ? source.shape : defaults.shape,
+    mirrored: typeof source.mirrored === 'boolean' ? source.mirrored : defaults.mirrored,
+    fit: PRESENTER_FITS.has(source.fit) ? source.fit : defaults.fit,
+    label: String(source.label ?? defaults.label).trim().slice(0, 80),
+    showLabel: typeof source.showLabel === 'boolean' ? source.showLabel : defaults.showLabel,
+    backgroundRemoval: typeof source.backgroundRemoval === 'boolean' ? source.backgroundRemoval : defaults.backgroundRemoval,
+    edgeFeather: clampFloat(source.edgeFeather, defaults.edgeFeather, 0, 0.5),
+    maskThreshold: clampFloat(source.maskThreshold, defaults.maskThreshold, 0.05, 0.95),
   }
 }
 
-function normalizeObsSources(value) {
+function clampFloat(value, fallback, min, max) {
+  const number = Number(value)
+  if (!Number.isFinite(number)) return fallback
+  return Math.min(max, Math.max(min, number))
+}
+
+function isValidPort(value) {
+  const port = Number(value)
+  return Number.isInteger(port) && port > 0 && port <= 65535
+}
+
+// The device list is reported by another machine's browser, so ids and labels
+// are untrusted input: bound the count and the string lengths.
+function normalizeCamera(value, defaults) {
   const source = value && typeof value === 'object' ? value : {}
-  const keys = Object.keys(source).filter((key) => OBS_SOURCE_KEY.test(key)).slice(0, 12)
-  const entries = keys.map((key) => [key, normalizeObsSource(source[key], DEFAULT_OBS_SOURCES[key])])
-  // The presenter role always exists so cues and the operator UI have a target.
-  if (!entries.some(([key]) => key === 'presenter')) {
-    entries.unshift(['presenter', normalizeObsSource(undefined, DEFAULT_OBS_SOURCES.presenter)])
+  const devices = (Array.isArray(source.devices) ? source.devices : defaults.devices)
+    .slice(0, 24)
+    .map((device) => ({
+      deviceId: String(device?.deviceId ?? '').slice(0, 200),
+      label: String(device?.label ?? '').trim().slice(0, 120),
+    }))
+    .filter((device) => device.deviceId || device.label)
+  return {
+    devices,
+    activeId: String(source.activeId ?? defaults.activeId).slice(0, 200),
+    activeLabel: String(source.activeLabel ?? defaults.activeLabel).trim().slice(0, 120),
+    requestedId: String(source.requestedId ?? defaults.requestedId).slice(0, 200),
+    // Bumped by the controller on each pick, so the program page can tell a new
+    // request from a repeat of one it has already applied.
+    requestSequence: Math.max(0, Number(source.requestSequence) || 0),
+    reportedAt: Math.max(0, Number(source.reportedAt) || 0),
   }
-  return Object.fromEntries(entries)
 }
 
 function normalizeObs(value, defaults) {
   const source = value && typeof value === 'object' ? value : {}
   return {
+    enabled: typeof source.enabled === 'boolean' ? source.enabled : defaults.enabled,
     host: String(source.host ?? defaults.host).trim().slice(0, 120) || defaults.host,
     port: isValidPort(source.port) ? Number(source.port) : defaults.port,
     password: String(source.password ?? defaults.password).slice(0, 200),
     sceneName: String(source.sceneName ?? defaults.sceneName).trim().slice(0, 200),
+    sourceName: String(source.sourceName ?? defaults.sourceName).trim().slice(0, 200),
     autoConnect: Boolean(source.autoConnect ?? defaults.autoConnect),
-    sources: normalizeObsSources(source.sources ?? defaults.sources),
   }
 }
+
+/**
+ * Lifts a pre-migration `obs.sources.presenter` row onto generic state (§7).
+ *
+ * Older databases stored presenter intent underneath OBS, because OBS was the
+ * renderer. Visibility becomes a layer, the placement preset becomes geometry,
+ * and the OBS source name is kept so a legacy connection still works.
+ */
+function migrateLegacyPresenter(source) {
+  const legacy = source?.obs?.sources?.presenter
+  if (!legacy || typeof legacy !== 'object') return null
+  const geometry = LEGACY_PRESET_GEOMETRY[legacy.preset] ?? null
+  return {
+    layers: { presenter: Boolean(legacy.visible) },
+    presenter: geometry ?? {},
+    sourceName: String(legacy.sourceName ?? ''),
+  }
+}
+
+// Kept in step with src/presenter/presenterPresets.js. Duplicated rather than
+// imported because the server must not depend on browser modules.
+const LEGACY_PRESET_GEOMETRY = Object.freeze({
+  full: { x: 0, y: 0, width: 1920, height: 1080 },
+  'lower-right': { x: 1320, y: 620, width: 520, height: 293 },
+  'lower-left': { x: 80, y: 620, width: 520, height: 293 },
+  center: { x: 560, y: 220, width: 800, height: 450 },
+  pip: { x: 1520, y: 780, width: 320, height: 180 },
+})
 
 function normalizeDateInput(value) {
   const text = String(value ?? '').trim().slice(0, 40)
@@ -156,10 +280,19 @@ function normalizeState(value) {
   const source = value && typeof value === 'object' ? value : {}
   const defaults = cloneDefaultState()
   const musicVolume = Number(source.music?.volume)
+  // A row written before presenter state was generic carries its intent under
+  // obs.sources.presenter; lift it across rather than silently losing it (§7).
+  const legacy = source.presenter || source.layers ? null : migrateLegacyPresenter(source)
   return {
     sceneId: normalizeSceneId(source.sceneId, defaults.sceneId),
     mode: MODES.has(source.mode) ? source.mode : defaults.mode,
-    obs: normalizeObs(source.obs, defaults.obs),
+    layers: normalizeLayers(legacy ? { ...source.layers, ...legacy.layers } : source.layers, defaults.layers),
+    presenter: normalizePresenter(legacy ? { ...defaults.presenter, ...legacy.presenter } : source.presenter, defaults.presenter),
+    camera: normalizeCamera(source.camera, defaults.camera),
+    obs: normalizeObs(
+      legacy ? { ...source.obs, sourceName: legacy.sourceName } : source.obs,
+      defaults.obs,
+    ),
     animationsPaused: Boolean(source.animationsPaused),
     backgroundVideo: source.backgroundVideo !== false,
     selectedQuestion: Number(source.selectedQuestion) >= 1 && Number(source.selectedQuestion) <= 4
@@ -175,6 +308,9 @@ function normalizeState(value) {
     music: {
       track: normalizeMusicTrack(source.music?.track),
       playing: Boolean(source.music?.playing) && Boolean(normalizeMusicTrack(source.music?.track)),
+      // When autoplay is on, the output page picks the first available track on
+      // its own, so the operator never has to start the bed by hand.
+      autoplay: source.music?.autoplay !== false,
       muted: Boolean(source.music?.muted),
       volume: Number.isFinite(musicVolume) ? Math.min(100, Math.max(0, musicVolume)) : defaults.music.volume,
       position: Math.max(0, Number(source.music?.position) || 0),
@@ -197,34 +333,23 @@ function normalizeState(value) {
   }
 }
 
-function isValidPort(value) {
-  const port = Number(value)
-  return Number.isInteger(port) && port > 0 && port <= 65535
-}
-
-function mergeObs(current, patch) {
+// Geometry arrives from the controller a field at a time while dragging, so an
+// unparseable value must fall back to the stored one rather than the frozen
+// default — otherwise one bad drag frame would snap the card across the stage.
+function mergePresenter(current, patch) {
   if (!patch || typeof patch !== 'object') return current
-  // Drop an out-of-range port here so the stored value survives the patch,
-  // rather than falling back to the frozen default inside normalizeObs.
-  if ('port' in patch && !isValidPort(patch.port)) patch = { ...patch, port: current.port }
-  const sources = { ...current.sources }
-  // Patch sources per key so updating one camera never drops the others. An
-  // unrecognized preset is dropped here, where the stored value is still in
-  // scope, so a bad patch keeps the last good placement instead of resetting.
-  Object.entries(patch.sources ?? {}).forEach(([key, value]) => {
-    if (value === null) { delete sources[key]; return }
-    const incoming = { ...(value && typeof value === 'object' ? value : {}) }
-    if ('preset' in incoming && !OBS_PRESETS.has(incoming.preset)) delete incoming.preset
-    sources[key] = { ...(sources[key] ?? {}), ...incoming }
-  })
-  return { ...current, ...patch, sources }
+  const merged = { ...current, ...patch }
+  return normalizePresenter(merged, current)
 }
 
 function mergeState(current, patch) {
   const next = {
     ...current,
     ...(patch && typeof patch === 'object' ? patch : {}),
-    obs: mergeObs(current.obs, patch?.obs),
+    layers: { ...current.layers, ...(patch?.layers ?? {}) },
+    presenter: mergePresenter(current.presenter, patch?.presenter),
+    camera: { ...current.camera, ...(patch?.camera ?? {}) },
+    obs: { ...current.obs, ...(patch?.obs ?? {}) },
     dataRange: { ...current.dataRange, ...(patch?.dataRange ?? {}) },
     music: { ...current.music, ...(patch?.music ?? {}) },
     ticker: { ...current.ticker, ...(patch?.ticker ?? {}) },

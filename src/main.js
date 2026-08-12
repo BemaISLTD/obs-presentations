@@ -4,6 +4,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { renderReferenceLayer } from './components/reference-layer.js'
 import { renderSpecSheet } from './components/spec-sheet.js'
 import { renderBackgroundLayer, initBackgroundLayer } from './components/BackgroundLayer.js'
+import { createPresenterRuntime, renderPresenterLayer } from './presenter/presenterLayer.js'
 import { bindBrandAssetFallback } from './components/brandAssetFallback.js'
 import { scenes } from './scenes/index.js'
 import { loadPresentationData } from './dataService.js'
@@ -12,7 +13,7 @@ import { applySharedTickerSettings, bindTickerControls, getGlobalTicker, initGlo
 import { getInitialLiveData, startSceneLiveData } from './obsLiveData.js'
 import { applySceneCue, disposeSceneLifecycle, hydrateLayerAnimationTargets, LAYER_CUES, registerSceneCleanup, resetSceneCue } from './sceneCueEngine.js'
 import { sceneControlById } from './sceneControls.js'
-import { fetchSharedState, subscribeSharedState } from './sharedControlClient.js'
+import { fetchSharedState, subscribeSharedState, updateSharedState } from './sharedControlClient.js'
 
 const app = document.querySelector('#app')
 const DEFAULT_SCENE = '01'
@@ -70,6 +71,11 @@ let startSceneSetup
 let sharedSnapshot
 let lastSharedCommandSequence = -1
 let musicAudio
+let presenterRuntime
+let presenterRuntimeState
+let cameraReportTimer
+let reportCameras
+let lastCameraRequestSequence = -1
 
 const debugState = {
   gridVisible: false,
@@ -112,6 +118,10 @@ async function boot() {
   }
   const clean = params.get('clean') === 'true'
   const controllerPreview = params.get('controllerPreview') === 'true'
+  // Opening a camera is opt-in per page, never implied by the render mode (§16).
+  // The controller's preview iframe is composite too, and must never be able to
+  // grab the webcam of the laptop the operator happens to be sitting at.
+  const cameraEngine = params.get('camera') === 'browser' && !controllerPreview ? 'browser' : 'none'
   const paused = sharedState?.animationsPaused ?? (params.get('paused') === 'true')
   const showControls = params.get('legacyControls') === 'true' && render === 'composite' && !clean && !controllerPreview
   const controlsVisible = params.get('controls') !== 'false'
@@ -140,6 +150,10 @@ async function boot() {
     ...data,
     clean,
     controllerPreview,
+    cameraEngine,
+    // The dedicated 1920x1080 program wrapper, used for the live composite
+    // output only — storyboard and review keep the 1580px review canvas (§3).
+    isProgramOutput: output === 'obs' && render === 'composite' && mode !== 'reference',
     mode,
     output,
     render,
@@ -153,6 +167,10 @@ async function boot() {
     allSlides: data.slides,
     ticker: data.ticker,
     liveData: getInitialLiveData(),
+    // Without a control server every layer is on except the camera, which needs
+    // an explicit operator decision before a webcam light comes on.
+    layers: sharedState?.layers ?? { background: true, foreground: true, presenter: false, ticker: true },
+    presenter: sharedState?.presenter ?? { x: 1320, y: 620, width: 520, height: 293, shape: 'rounded', mirrored: true, fit: 'cover' },
     url: params,
     refOpacity: debugState.referenceOpacity,
     refOnTop: debugState.overlayReferenceOnTop,
@@ -203,6 +221,7 @@ async function boot() {
   }
 
   if (sharedSnapshot) {
+    applySharedLayers(sharedState, null, context)
     applySharedMusic(sharedState.music, null, context)
     applySharedTickerSettings(sharedState.ticker, sharedSnapshot.revision)
     applySharedControlCommand(sharedSnapshot, context)
@@ -236,6 +255,126 @@ function applySharedControlCommand(snapshot, context) {
   if (command.cue === 'exit') disposeSceneLifecycle(app)
 }
 
+/**
+ * Scales the 1920x1080 program stage to the display (§3).
+ *
+ * Scale is derived from the viewport each time rather than from the previous
+ * scale, so repeated resizes can never accumulate error. On a native 1080p
+ * screen the factor is exactly 1 and the stage is pixel-for-pixel.
+ */
+function bindProgramScale() {
+  detachCanvasScale?.()
+  const stage = app.querySelector('[data-program-stage]')
+  if (!stage) return
+  const update = () => {
+    const scale = Math.min(window.innerWidth / 1920, window.innerHeight / 1080)
+    stage.style.setProperty('--program-scale', scale)
+    // Centre whatever letterboxing the display's aspect ratio leaves over.
+    stage.style.setProperty('--program-offset-x', `${Math.max(0, (window.innerWidth - 1920 * scale) / 2)}px`)
+    stage.style.setProperty('--program-offset-y', `${Math.max(0, (window.innerHeight - 1080 * scale) / 2)}px`)
+  }
+  update()
+  window.addEventListener('resize', update)
+  detachCanvasScale = () => window.removeEventListener('resize', update)
+}
+
+/** Brings up the presenter runtime once per page and binds it to the DOM. */
+function mountPresenterRuntime(context) {
+  if (!presenterRuntime) {
+    presenterRuntime = createPresenterRuntime({
+      onChange: (state) => {
+        const previous = presenterRuntimeState?.camera
+        presenterRuntimeState = state
+        // Device labels only exist once a camera has actually opened, so the
+        // first report is unlabelled. Re-report when the open completes.
+        if (state.camera.deviceLabel && state.camera.deviceLabel !== previous?.deviceLabel) reportCameras?.()
+      },
+    })
+    if (context.syncEnabled) startCameraReporting()
+  }
+  presenterRuntime.mount(app, context.presenter, { visible: context.layers.presenter })
+}
+
+/**
+ * Publishes this machine's camera list to shared control.
+ *
+ * enumerateDevices() only ever sees the cameras attached to the machine running
+ * this page, so the controller — which may be a laptop in another room — cannot
+ * discover them on its own. The program page reports them instead, and the
+ * operator's dropdown becomes a view of the real show computer's hardware.
+ */
+function startCameraReporting() {
+  reportCameras = async () => {
+    const devices = await presenterRuntime.devices()
+    const camera = presenterRuntime.getState().camera
+    await updateSharedState({
+      camera: {
+        devices,
+        activeId: camera.deviceId || '',
+        activeLabel: camera.deviceLabel || '',
+        reportedAt: Date.now(),
+      },
+    }).catch(() => { /* A reporting failure must never disturb the program. */ })
+  }
+  reportCameras()
+  // Labels stay blank until permission is granted, so re-report once the camera
+  // has opened, and whenever hardware is plugged in or paired.
+  presenterRuntime.watchCameras(reportCameras)
+  cameraReportTimer = window.setInterval(reportCameras, 15_000)
+}
+
+/**
+ * Applies a camera the operator picked in the control room.
+ *
+ * The sequence number distinguishes a fresh request from a repeat of one this
+ * page already applied, so re-receiving the same state is harmless.
+ */
+async function applyCameraRequest(next) {
+  const request = next.camera
+  if (!presenterRuntime || !request) return
+  if (!request.requestSequence || request.requestSequence === lastCameraRequestSequence) return
+  lastCameraRequestSequence = request.requestSequence
+  // Re-requesting the device already on air is the operator's "refresh": the
+  // switch is a no-op, but the report below still republishes the device list.
+  const ok = await presenterRuntime.switchCamera(request.requestedId)
+  const camera = presenterRuntime.getState().camera
+  // Confirm what actually opened, so the controller reflects reality rather
+  // than the request — including when the requested device refused.
+  updateSharedState({
+    camera: {
+      activeId: camera.deviceId || '',
+      activeLabel: camera.deviceLabel || '',
+      devices: await presenterRuntime.devices(),
+      reportedAt: Date.now(),
+      ...(ok ? {} : { requestedId: '' }),
+    },
+  }).catch(() => {})
+}
+
+/**
+ * Applies layer visibility and presenter geometry without re-rendering.
+ *
+ * Every one of these is a live mutation on elements already in the DOM. That
+ * matters most for the camera: re-rendering the stage would detach the media
+ * stream, so dragging the presenter card would strobe the picture on air.
+ */
+function applySharedLayers(next, previous, context) {
+  const layers = next.layers ?? {}
+  context.layers = layers
+
+  app.querySelector('[data-live-layer="underlay"]')?.toggleAttribute('hidden', layers.background === false)
+  app.querySelector('[data-live-layer="foreground"]')?.toggleAttribute('hidden', layers.foreground === false)
+  app.querySelector('[data-background-layer]')?.toggleAttribute('hidden', layers.background === false)
+  app.querySelector('[data-global-live-ticker]')?.toggleAttribute('hidden', layers.ticker === false)
+
+  const presenter = next.presenter ?? {}
+  context.presenter = presenter
+  // The runtime decides for itself whether a change needs the camera touched;
+  // placement and appearance are applied without disturbing the stream (§20).
+  presenterRuntime?.update(presenter, { visible: layers.presenter === true })
+  applyCameraRequest(next)
+}
+
 function musicPlaybackPosition(music) {
   if (!music?.playing || !music.startedAt) return Math.max(0, Number(music?.position) || 0)
   return Math.max(0, (Number(music.position) || 0) + (Date.now() - Number(music.startedAt)) / 1000)
@@ -250,9 +389,9 @@ function seekMusic(audio, music) {
 }
 
 function applySharedMusic(music, previous, context) {
-  const shouldOutputMusic = context.output === 'obs'
-    && (context.render === 'underlay' || context.render === 'composite')
-    && !context.controllerPreview
+  // One page owns the audio bed. The controller preview and the underlay-only
+  // page stay silent so a second open tab can never double the music.
+  const shouldOutputMusic = context.render === 'composite' && !context.controllerPreview
   if (!shouldOutputMusic) {
     musicAudio?.pause()
     return
@@ -289,11 +428,36 @@ function applySharedMusic(music, previous, context) {
   }
 
   if (music.playing) {
-    musicAudio.play().catch((error) => console.warn('Music playback is waiting for browser autoplay permission.', error))
+    musicAudio.play().then(hideAudioUnlockPrompt).catch(showAudioUnlockPrompt)
   } else {
     musicAudio.pause()
     if (timelineChanged) seekMusic(musicAudio, music)
   }
+}
+
+/**
+ * Offers a one-click unlock when the browser refuses to autoplay the bed.
+ *
+ * Autoplay policy needs a user gesture before audio may start. The prompt is
+ * the only reliable way to get one, and it removes itself the moment playback
+ * succeeds so it never sits over a live program.
+ */
+function showAudioUnlockPrompt() {
+  if (document.querySelector('[data-audio-unlock]')) return
+  const button = document.createElement('button')
+  button.type = 'button'
+  button.dataset.audioUnlock = 'true'
+  button.textContent = '🔊 Click to enable background music'
+  // Sits at the top so it never covers the ticker, which is live program area.
+  button.style.cssText = 'position:fixed;left:50%;top:24px;z-index:9999;transform:translateX(-50%);border:1px solid #22d3ee;border-radius:999px;background:rgba(2,8,23,.92);padding:14px 22px;color:#e0f2fe;font:700 14px Inter,sans-serif;cursor:pointer'
+  button.addEventListener('click', () => {
+    musicAudio?.play().then(hideAudioUnlockPrompt).catch(() => {})
+  })
+  document.body.append(button)
+}
+
+function hideAudioUnlockPrompt() {
+  document.querySelector('[data-audio-unlock]')?.remove()
 }
 
 function syncSharedPresentation(nextSnapshot, context) {
@@ -325,6 +489,7 @@ function syncSharedPresentation(nextSnapshot, context) {
 
   document.documentElement.classList.toggle('shared-animations-paused', next.animationsPaused)
   app.querySelector('[data-app-shell]')?.classList.toggle('is-paused', next.animationsPaused)
+  applySharedLayers(next, previous, context)
   if (next.animationsPaused && !previous?.animationsPaused) disposeSceneLifecycle(app)
   if (!next.animationsPaused && previous?.animationsPaused && (context.mode === 'live' || context.mode === 'overlay')) startSceneSetup?.()
   applySharedMusic(next.music, previous?.music, context)
@@ -356,7 +521,10 @@ function renderApp(context, sceneRenderer) {
   const showForeground = render !== 'underlay'
   const underlayMarkup = canRenderLive ? renderUnderlay(sceneRenderer, context) : ''
   const foregroundMarkup = canRenderLive ? renderMarkup(sceneRenderer.renderForeground?.(context)) : ''
-  const showBackground = mode !== 'reference' && showUnderlay && canRenderLive
+  const showBackground = mode !== 'reference' && showUnderlay && canRenderLive && context.layers.background
+  // Only a page explicitly asked to own the camera renders the presenter, so
+  // /presentation, /ticker, and the controller preview never touch it (§16).
+  const showPresenter = showForeground && context.cameraEngine === 'browser'
   const { backgroundId } = getSceneBackground(Number(slide.id))
   const shellClasses = ['app-shell', UI.appShell, `output-${output}`, `render-${render}`, `mode-${mode}`]
   const canvasClasses = ['storyboard-canvas', UI.canvas, `mode-${mode}`, `output-${output}`, `render-${render}`]
@@ -371,21 +539,45 @@ function renderApp(context, sceneRenderer) {
   const showSpec = output === 'storyboard' && mode !== 'reference'
   const showDebug = !context.clean && !context.controllerPreview && mode !== 'reference' && output === 'storyboard'
 
+  const stageMarkup = `
+    <section class="visual-stage ${UI.stage} ${render === 'foreground' || mode === 'reference' ? '!bg-transparent' : ''} output-stage-${output} render-stage-${render}" data-visual-stage data-testid="visual-stage" aria-label="Program visual stage">
+      ${(mode === 'reference' || mode === 'overlay') ? renderReferenceLayer(slide, { opacity: getReferenceOpacity(mode), isVisible: shouldShowReference(mode) }) : ''}
+      ${(mode === 'live' || mode === 'overlay') ? `<div class="live-composition absolute inset-0" data-live-composition style="visibility:${mode === 'overlay' && !debugState.overlayLiveVisible ? 'hidden' : 'visible'}">
+        ${showBackground ? renderBackgroundLayer({ sceneId: slide.id, backgroundId, className: 'stage-background-layer', debug: context.backgroundDebug && !context.clean }) : ''}
+        ${showUnderlay ? `<div class="live-layer underlay-layer absolute inset-0" data-live-layer="underlay" ${context.layers.background ? '' : 'hidden'}>${underlayMarkup}</div>` : ''}
+        ${showForeground ? `<div class="live-layer foreground-layer absolute inset-0" data-live-layer="foreground" ${context.layers.foreground ? '' : 'hidden'}>${foregroundMarkup}</div>` : ''}
+      </div>` : ''}
+      ${(mode === 'live' || mode === 'overlay') && showPresenter ? renderPresenterLayer(context.presenter, { visible: context.layers.presenter }) : ''}
+      ${(mode === 'live' || mode === 'overlay') && showForeground ? renderGlobalTicker(context) : ''}
+    </section>`
+
+  // The live program gets its own 1920x1080 wrapper rather than the storyboard's
+  // 1920x1580 review canvas with overrides layered on top (§3). One stage, one
+  // scale factor, no leftover review geometry to clip or letterbox.
+  if (context.isProgramOutput) {
+    document.documentElement.classList.add('program-page')
+    document.body.classList.add('program-page')
+    app.innerHTML = `
+      <main class="program-output ${paused ? 'is-paused' : ''}" data-app-shell data-program-output data-testid="app-shell">
+        <div class="program-stage" data-program-stage data-storyboard-canvas data-testid="storyboard-canvas">
+          ${stageMarkup}
+        </div>
+      </main>`
+    hydrateSceneCueTargets(context)
+    hydrateLayerAnimationTargets(app)
+    bindProgramScale()
+    if (showBackground) initBackgroundLayer(app)
+    if (showPresenter) mountPresenterRuntime(context)
+    return
+  }
+
   app.innerHTML = `
     <main class="${shellClasses.join(' ')}" data-app-shell data-testid="app-shell">
       ${showHeader ? renderHeader(context) : ''}
       <section class="canvas-shell ${UI.canvasShell} ${output === 'obs' ? '!h-screen !w-screen !min-h-svh !pb-0' : ''} output-${output}" data-canvas-shell>
         <div class="canvas-scale-frame relative overflow-hidden">
           <div class="${canvasClasses.join(' ')}" data-storyboard-canvas data-testid="storyboard-canvas">
-            <section class="visual-stage ${UI.stage} ${render === 'foreground' || mode === 'reference' ? '!bg-transparent' : ''} output-stage-${output} render-stage-${render}" data-visual-stage data-testid="visual-stage" aria-label="OBS visual stage">
-              ${(mode === 'reference' || mode === 'overlay') ? renderReferenceLayer(slide, { opacity: getReferenceOpacity(mode), isVisible: shouldShowReference(mode) }) : ''}
-              ${(mode === 'live' || mode === 'overlay') ? `<div class="live-composition absolute inset-0" data-live-composition style="visibility:${mode === 'overlay' && !debugState.overlayLiveVisible ? 'hidden' : 'visible'}">
-                ${showBackground ? renderBackgroundLayer({ sceneId: slide.id, backgroundId, className: 'stage-background-layer', debug: context.backgroundDebug && !context.clean }) : ''}
-                ${showUnderlay ? `<div class="live-layer underlay-layer absolute inset-0" data-live-layer="underlay">${underlayMarkup}</div>` : ''}
-                ${showForeground ? `<div class="live-layer foreground-layer absolute inset-0" data-live-layer="foreground">${foregroundMarkup}</div>` : ''}
-              </div>` : ''}
-              ${(mode === 'live' || mode === 'overlay') && showForeground ? renderGlobalTicker(context) : ''}
-            </section>
+            ${stageMarkup}
             ${context.showControls ? renderOnCanvasControls(context) : ''}
             ${showSpec ? renderSpecSheet(slide, context) : ''}
             ${showDebug ? renderDebugOverlay(context) : ''}
@@ -399,6 +591,7 @@ function renderApp(context, sceneRenderer) {
   bindCanvasScale(context)
   bindDebugTools(context)
   if (showBackground) initBackgroundLayer(app)
+  if (showPresenter) mountPresenterRuntime(context)
 }
 
 function hydrateSceneCueTargets(context) {

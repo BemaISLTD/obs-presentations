@@ -279,3 +279,86 @@ html.shared-animations-paused *::after {
   animation-play-state: paused !important;
   transition-duration: 0s !important;
 }
+
+/* ── Program output: a genuinely isolated 1920×1080 stage (§3) ──────────────
+   The storyboard canvas is 1920×1580 because it carries a review panel below
+   the stage. The live program must not inherit that geometry and then override
+   parts of it back to 1080, so it gets its own wrapper: a viewport-sized frame
+   holding one 1920×1080 stage, scaled to fit and centred. Scale is 1 on a
+   native 1080p display. */
+.program-output {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background: #000;
+}
+.program-stage {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1920px;
+  height: 1080px;
+  overflow: hidden;
+  transform-origin: top left;
+  /* Set by bindProgramScale(); the default keeps a 1080p display exact. */
+  transform: translate(var(--program-offset-x, 0px), var(--program-offset-y, 0px)) scale(var(--program-scale, 1));
+}
+html.program-page,
+body.program-page {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  background: #000;
+}
+
+/* ── Presenter layer ───────────────────────────────────────────────────────
+   The layer is a full 1920×1080 box positioned by transform, so placement
+   changes animate on the compositor instead of triggering layout (§9). */
+.presenter-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 20;
+  transform-origin: top left;
+  transition:
+    transform 320ms cubic-bezier(.22, .61, .36, 1),
+    opacity 260ms ease;
+  will-change: transform, opacity;
+}
+.presenter-card {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+/* Only the raw-video path needs a plate behind it. The segmented canvas must
+   stay transparent so the presentation shows through the removed background. */
+.presenter-card:has(.presenter-video:not([style*="display: none"])) {
+  background: #020617;
+  box-shadow: 0 24px 70px rgb(2 8 23 / .55);
+  outline: 2px solid rgb(255 255 255 / .7);
+  outline-offset: -2px;
+}
+.presenter-video,
+.presenter-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.presenter-label {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  padding: 32px 20px 16px;
+  background: linear-gradient(to top, rgb(2 8 23 / .9), transparent);
+  color: #fff;
+  font-size: 22px;
+  font-weight: 900;
+}
+html.shared-animations-paused .presenter-layer {
+  transition: none;
+}

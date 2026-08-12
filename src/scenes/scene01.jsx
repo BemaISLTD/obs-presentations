@@ -245,7 +245,17 @@ export const scene01 = {
       countdownRoot.dataset.countdownDuration || 600,
     );
     const prompts = LOWER_THIRD_MESSAGES;
-    let remainingSeconds = totalDuration;
+    // The deadline is anchored once and kept on window, so replaying a cue or
+    // re-running setup resumes the same countdown instead of restarting it —
+    // which is what made the scene look like it was reloading itself.
+    if (!window.__bemahubCountdownEndsAt) {
+      window.__bemahubCountdownEndsAt = Date.now() + totalDuration * 1000;
+    }
+    const deadline = window.__bemahubCountdownEndsAt;
+    let remainingSeconds = Math.max(
+      0,
+      Math.round((deadline - Date.now()) / 1000),
+    );
     let activePromptId = null;
     const defaultTickerMarkup = tickerTrack?.innerHTML ?? "";
 
@@ -346,11 +356,26 @@ export const scene01 = {
     };
 
     const updateCountdown = () => {
+      // Recomputing from the deadline keeps the clock honest even if a tick is
+      // dropped while the tab is backgrounded.
+      remainingSeconds = Math.max(0, Math.round((deadline - Date.now()) / 1000));
       const minutes = Math.floor(remainingSeconds / 60);
       const seconds = remainingSeconds % 60;
       minuteNode.textContent = String(minutes).padStart(2, "0");
       secondNode.textContent = String(seconds).padStart(2, "0");
       countdownRoot.dataset.time = `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+
+      const isComplete = remainingSeconds <= 0;
+      countdownRoot.classList.toggle("is-complete", isComplete);
+
+      if (isComplete) {
+        // At zero the clock holds 00:00 and blinks red. Stopping the timer here
+        // means nothing further re-renders or navigates on its own; moving on
+        // is the operator's call.
+        countdownRoot.classList.remove("pulse");
+        window.clearInterval(window.__bemahubCountdown);
+        return;
+      }
 
       countdownRoot.classList.remove("pulse");
       requestAnimationFrame(() => countdownRoot.classList.add("pulse"));
@@ -358,16 +383,12 @@ export const scene01 = {
       const elapsed = totalDuration - remainingSeconds;
       const activePrompt = findActivePrompt(elapsed);
       applyPrompt(activePrompt);
-
-      if (remainingSeconds > 0) {
-        remainingSeconds -= 1;
-      }
     };
 
-    updateCountdown();
     window.clearInterval(window.__bemahubCountdown);
     const countdownTimer = window.setInterval(updateCountdown, 1000);
     window.__bemahubCountdown = countdownTimer;
+    updateCountdown();
 
     return () => {
       window.clearInterval(countdownTimer);

@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { DatabaseSync } from 'node:sqlite'
 import test from 'node:test'
 import { createControlStore } from '../server/controlStore.js'
 
@@ -66,7 +67,8 @@ test('music playback settings are normalized and persisted', () => {
   const databasePath = join(directory, 'state.sqlite')
   try {
     const store = createControlStore(databasePath)
-    assert.equal(store.read().state.music.volume, 70)
+    // The bed sits under speech, so it defaults quiet rather than prominent.
+    assert.equal(store.read().state.music.volume, 25)
 
     const playing = store.write({
       music: {
@@ -149,58 +151,175 @@ test('starter ticker messages are seeded once and stay deleted', () => {
   }
 })
 
-test('obs connection settings are validated and persisted', () => {
-  const directory = mkdtempSync(join(tmpdir(), 'obs-control-obs-config-'))
+test('layers toggle independently and persist', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'obs-control-layers-'))
   const databasePath = join(directory, 'state.sqlite')
   try {
     const store = createControlStore(databasePath)
-    const defaults = store.read().state.obs
-    assert.equal(defaults.host, '127.0.0.1')
-    assert.equal(defaults.port, 4455)
-    assert.equal(defaults.sources.presenter.sourceName, '', 'no source name may be hard-coded')
+    const defaults = store.read().state.layers
+    assert.deepEqual(defaults, { background: true, foreground: true, presenter: false, ticker: true })
 
-    const configured = store.write({
-      obs: { host: '192.168.1.40', port: 4460, password: 'secret', sceneName: 'OPEN ENROLLMENT MASTER' },
-    })
-    assert.equal(configured.state.obs.host, '192.168.1.40')
-    assert.equal(configured.state.obs.port, 4460)
-    assert.equal(configured.state.obs.sceneName, 'OPEN ENROLLMENT MASTER')
+    const shown = store.write({ layers: { presenter: true } })
+    assert.equal(shown.state.layers.presenter, true)
+    assert.equal(shown.state.layers.background, true, 'toggling one layer leaves the others alone')
 
-    const invalidPort = store.write({ obs: { port: 70000 } })
-    assert.equal(invalidPort.state.obs.port, 4460, 'an out-of-range port keeps the last good value')
+    const hidden = store.write({ layers: { background: false } })
+    assert.equal(hidden.state.layers.background, false)
+    assert.equal(hidden.state.layers.presenter, true)
+
+    const ignored = store.write({ layers: { notALayer: true } })
+    assert.equal(ignored.state.layers.notALayer, undefined, 'unknown layer keys are dropped')
 
     store.close()
     const reopened = createControlStore(databasePath)
-    assert.equal(reopened.read().state.obs.host, '192.168.1.40')
+    assert.equal(reopened.read().state.layers.background, false)
     reopened.close()
   } finally {
     rmSync(directory, { recursive: true, force: true })
   }
 })
 
-test('obs sources are an extensible keyed registry', () => {
-  const directory = mkdtempSync(join(tmpdir(), 'obs-control-obs-sources-'))
+test('presenter geometry is clamped to the stage and survives bad patches', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'obs-control-presenter-'))
   const databasePath = join(directory, 'state.sqlite')
   try {
     const store = createControlStore(databasePath)
-    const named = store.write({ obs: { sources: { presenter: { sourceName: 'Camo Camera' } } } })
-    assert.equal(named.state.obs.sources.presenter.sourceName, 'Camo Camera')
-    assert.equal(named.state.obs.sources.presenter.visible, false)
+    // Camera hardware belongs to the output machine, not the shared show (§5).
+    assert.equal(store.read().state.presenter.deviceId, undefined, 'device ids must not live in shared state')
 
-    const second = store.write({ obs: { sources: { guestCamera: { label: 'Guest', sourceName: 'Guest Phone' } } } })
-    assert.equal(second.state.obs.sources.guestCamera.sourceName, 'Guest Phone')
-    assert.equal(second.state.obs.sources.presenter.sourceName, 'Camo Camera', 'patching one source keeps the others')
+    const placed = store.write({ presenter: { x: 100, y: 200, width: 640, height: 360 } })
+    assert.deepEqual(
+      { x: placed.state.presenter.x, y: placed.state.presenter.y, width: placed.state.presenter.width, height: placed.state.presenter.height },
+      { x: 100, y: 200, width: 640, height: 360 },
+    )
 
-    const shown = store.write({ obs: { sources: { presenter: { visible: true, preset: 'lower-right' } } } })
-    assert.equal(shown.state.obs.sources.presenter.visible, true)
-    assert.equal(shown.state.obs.sources.presenter.preset, 'lower-right')
+    const offStage = store.write({ presenter: { x: 5000, y: -300 } })
+    assert.equal(offStage.state.presenter.x, 1920 - 640, 'a card dragged past the edge stays reachable')
+    assert.equal(offStage.state.presenter.y, 0)
 
-    const badPreset = store.write({ obs: { sources: { presenter: { preset: 'not-a-preset' } } } })
-    assert.equal(badPreset.state.obs.sources.presenter.preset, 'lower-right')
+    const tiny = store.write({ presenter: { width: 10, height: 10 } })
+    assert.equal(tiny.state.presenter.width, 120, 'the card never shrinks below a grabbable size')
 
-    const removed = store.write({ obs: { sources: { guestCamera: null } } })
-    assert.equal(removed.state.obs.sources.guestCamera, undefined)
-    assert.ok(removed.state.obs.sources.presenter, 'the presenter role always survives')
+    const badFrame = store.write({ presenter: { x: 'nonsense' } })
+    assert.equal(badFrame.state.presenter.x, offStage.state.presenter.x, 'a bad drag frame keeps the stored position')
+
+    const badShape = store.write({ presenter: { shape: 'triangle' } })
+    assert.equal(badShape.state.presenter.shape, 'rounded')
+
+    const device = store.write({ presenter: { deviceId: 'cam-abc', shape: 'circle', mirrored: false } })
+    assert.equal(device.state.presenter.deviceId, undefined, 'a device id patch is dropped, not stored')
+    assert.equal(device.state.presenter.shape, 'circle')
+    assert.equal(device.state.presenter.mirrored, false)
+    store.close()
+  } finally {
+    rmSync(directory, { recursive: true, force: true })
+  }
+})
+
+test('legacy OBS presenter state migrates onto generic presenter state', () => {
+  // §7: databases written before presenter state was renderer-neutral kept it
+  // under obs.sources.presenter. That intent must survive the upgrade.
+  const directory = mkdtempSync(join(tmpdir(), 'obs-control-migrate-'))
+  const databasePath = join(directory, 'state.sqlite')
+  try {
+    const database = new DatabaseSync(databasePath)
+    database.exec(`CREATE TABLE presentation_state (
+      id INTEGER PRIMARY KEY CHECK (id = 1),
+      revision INTEGER NOT NULL DEFAULT 0,
+      state_json TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );`)
+    const legacy = {
+      sceneId: '07',
+      mode: 'live',
+      obs: {
+        host: '192.168.1.40',
+        port: 4460,
+        sceneName: 'OPEN ENROLLMENT MASTER',
+        sources: { presenter: { label: 'Presenter', sourceName: 'Camo Camera', visible: true, preset: 'pip' } },
+      },
+    }
+    database.prepare('INSERT INTO presentation_state VALUES (1, 5, ?, ?)')
+      .run(JSON.stringify(legacy), new Date().toISOString())
+    database.close()
+
+    const store = createControlStore(databasePath)
+    const state = store.read().state
+    assert.equal(state.sceneId, '07', 'unrelated state is untouched')
+    assert.equal(state.layers.presenter, true, 'presenter visibility becomes a layer')
+    assert.deepEqual(
+      { x: state.presenter.x, y: state.presenter.y, width: state.presenter.width, height: state.presenter.height },
+      { x: 1520, y: 780, width: 320, height: 180 },
+      'the pip preset becomes stage geometry',
+    )
+    assert.equal(state.obs.sourceName, 'Camo Camera', 'the OBS source survives for legacy mode')
+    assert.equal(state.obs.host, '192.168.1.40')
+    assert.equal(state.obs.port, 4460)
+    store.close()
+  } finally {
+    rmSync(directory, { recursive: true, force: true })
+  }
+})
+
+test('presenter background removal settings are validated', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'obs-control-removal-'))
+  try {
+    const store = createControlStore(join(directory, 'state.sqlite'))
+    const defaults = store.read().state.presenter
+    assert.equal(defaults.backgroundRemoval, true)
+
+    const tuned = store.write({ presenter: { maskThreshold: 0.7, edgeFeather: 0.2 } })
+    assert.equal(tuned.state.presenter.maskThreshold, 0.7)
+    assert.equal(tuned.state.presenter.edgeFeather, 0.2)
+
+    // Out-of-range values clamp rather than producing an unusable mask.
+    const clamped = store.write({ presenter: { maskThreshold: 9, edgeFeather: -3 } })
+    assert.equal(clamped.state.presenter.maskThreshold, 0.95)
+    assert.equal(clamped.state.presenter.edgeFeather, 0)
+
+    const off = store.write({ presenter: { backgroundRemoval: false } })
+    assert.equal(off.state.presenter.backgroundRemoval, false)
+    store.close()
+  } finally {
+    rmSync(directory, { recursive: true, force: true })
+  }
+})
+
+test('camera devices reported by the program page are stored and bounded', () => {
+  // The device list is reported by another machine's browser, so it is
+  // untrusted input: ids and labels are bounded and junk entries dropped.
+  const directory = mkdtempSync(join(tmpdir(), 'obs-control-camera-'))
+  try {
+    const store = createControlStore(join(directory, 'state.sqlite'))
+    assert.deepEqual(store.read().state.camera.devices, [], 'no camera may be assumed')
+
+    const reported = store.write({
+      camera: {
+        devices: [
+          { deviceId: 'abc', label: 'Camo Camera' },
+          { deviceId: 'def', label: 'iPhone Camera' },
+          { deviceId: '', label: '' },
+        ],
+        activeId: 'abc',
+        activeLabel: 'Camo Camera',
+        reportedAt: 1_700_000_000_000,
+      },
+    })
+    assert.equal(reported.state.camera.devices.length, 2, 'empty entries are dropped')
+    assert.equal(reported.state.camera.devices[1].label, 'iPhone Camera')
+    assert.equal(reported.state.camera.activeId, 'abc')
+
+    const overlong = store.write({
+      camera: { devices: Array.from({ length: 40 }, (_, index) => ({ deviceId: `d${index}`, label: 'x'.repeat(400) })) },
+    })
+    assert.equal(overlong.state.camera.devices.length, 24, 'the device list is capped')
+    assert.equal(overlong.state.camera.devices[0].label.length, 120, 'labels are truncated')
+
+    // An operator pick is a request; the program page confirms it separately.
+    const request = store.write({ camera: { requestedId: 'def', requestSequence: 1 } })
+    assert.equal(request.state.camera.requestedId, 'def')
+    assert.equal(request.state.camera.requestSequence, 1)
+    assert.equal(request.state.camera.activeId, 'abc', 'a request does not fake the active camera')
     store.close()
   } finally {
     rmSync(directory, { recursive: true, force: true })

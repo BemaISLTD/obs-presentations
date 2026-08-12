@@ -85,31 +85,22 @@ export function createObsController({ onChange = () => {} } = {}) {
    * Called on each shared-state revision, so it is a no-op unless something
    * that OBS cares about actually changed.
    */
-  async function syncSources(obsConfig, { force = false } = {}) {
-    if (!client.isConnected() || !obsConfig?.sceneName) return
-    const entries = Object.entries(obsConfig.sources ?? {}).filter(([, source]) => source?.sourceName)
-    const signature = JSON.stringify([obsConfig.sceneName, entries])
+  async function applyPresenter(target, { force = false } = {}) {
+    if (!client.isConnected() || !target?.sceneName || !target?.sourceName) return
+    const signature = JSON.stringify(target)
     if (!force && signature === lastAppliedSignature) return
     lastAppliedSignature = signature
 
-    const failures = []
-    for (const [key, source] of entries) {
-      try {
-        await applyPresenterState(client, {
-          sceneName: obsConfig.sceneName,
-          sourceName: source.sourceName,
-          visible: source.visible,
-          preset: source.preset,
-        })
-      } catch (error) {
-        failures.push(`${source.label || key}: ${error.message}`)
-      }
+    try {
+      await applyPresenterState(client, target)
+      connectionError = ''
+    } catch (error) {
+      connectionError = error.message
+      // A failed apply should be retried on the next revision.
+      lastAppliedSignature = ''
     }
-    connectionError = failures.join(' · ')
-    // A failed apply should be retried on the next revision.
-    if (failures.length) lastAppliedSignature = ''
     onChange()
   }
 
-  return { getState, connect, disconnect, discover, syncSources, isConnected: () => client.isConnected() }
+  return { getState, connect, disconnect, discover, applyPresenter, isConnected: () => client.isConnected() }
 }

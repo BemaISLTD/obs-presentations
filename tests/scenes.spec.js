@@ -252,7 +252,7 @@ test('shared control room synchronizes scenes, cues, animation state, and ticker
   try {
     await firstDisplay.goto('/?sync=true&output=obs&render=composite&clean=true&bgVideo=false')
     await control.goto('/control')
-    await expect(control.getByRole('heading', { name: 'OBS Control Room' })).toBeVisible()
+    await expect(control.getByRole('heading', { name: 'Show Control Room' })).toBeVisible()
     await expect(control.locator('[data-scene-countdown]')).toHaveText(/^\d{2}:\d{2}$/)
     await expect(control.locator('.connection-card')).not.toContainText('Revision')
 
@@ -341,7 +341,7 @@ test('Scene 3 presenter name can be edited live from the control room', async ({
 
 test('control room remains scrollable and usable on tablet and mobile viewports', async ({ page }) => {
   await page.goto('/control')
-  await expect(page.getByRole('heading', { name: 'OBS Control Room' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Show Control Room' })).toBeVisible()
 
   for (const viewport of [{ width: 768, height: 900 }, { width: 390, height: 700 }]) {
     await page.setViewportSize(viewport)
@@ -572,4 +572,94 @@ test('presenter cue plans resolve to presenter state', async () => {
   expect(presenterStateForCue('03', 'some-other-cue')).toBeNull()
   // Reset always clears the camera.
   expect(presenterStateForCue('03', 'reset')).toEqual({ visible: false })
+})
+
+test('only the program route owns a camera', async ({ page }) => {
+  // §16/§17: a stray camera page would seize the webcam of whichever machine
+  // opened it — including the operator's laptop through the control preview.
+  await page.goto('/program')
+  await expect(page).toHaveURL(/camera=browser/)
+  await expect(page.locator('[data-presenter-layer]')).toBeAttached()
+
+  for (const route of ['/presentation', '/ticker']) {
+    await page.goto(route)
+    await expect(page).toHaveURL(/camera=none/)
+    expect(await page.locator('[data-presenter-layer]').count()).toBe(0)
+  }
+
+  // The controller preview is composite too, and must never capture.
+  await page.goto('/?sync=true&output=obs&render=composite&clean=true&camera=browser&controllerPreview=true')
+  expect(await page.locator('[data-presenter-layer]').count()).toBe(0)
+})
+
+test('the program stage is an isolated 1920x1080 output', async ({ page }) => {
+  // §3: the live program must not inherit the 1920x1580 storyboard canvas.
+  await page.setViewportSize({ width: 1920, height: 1080 })
+  await page.goto('/program')
+  const stage = page.locator('[data-program-stage]')
+  await expect(stage).toBeAttached()
+
+  const geometry = await page.evaluate(() => {
+    const element = document.querySelector('[data-program-stage]')
+    const rect = element.getBoundingClientRect()
+    return {
+      width: Math.round(rect.width),
+      height: Math.round(rect.height),
+      scale: getComputedStyle(element).getPropertyValue('--program-scale').trim(),
+      scrollWidth: document.documentElement.scrollWidth,
+      scrollHeight: document.documentElement.scrollHeight,
+    }
+  })
+  expect(geometry).toMatchObject({ width: 1920, height: 1080, scale: '1' })
+  // No scrollbars and no clipped bottom edge on a native 1080p display.
+  expect(geometry.scrollWidth).toBeLessThanOrEqual(1920)
+  expect(geometry.scrollHeight).toBeLessThanOrEqual(1080)
+
+  // A smaller display scales the whole stage down rather than cropping it.
+  await page.setViewportSize({ width: 1280, height: 720 })
+  await page.waitForTimeout(200)
+  const scaled = await page.evaluate(() => getComputedStyle(document.querySelector('[data-program-stage]')).getPropertyValue('--program-scale').trim())
+  expect(Number(scaled)).toBeCloseTo(2 / 3, 2)
+})
+
+test('presenter presets are shared by every renderer', async () => {
+  // §8: one definition, so the browser layer and OBS cannot drift apart.
+  const { PRESENTER_PRESETS, matchPreset, presetGeometry, presetToObsTransform } = await import('../src/presenter/presenterPresets.js')
+
+  expect(presetGeometry('pip')).toEqual({ x: 1520, y: 780, width: 320, height: 180 })
+  expect(presetGeometry('not-a-preset')).toBeNull()
+
+  // Geometry round-trips back to the preset that produced it, and a dragged
+  // card reports as custom rather than pretending to be a preset.
+  expect(matchPreset(presetGeometry('lower-right'))).toBe('lower-right')
+  expect(matchPreset({ x: 17, y: 23, width: 400, height: 225 })).toBe('custom')
+
+  // Full frame means "leave the OBS source as framed", so it carries no
+  // transform, while a scaled preset maps onto OBS position plus scale.
+  expect(presetToObsTransform('full')).toBeNull()
+  expect(presetToObsTransform('pip')).toMatchObject({ positionX: 1520, positionY: 780 })
+  expect(presetToObsTransform('pip').scale).toBeCloseTo(320 / 1920, 4)
+
+  // Every preset must fit inside the stage it is expressed against.
+  Object.values(PRESENTER_PRESETS).forEach((preset) => {
+    expect(preset.x + preset.width).toBeLessThanOrEqual(1920)
+    expect(preset.y + preset.height).toBeLessThanOrEqual(1080)
+  })
+})
+
+test('a camera failure never takes down the program', async ({ page }) => {
+  // §22: permission denial is normal on a machine nobody has approved yet.
+  await page.addInitScript(() => {
+    navigator.mediaDevices.getUserMedia = () => Promise.reject(
+      Object.assign(new Error('Permission denied'), { name: 'NotAllowedError' }),
+    )
+  })
+  await page.goto('/program')
+  await page.waitForTimeout(1500)
+
+  // The show keeps running, and the audience never sees the error.
+  await expect(page.locator('[data-program-stage]')).toBeAttached()
+  await expect(page.locator('[data-visual-stage]')).toBeVisible()
+  const text = await page.locator('[data-program-stage]').innerText()
+  expect(text).not.toMatch(/permission denied|NotAllowedError/i)
 })
