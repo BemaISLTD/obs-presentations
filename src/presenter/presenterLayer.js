@@ -65,6 +65,7 @@ export function createPresenterRuntime({ onChange = () => {} } = {}) {
   let running = false
   let frameHandle
   let usingFallback = false
+  let enabling = null
 
   const capture = createPresenterCapture({ onChange: () => onChange(getState()) })
   const segmentation = createPresenterSegmentation({ onChange: () => onChange(getState()) })
@@ -155,25 +156,37 @@ export function createPresenterRuntime({ onChange = () => {} } = {}) {
   }
 
   async function enable() {
-    const stream = await capture.start()
-    if (!stream) return
-    if (video && video.srcObject !== stream) {
-      video.srcObject = stream
-      await video.play().catch(() => {})
-    }
-    if (presenter.backgroundRemoval !== false) {
-      try {
-        await segmentation.load()
-        usingFallback = false
-      } catch {
-        // The camera is fine; only removal failed. Show the raw rectangle
-        // rather than dropping the presenter entirely.
-        usingFallback = true
+    // Two callers can race here — mount() and the first shared-state update —
+    // and a second getUserMedia would stop the stream the first just attached.
+    // Serializing means the later caller reuses the same stream instead.
+    if (enabling) return enabling
+    enabling = (async () => {
+      const stream = await capture.start()
+      if (!stream) return
+      // Re-resolve the element: a re-render between the call and now would have
+      // replaced the <video> this closure captured, leaving the stream on a
+      // detached node and the visible card blank.
+      video = root?.querySelector('[data-presenter-video]') ?? video
+      canvas = root?.querySelector('[data-presenter-canvas]') ?? canvas
+      if (video && video.srcObject !== stream) {
+        video.srcObject = stream
+        await video.play().catch(() => {})
+      }
+      if (presenter.backgroundRemoval !== false) {
+        try {
+          await segmentation.load()
+          usingFallback = false
+        } catch {
+          // The camera is fine; only removal failed. Show the raw rectangle
+          // rather than dropping the presenter entirely.
+          usingFallback = true
+        }
       }
       applyVisualState()
-    }
-    startLoop()
-    onChange(getState())
+      startLoop()
+      onChange(getState())
+    })()
+    try { await enabling } finally { enabling = null }
   }
 
   /**
@@ -189,13 +202,17 @@ export function createPresenterRuntime({ onChange = () => {} } = {}) {
     visible = nextVisible
     applyVisualState()
 
-    if (visible && !wasVisible) { await enable(); return }
     if (!visible && wasVisible) {
       // Keep the stream alive across scenes; only pause the work (§20).
       stopLoop()
       onChange(getState())
       return
     }
+    // Enable whenever the camera should be live but no stream is running, not
+    // only on a false->true transition. Shared state can arrive after mount, so
+    // the layer may already believe it is visible while the camera was never
+    // opened — that gap left the presenter blank on a freshly loaded page.
+    if (visible && !capture.getStream()?.active) { await enable(); return }
     if (visible && !running) startLoop()
   }
 

@@ -10598,3 +10598,119 @@
     height: auto;
   }
 }
+
+
+
+@layer components {
+  /* Scene 03 studio room.
+     The approved reference is a photograph of a studio; these rules rebuild the
+     parts of it that must sit behind the live presenter — the lit wall, the
+     wall-mounted screen, and the console beneath it. The .studio-display copy
+     block positions over this screen exactly as it did over the photograph, so
+     none of its geometry changed. */
+  .scene03-room {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+  }
+  .scene03-room-wall {
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 900px 620px at 26% 34%, rgba(96, 150, 220, .32), transparent 70%),
+      radial-gradient(ellipse 1100px 700px at 78% 46%, rgba(38, 92, 170, .34), transparent 72%),
+      linear-gradient(168deg, #16233f 0%, #1b2c4e 44%, #0f1a33 100%);
+  }
+  /* The lit curve sweeping behind the presenter in the reference. */
+  .scene03-room-sweep {
+    position: absolute;
+    left: -140px;
+    top: -180px;
+    width: 1180px;
+    height: 1420px;
+    border-radius: 50%;
+    border: 3px solid rgba(150, 214, 255, .5);
+    border-right-color: transparent;
+    border-bottom-color: transparent;
+    transform: rotate(18deg);
+    filter: blur(1.5px);
+    box-shadow: 0 0 90px rgba(120, 200, 255, .3);
+    opacity: .85;
+  }
+  /* Low console the screen sits above, as in the reference. */
+  .scene03-room-console {
+    position: absolute;
+    right: 96px;
+    bottom: 232px;
+    width: 1010px;
+    height: 20px;
+    border-radius: 6px;
+    background: linear-gradient(180deg, #cfd8e6, #9aa8bf);
+    box-shadow: 0 22px 50px rgba(3, 10, 28, .45);
+  }
+  .scene03-room-console::after {
+    content: '';
+    position: absolute;
+    inset: 20px 22px auto 22px;
+    height: 88px;
+    border-radius: 0 0 8px 8px;
+    background: linear-gradient(180deg, rgba(12, 24, 48, .72), rgba(8, 16, 34, .12));
+  }
+
+  /* Wall-mounted screen. Sized and placed to sit under .studio-display, whose
+     own geometry (top:210 right:255 815x470) is unchanged from the original
+     design, so the copy lands on the screen exactly as it did on the photo. */
+  /* Aligned to .studio-display's box (top:210 right:255 815x470) plus its own
+     asymmetric padding, so the screen frames that copy the way the photograph
+     did. Changing the copy's geometry instead would break the approved layout. */
+  .scene03-tv {
+    position: absolute;
+    top: 116px;
+    right: 118px;
+    width: 1090px;
+    height: 620px;
+  }
+  .scene03-tv-screen {
+    position: absolute;
+    inset: 0;
+    border-radius: 10px;
+    border: 9px solid #0b1220;
+    background:
+      radial-gradient(ellipse 70% 90% at 78% 62%, rgba(140, 205, 255, .5), transparent 62%),
+      radial-gradient(ellipse 60% 80% at 22% 30%, rgba(198, 224, 255, .55), transparent 60%),
+      linear-gradient(140deg, #dbe9fb 0%, #bcd8f6 46%, #9fc5ef 100%);
+    box-shadow:
+      0 0 70px rgba(96, 170, 255, .42),
+      inset 0 0 90px rgba(255, 255, 255, .45);
+  }
+  /* The flowing light ribbons across the screen artwork. */
+  .scene03-tv-screen::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 2px;
+    background:
+      radial-gradient(ellipse 420px 130px at 74% 74%, rgba(120, 90, 220, .22), transparent 70%),
+      radial-gradient(ellipse 520px 120px at 30% 84%, rgba(60, 150, 235, .3), transparent 72%);
+  }
+  .scene03-tv-stand {
+    position: absolute;
+    left: 50%;
+    bottom: -56px;
+    width: 260px;
+    height: 56px;
+    transform: translateX(-50%);
+    border-radius: 4px;
+    background: linear-gradient(180deg, #16202f, #0c1420);
+  }
+  /* The corner lockup sits on dark wall, so it needs its own light plate to
+     stay legible — the reference has it over a bright part of the room. */
+  /* The reference places the lockup straight onto the lit wall, so the mark
+     is lightened rather than sat on a plate. `brightness(0) invert(1)` would
+     be overridden by the scene entrance animation, which animates `filter`,
+     so the wordmark image is swapped for a white treatment instead. */
+  .scene03 .broadcast-wordmark {
+    filter: brightness(0) invert(1);
+    opacity: .97;
+  }
+}

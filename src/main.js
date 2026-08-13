@@ -1,82 +1,192 @@
-import './tailwind.css'
-import { isValidElement } from 'react'
-import { renderToStaticMarkup } from 'react-dom/server'
-import { renderReferenceLayer } from './components/reference-layer.js'
-import { renderSpecSheet } from './components/spec-sheet.js'
-import { renderBackgroundLayer, initBackgroundLayer } from './components/BackgroundLayer.js'
-import { createPresenterRuntime, renderPresenterLayer } from './presenter/presenterLayer.js'
-import { bindBrandAssetFallback } from './components/brandAssetFallback.js'
-import { scenes } from './scenes/index.js'
-import { loadPresentationData } from './dataService.js'
-import { getSceneBackground } from './utils/getSceneBackground.js'
-import { applySharedTickerSettings, bindTickerControls, getGlobalTicker, initGlobalTicker, renderGlobalTicker, renderTickerControls } from './globalTicker.js'
-import { getInitialLiveData, startSceneLiveData } from './obsLiveData.js'
-import { applySceneCue, disposeSceneLifecycle, hydrateLayerAnimationTargets, LAYER_CUES, registerSceneCleanup, resetSceneCue } from './sceneCueEngine.js'
-import { sceneControlById } from './sceneControls.js'
-import { fetchSharedState, subscribeSharedState, updateSharedState } from './sharedControlClient.js'
+import "./tailwind.css";
+import { isValidElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { renderReferenceLayer } from "./components/reference-layer.js";
+import { renderSpecSheet } from "./components/spec-sheet.js";
+import {
+  renderBackgroundLayer,
+  initBackgroundLayer,
+} from "./components/BackgroundLayer.js";
+import {
+  createPresenterRuntime,
+  renderPresenterLayer,
+} from "./presenter/presenterLayer.js";
+import { bindBrandAssetFallback } from "./components/brandAssetFallback.js";
+import { scenes } from "./scenes/index.js";
+import { loadPresentationData } from "./dataService.js";
+import { getSceneBackground } from "./utils/getSceneBackground.js";
+import {
+  applySharedTickerSettings,
+  bindTickerControls,
+  getGlobalTicker,
+  initGlobalTicker,
+  renderGlobalTicker,
+  renderTickerControls,
+} from "./globalTicker.js";
+import { getInitialLiveData, startSceneLiveData } from "./obsLiveData.js";
+import {
+  applySceneCue,
+  disposeSceneLifecycle,
+  hydrateLayerAnimationTargets,
+  LAYER_CUES,
+  registerSceneCleanup,
+  resetSceneCue,
+} from "./sceneCueEngine.js";
+import { sceneControlById } from "./sceneControls.js";
+import {
+  fetchSharedState,
+  subscribeSharedState,
+  updateSharedState,
+} from "./sharedControlClient.js";
 
-const app = document.querySelector('#app')
-const DEFAULT_SCENE = '01'
-const VALID_MODES = new Set(['reference', 'overlay', 'live'])
-const VALID_OUTPUTS = new Set(['storyboard', 'obs'])
-const VALID_RENDERS = new Set(['underlay', 'foreground', 'composite'])
-const OUTPUT_NAVIGATION_ORDER = ['storyboard', 'underlay', 'foreground', 'composite']
+const app = document.querySelector("#app");
+const DEFAULT_SCENE = "01";
+const VALID_MODES = new Set(["reference", "overlay", "live"]);
+const VALID_OUTPUTS = new Set(["storyboard", "obs"]);
+const VALID_RENDERS = new Set(["underlay", "foreground", "composite"]);
+const OUTPUT_NAVIGATION_ORDER = [
+  "storyboard",
+  "underlay",
+  "foreground",
+  "composite",
+];
 
-const cueTarget = (selector, index = 0) => Object.freeze({ selector, index })
+const cueTarget = (selector, index = 0) => Object.freeze({ selector, index });
 const SCENE_CUE_TARGETS = Object.freeze({
-  '01': { 'pulse-qr': cueTarget('.scene01-qr-card') },
-  '14': { 'level-participation': cueTarget('.access-level-card', 0), 'level-vip': cueTarget('.access-level-card', 1), 'level-signature': cueTarget('.access-level-card', 2), 'builder-cta': cueTarget('.builder-cta') },
-  '16': { 'dashboard-today': cueTarget('.scene16-welcome'), 'dashboard-events': cueTarget('.scene16-lower-grid > section', 0), 'dashboard-campaigns': cueTarget('.scene16-lower-grid > section', 1) },
-  '17': { 'campaign-featured': cueTarget('.scene17-card-grid article', 0), 'campaign-grid': cueTarget('.scene17-card-grid'), 'campaign-activity': cueTarget('.scene17-activity'), 'campaign-cta': cueTarget('.scene17-activity footer button') },
-  '18': { 'detail-purpose': cueTarget('.live-composition article', 1), 'detail-assets': cueTarget('.live-composition article', 2), 'detail-proof': cueTarget('.live-composition article', 3), 'detail-levels': cueTarget('.live-composition article', 4) },
-  '21': { 'share-link': cueTarget('[data-control-cue="copy-link"] button', 1), 'activity-update': cueTarget('.live-composition aside') },
-  '25': { 'trust-status': cueTarget('.scene25-trust-panel aside') },
-  '26': { 'event-featured': cueTarget('.live-composition main article', 0), 'event-upcoming': cueTarget('.live-composition main article', 1), 'event-categories': cueTarget('.live-composition main > div', 1) },
-  '27': { 'event-hero': cueTarget('.live-composition section > header'), 'event-schedule': cueTarget('.live-composition article', 0), 'event-benefits': cueTarget('.live-composition article', 1), 'event-cta': cueTarget('.live-composition aside button') },
-  '29': { 'story-1': cueTarget('.live-composition section article', 0), 'proof-update': cueTarget('.live-composition section', 1), 'delivery-status': cueTarget('.live-composition section', 2), 'creator-spotlight': cueTarget('.live-composition section', 3) },
-  '30': { 'metric-impact': cueTarget('.live-composition article', 3), 'metric-tier': cueTarget('.live-composition article', 4) },
-  '31': { 'advance-progress': cueTarget('.live-composition section > div', 1), 'current-tier': cueTarget('.live-composition article', 2), 'next-target': cueTarget('.live-composition aside') },
-  '33': { 'faq-1': cueTarget('.live-composition article', 0), 'faq-2': cueTarget('.live-composition article', 1), 'faq-3': cueTarget('.live-composition article', 2), 'faq-4': cueTarget('.live-composition article', 3), 'faq-5': cueTarget('.live-composition article', 4) },
-  '34': { 'level-participation': cueTarget('.live-composition article', 0), 'level-vip': cueTarget('.live-composition article', 1), 'level-signature': cueTarget('.live-composition article', 2), 'join-builder': cueTarget('.live-composition article:last-child > div', 0), 'chat-prompt': cueTarget('.live-composition article:last-child > div', 1) },
-  '35': { 'step-email': cueTarget('.live-composition article', 0), 'step-chat': cueTarget('.live-composition article', 1), 'step-dashboard': cueTarget('.live-composition article', 2), 'step-looplink': cueTarget('.live-composition article', 3) },
-  '37': { 'advance-counts': cueTarget('.live-composition main .grid'), 'advance-progress': cueTarget('.live-composition main > div'), 'activity-update': cueTarget('.live-composition aside') },
-  '39': { 'dashboard-cta': cueTarget('.live-composition article', 0), 'looplink-cta': cueTarget('.live-composition article', 1), 'community-cta': cueTarget('.live-composition article', 2) },
-})
+  "01": { "pulse-qr": cueTarget(".scene01-qr-card") },
+  14: {
+    "level-participation": cueTarget(".access-level-card", 0),
+    "level-vip": cueTarget(".access-level-card", 1),
+    "level-signature": cueTarget(".access-level-card", 2),
+    "builder-cta": cueTarget(".builder-cta"),
+  },
+  16: {
+    "dashboard-today": cueTarget(".scene16-welcome"),
+    "dashboard-events": cueTarget(".scene16-lower-grid > section", 0),
+    "dashboard-campaigns": cueTarget(".scene16-lower-grid > section", 1),
+  },
+  17: {
+    "campaign-featured": cueTarget(".scene17-card-grid article", 0),
+    "campaign-grid": cueTarget(".scene17-card-grid"),
+    "campaign-activity": cueTarget(".scene17-activity"),
+    "campaign-cta": cueTarget(".scene17-activity footer button"),
+  },
+  18: {
+    "detail-purpose": cueTarget(".live-composition article", 1),
+    "detail-assets": cueTarget(".live-composition article", 2),
+    "detail-proof": cueTarget(".live-composition article", 3),
+    "detail-levels": cueTarget(".live-composition article", 4),
+  },
+  21: {
+    "share-link": cueTarget('[data-control-cue="copy-link"] button', 1),
+    "activity-update": cueTarget(".live-composition aside"),
+  },
+  25: { "trust-status": cueTarget(".scene25-trust-panel aside") },
+  26: {
+    "event-featured": cueTarget(".live-composition main article", 0),
+    "event-upcoming": cueTarget(".live-composition main article", 1),
+    "event-categories": cueTarget(".live-composition main > div", 1),
+  },
+  27: {
+    "event-hero": cueTarget(".live-composition section > header"),
+    "event-schedule": cueTarget(".live-composition article", 0),
+    "event-benefits": cueTarget(".live-composition article", 1),
+    "event-cta": cueTarget(".live-composition aside button"),
+  },
+  29: {
+    "story-1": cueTarget(".live-composition section article", 0),
+    "proof-update": cueTarget(".live-composition section", 1),
+    "delivery-status": cueTarget(".live-composition section", 2),
+    "creator-spotlight": cueTarget(".live-composition section", 3),
+  },
+  30: {
+    "metric-impact": cueTarget(".live-composition article", 3),
+    "metric-tier": cueTarget(".live-composition article", 4),
+  },
+  31: {
+    "advance-progress": cueTarget(".live-composition section > div", 1),
+    "current-tier": cueTarget(".live-composition article", 2),
+    "next-target": cueTarget(".live-composition aside"),
+  },
+  33: {
+    "faq-1": cueTarget(".live-composition article", 0),
+    "faq-2": cueTarget(".live-composition article", 1),
+    "faq-3": cueTarget(".live-composition article", 2),
+    "faq-4": cueTarget(".live-composition article", 3),
+    "faq-5": cueTarget(".live-composition article", 4),
+  },
+  34: {
+    "level-participation": cueTarget(".live-composition article", 0),
+    "level-vip": cueTarget(".live-composition article", 1),
+    "level-signature": cueTarget(".live-composition article", 2),
+    "join-builder": cueTarget(".live-composition article:last-child > div", 0),
+    "chat-prompt": cueTarget(".live-composition article:last-child > div", 1),
+  },
+  35: {
+    "step-email": cueTarget(".live-composition article", 0),
+    "step-chat": cueTarget(".live-composition article", 1),
+    "step-dashboard": cueTarget(".live-composition article", 2),
+    "step-looplink": cueTarget(".live-composition article", 3),
+  },
+  37: {
+    "advance-counts": cueTarget(".live-composition main .grid"),
+    "advance-progress": cueTarget(".live-composition main > div"),
+    "activity-update": cueTarget(".live-composition aside"),
+  },
+  39: {
+    "dashboard-cta": cueTarget(".live-composition article", 0),
+    "looplink-cta": cueTarget(".live-composition article", 1),
+    "community-cta": cueTarget(".live-composition article", 2),
+  },
+});
 
 const UI = Object.freeze({
-  appShell: 'relative mx-auto h-full w-full overflow-hidden p-7 font-sans text-bema-navy',
-  header: 'relative mb-[18px] flex items-end justify-between gap-6',
-  eyebrow: 'mb-2.5 text-xs font-extrabold uppercase tracking-[.16em] text-slate-500',
-  modeGroup: 'flex flex-wrap gap-2.5',
-  modePill: 'inline-flex items-center rounded-full border border-slate-900/10 bg-white/60 px-4 py-2.5 text-sm font-bold capitalize text-slate-500 backdrop-blur',
-  modePillActive: 'border-bema-cyan/40 bg-gradient-to-br from-bema-cyan/25 to-bema-purple/20 text-bema-navy shadow-sm',
-  canvasShell: 'grid h-full w-full place-items-center pb-6',
-  canvas: 'absolute left-0 top-0 grid h-[1580px] w-[1920px] origin-top-left grid-rows-[1080px_500px] overflow-hidden rounded-panel border border-sky-300/40 bg-gradient-to-br from-white via-sky-50 to-blue-100 shadow-card [transform:scale(var(--canvas-scale))]',
-  stage: 'relative z-[2] h-[1080px] w-[1920px] overflow-hidden bg-gradient-to-br from-white via-sky-50 to-blue-100',
-  controlToggle: 'absolute right-[18px] top-[88px] z-[61] inline-flex h-[42px] cursor-pointer items-center gap-2 rounded-xl border border-indigo-200/40 bg-slate-950/90 px-3.5 text-xs font-extrabold text-indigo-50 shadow-xl backdrop-blur-xl transition hover:-translate-y-0.5 hover:border-bema-cyan',
-  controls: 'pointer-events-none absolute inset-x-5 bottom-3.5 z-[60] font-sans text-white transition duration-200',
-  controlButton: 'pointer-events-auto h-[42px] min-w-[138px] cursor-pointer rounded-xl border border-indigo-200/40 bg-slate-950/90 px-4 text-sm font-extrabold text-indigo-50 shadow-lg transition hover:-translate-y-0.5 hover:border-bema-cyan',
-  controlButtonActive: 'border-violet-400 bg-gradient-to-br from-violet-600 to-indigo-900 text-white',
-  sceneStrip: 'pointer-events-auto flex h-[54px] items-center gap-2 rounded-[13px] border border-indigo-200/30 bg-slate-950/95 p-1.5 shadow-2xl backdrop-blur-xl',
-  sceneButton: 'pointer-events-auto h-[34px] min-w-0 cursor-pointer rounded-lg border border-indigo-200/30 bg-slate-900/90 p-0 text-[10px] font-extrabold text-indigo-100 transition hover:-translate-y-0.5 hover:border-bema-cyan',
-  sceneButtonActive: 'border-bema-cyan bg-bema-cyan text-bema-deep-navy shadow-cyan',
-})
+  appShell:
+    "relative mx-auto h-full w-full overflow-hidden p-7 font-sans text-bema-navy",
+  header: "relative mb-[18px] flex items-end justify-between gap-6",
+  eyebrow:
+    "mb-2.5 text-xs font-extrabold uppercase tracking-[.16em] text-slate-500",
+  modeGroup: "flex flex-wrap gap-2.5",
+  modePill:
+    "inline-flex items-center rounded-full border border-slate-900/10 bg-white/60 px-4 py-2.5 text-sm font-bold capitalize text-slate-500 backdrop-blur",
+  modePillActive:
+    "border-bema-cyan/40 bg-gradient-to-br from-bema-cyan/25 to-bema-purple/20 text-bema-navy shadow-sm",
+  canvasShell: "grid h-full w-full place-items-center pb-6",
+  canvas:
+    "absolute left-0 top-0 grid h-[1580px] w-[1920px] origin-top-left grid-rows-[1080px_500px] overflow-hidden rounded-panel border border-sky-300/40 bg-gradient-to-br from-white via-sky-50 to-blue-100 shadow-card [transform:scale(var(--canvas-scale))]",
+  stage:
+    "relative z-[2] h-[1080px] w-[1920px] overflow-hidden bg-gradient-to-br from-white via-sky-50 to-blue-100",
+  controlToggle:
+    "absolute right-[18px] top-[88px] z-[61] inline-flex h-[42px] cursor-pointer items-center gap-2 rounded-xl border border-indigo-200/40 bg-slate-950/90 px-3.5 text-xs font-extrabold text-indigo-50 shadow-xl backdrop-blur-xl transition hover:-translate-y-0.5 hover:border-bema-cyan",
+  controls:
+    "pointer-events-none absolute inset-x-5 bottom-3.5 z-[60] font-sans text-white transition duration-200",
+  controlButton:
+    "pointer-events-auto h-[42px] min-w-[138px] cursor-pointer rounded-xl border border-indigo-200/40 bg-slate-950/90 px-4 text-sm font-extrabold text-indigo-50 shadow-lg transition hover:-translate-y-0.5 hover:border-bema-cyan",
+  controlButtonActive:
+    "border-violet-400 bg-gradient-to-br from-violet-600 to-indigo-900 text-white",
+  sceneStrip:
+    "pointer-events-auto flex h-[54px] items-center gap-2 rounded-[13px] border border-indigo-200/30 bg-slate-950/95 p-1.5 shadow-2xl backdrop-blur-xl",
+  sceneButton:
+    "pointer-events-auto h-[34px] min-w-0 cursor-pointer rounded-lg border border-indigo-200/30 bg-slate-900/90 p-0 text-[10px] font-extrabold text-indigo-100 transition hover:-translate-y-0.5 hover:border-bema-cyan",
+  sceneButtonActive:
+    "border-bema-cyan bg-bema-cyan text-bema-deep-navy shadow-cyan",
+});
 
-let detachCanvasScale
-let detachDebugTools
-let detachNavigation
-let detachGlobalTicker
-let detachSharedControl
-let startSceneSetup
-let sharedSnapshot
-let lastSharedCommandSequence = -1
-let musicAudio
-let presenterRuntime
-let presenterRuntimeState
-let cameraReportTimer
-let reportCameras
-let lastCameraRequestSequence = -1
-let audioUnlockArmed = false
+let detachCanvasScale;
+let detachDebugTools;
+let detachNavigation;
+let detachGlobalTicker;
+let detachSharedControl;
+let startSceneSetup;
+let sharedSnapshot;
+let lastSharedCommandSequence = -1;
+let musicAudio;
+let presenterRuntime;
+let presenterRuntimeState;
+let cameraReportTimer;
+let reportCameras;
+let lastCameraRequestSequence = -1;
+let audioUnlockArmed = false;
 
 const debugState = {
   gridVisible: false,
@@ -86,67 +196,100 @@ const debugState = {
   overlayLiveVisible: true,
   referenceOpacity: 0.7,
   overlayReferenceOnTop: true,
-}
+};
 
-bindBrandAssetFallback(app)
-boot().catch(showBootError)
+bindBrandAssetFallback(app);
+boot().catch(showBootError);
 
 async function boot() {
-  const params = new URLSearchParams(window.location.search)
-  const syncEnabled = params.get('sync') === 'true' || (!params.has('scene') && params.get('sync') !== 'false')
-  sharedSnapshot = syncEnabled ? await fetchSharedState().catch((error) => {
-    console.warn('Shared control server unavailable; using URL state.', error)
-    return null
-  }) : null
-  const sharedState = sharedSnapshot?.state
-  const sceneId = normalizeSceneId(sharedState?.sceneId ?? params.get('scene'))
-  const requestedMode = sharedState?.mode ?? params.get('mode')
-  const mode = VALID_MODES.has(requestedMode) ? requestedMode : 'live'
-  const requestedOutput = params.get('output')
+  const params = new URLSearchParams(window.location.search);
+  const syncEnabled =
+    params.get("sync") === "true" ||
+    (!params.has("scene") && params.get("sync") !== "false");
+  sharedSnapshot = syncEnabled
+    ? await fetchSharedState().catch((error) => {
+        console.warn(
+          "Shared control server unavailable; using URL state.",
+          error,
+        );
+        return null;
+      })
+    : null;
+  const sharedState = sharedSnapshot?.state;
+  const sceneId = normalizeSceneId(sharedState?.sceneId ?? params.get("scene"));
+  const requestedMode = sharedState?.mode ?? params.get("mode");
+  const mode = VALID_MODES.has(requestedMode) ? requestedMode : "live";
+  const requestedOutput = params.get("output");
   const output = VALID_RENDERS.has(requestedOutput)
-    ? 'obs'
-    : VALID_OUTPUTS.has(requestedOutput) ? requestedOutput : sharedSnapshot ? 'obs' : 'storyboard'
-  const render = VALID_RENDERS.has(params.get('render'))
-    ? params.get('render')
-    : VALID_RENDERS.has(requestedOutput) ? requestedOutput : 'composite'
-  if (sharedState) params.set('bgVideo', String(sharedState.backgroundVideo))
+    ? "obs"
+    : VALID_OUTPUTS.has(requestedOutput)
+      ? requestedOutput
+      : sharedSnapshot
+        ? "obs"
+        : "storyboard";
+  const render = VALID_RENDERS.has(params.get("render"))
+    ? params.get("render")
+    : VALID_RENDERS.has(requestedOutput)
+      ? requestedOutput
+      : "composite";
+  if (sharedState) params.set("bgVideo", String(sharedState.backgroundVideo));
   if (sharedState) {
-    params.set('dataMode', sharedState.dataMode)
-    if (sharedState.dataRange?.since) params.set('dataSince', sharedState.dataRange.since)
-    else params.delete('dataSince')
-    if (sharedState.dataRange?.until) params.set('dataUntil', sharedState.dataRange.until)
-    else params.delete('dataUntil')
+    params.set("dataMode", sharedState.dataMode);
+    if (sharedState.dataRange?.since)
+      params.set("dataSince", sharedState.dataRange.since);
+    else params.delete("dataSince");
+    if (sharedState.dataRange?.until)
+      params.set("dataUntil", sharedState.dataRange.until);
+    else params.delete("dataUntil");
   }
-  const clean = params.get('clean') === 'true'
-  const controllerPreview = params.get('controllerPreview') === 'true'
+  const clean = params.get("clean") === "true";
+  const controllerPreview = params.get("controllerPreview") === "true";
   // Opening a camera is opt-in per page, never implied by the render mode (§16).
   // The controller's preview iframe is composite too, and must never be able to
   // grab the webcam of the laptop the operator happens to be sitting at.
-  const cameraEngine = params.get('camera') === 'browser' && !controllerPreview ? 'browser' : 'none'
-  const paused = sharedState?.animationsPaused ?? (params.get('paused') === 'true')
-  const showControls = params.get('legacyControls') === 'true' && render === 'composite' && !clean && !controllerPreview
-  const controlsVisible = params.get('controls') !== 'false'
-  const selectedQuestion = sharedState?.selectedQuestion ?? getSelectedQuestion(params)
-  const scene03PresenterName = sharedState?.scene03PresenterName ?? 'Joyce Root'
+  const cameraEngine =
+    params.get("camera") === "browser" && !controllerPreview
+      ? "browser"
+      : "none";
+  const paused =
+    sharedState?.animationsPaused ?? params.get("paused") === "true";
+  const showControls =
+    params.get("legacyControls") === "true" &&
+    render === "composite" &&
+    !clean &&
+    !controllerPreview;
+  const controlsVisible = params.get("controls") !== "false";
+  const selectedQuestion =
+    sharedState?.selectedQuestion ?? getSelectedQuestion(params);
+  const scene03PresenterName =
+    sharedState?.scene03PresenterName ?? "Joyce Root";
 
-  document.documentElement.dataset.output = output
-  document.documentElement.dataset.render = render
-  document.documentElement.dataset.scene = sceneId
-  document.documentElement.dataset.mode = mode
-  document.documentElement.dataset.sharedControl = String(syncEnabled && Boolean(sharedSnapshot))
-  document.documentElement.classList.toggle('shared-animations-paused', paused)
-  debugState.referenceOpacity = parseOpacity(params.get('refOpacity'))
-  debugState.overlayReferenceOnTop = params.get('refOnTop') !== 'false'
-  const overlayView = params.get('overlayView')
-  debugState.overlayReferenceVisible = overlayView !== 'live'
-  debugState.overlayLiveVisible = overlayView !== 'reference'
+  document.documentElement.dataset.output = output;
+  document.documentElement.dataset.render = render;
+  document.documentElement.dataset.scene = sceneId;
+  document.documentElement.dataset.mode = mode;
+  document.documentElement.dataset.sharedControl = String(
+    syncEnabled && Boolean(sharedSnapshot),
+  );
+  document.documentElement.classList.toggle("shared-animations-paused", paused);
+  debugState.referenceOpacity = parseOpacity(params.get("refOpacity"));
+  debugState.overlayReferenceOnTop = params.get("refOnTop") !== "false";
+  const overlayView = params.get("overlayView");
+  debugState.overlayReferenceVisible = overlayView !== "live";
+  debugState.overlayLiveVisible = overlayView !== "reference";
 
-  const data = await loadPresentationData()
-  const slide = data.slides.find((item) => item.id === sceneId) ?? data.slides[0]
-  if (!slide) throw new Error('No slide configuration found in /public/data/slides.json.')
+  const data = await loadPresentationData();
+  const slide =
+    data.slides.find((item) => item.id === sceneId) ?? data.slides[0];
+  if (!slide)
+    throw new Error(
+      "No slide configuration found in /public/data/slides.json.",
+    );
 
-  const sceneRenderer = scenes[slide.id]
-  const canRenderLive = Boolean(sceneRenderer?.render || sceneRenderer?.renderUnderlay)
+  const sceneRenderer = scenes[slide.id];
+  const canRenderLive = Boolean(
+    sceneRenderer?.render || sceneRenderer?.renderUnderlay,
+  );
   const context = {
     ...data,
     clean,
@@ -154,13 +297,15 @@ async function boot() {
     cameraEngine,
     // The dedicated 1920x1080 program wrapper, used for the live composite
     // output only — storyboard and review keep the 1580px review canvas (§3).
-    isProgramOutput: output === 'obs' && render === 'composite' && mode !== 'reference',
+    isProgramOutput:
+      output === "obs" && render === "composite" && mode !== "reference",
     mode,
     output,
     render,
     paused,
-    presenterLayout: params.get('presenter') === 'overlay' ? 'overlay' : 'boxed',
-    presenterInset: params.get('presenterInset') === 'right' ? 'right' : 'left',
+    presenterLayout:
+      params.get("presenter") === "overlay" ? "overlay" : "boxed",
+    presenterInset: params.get("presenterInset") === "right" ? "right" : "left",
     metrics: data.metrics,
     questions: data.promptSource.enabledPrompts,
     deprecatedWarnings: data.promptSource.deprecatedWarnings,
@@ -170,90 +315,127 @@ async function boot() {
     liveData: getInitialLiveData(),
     // Without a control server every layer is on except the camera, which needs
     // an explicit operator decision before a webcam light comes on.
-    layers: sharedState?.layers ?? { background: true, foreground: true, presenter: false, ticker: true },
-    presenter: sharedState?.presenter ?? { x: 1320, y: 620, width: 520, height: 293, shape: 'rounded', mirrored: true, fit: 'cover' },
+    layers: sharedState?.layers ?? {
+      background: true,
+      foreground: true,
+      presenter: false,
+      ticker: true,
+    },
+    presenter: sharedState?.presenter ?? {
+      x: 1320,
+      y: 620,
+      width: 520,
+      height: 293,
+      shape: "rounded",
+      mirrored: true,
+      fit: "cover",
+    },
     url: params,
     refOpacity: debugState.referenceOpacity,
     refOnTop: debugState.overlayReferenceOnTop,
-    backgroundDebug: params.get('bgDebug') === 'true',
+    backgroundDebug: params.get("bgDebug") === "true",
     canRenderLive,
     showControls,
     controlsVisible,
     selectedQuestion,
     scene03PresenterName,
     syncEnabled,
-  }
+  };
 
-  document.title = `BemaHub OBS - Scene ${slide.id} ${mode}`
-  renderApp(context, sceneRenderer)
+  document.title = `BemaHub OBS - Scene ${slide.id} ${mode}`;
+  renderApp(context, sceneRenderer);
   if (syncEnabled) {
-    detachNavigation?.()
-    detachNavigation = undefined
+    detachNavigation?.();
+    detachNavigation = undefined;
   } else {
-    bindPresentationNavigation(context)
+    bindPresentationNavigation(context);
   }
-  bindOnCanvasControls(context)
+  bindOnCanvasControls(context);
 
-  detachGlobalTicker?.()
-  detachGlobalTicker = initGlobalTicker(app, context)
+  detachGlobalTicker?.();
+  detachGlobalTicker = initGlobalTicker(app, context);
 
-  disposeSceneLifecycle(app)
+  disposeSceneLifecycle(app);
   startSceneSetup = () => {
-    disposeSceneLifecycle(app)
-    const cleanupScene = sceneRenderer?.setup?.(app, context)
-    const cleanupLiveData = startSceneLiveData(app, context, (items) => getGlobalTicker(context.url).pushActivity(items))
+    disposeSceneLifecycle(app);
+    const cleanupScene = sceneRenderer?.setup?.(app, context);
+    const cleanupLiveData = startSceneLiveData(app, context, (items) =>
+      getGlobalTicker(context.url).pushActivity(items),
+    );
     registerSceneCleanup(app, () => {
-      cleanupScene?.()
-      cleanupLiveData?.()
-    })
-  }
+      cleanupScene?.();
+      cleanupLiveData?.();
+    });
+  };
 
-  const requestedCue = params.get('cue') || (params.get('replay') === 'entry' ? 'entry' : '')
-  if (requestedCue && canRenderLive && (mode === 'live' || mode === 'overlay')) {
-    if (requestedCue === 'reset') resetSceneCue(app)
-    else applySceneCue(app, requestedCue)
-    if (requestedCue !== 'exit' && requestedCue !== 'reset' && !paused) startSceneSetup()
-    const settledUrl = new URL(location.href)
-    settledUrl.searchParams.delete('replay')
-    settledUrl.searchParams.delete('cue')
-    history.replaceState(null, '', settledUrl)
-  } else if (canRenderLive && !paused && (mode === 'live' || mode === 'overlay')) {
-    startSceneSetup()
+  const requestedCue =
+    params.get("cue") || (params.get("replay") === "entry" ? "entry" : "");
+  if (
+    requestedCue &&
+    canRenderLive &&
+    (mode === "live" || mode === "overlay")
+  ) {
+    if (requestedCue === "reset") resetSceneCue(app);
+    else applySceneCue(app, requestedCue);
+    if (requestedCue !== "exit" && requestedCue !== "reset" && !paused)
+      startSceneSetup();
+    const settledUrl = new URL(location.href);
+    settledUrl.searchParams.delete("replay");
+    settledUrl.searchParams.delete("cue");
+    history.replaceState(null, "", settledUrl);
+  } else if (
+    canRenderLive &&
+    !paused &&
+    (mode === "live" || mode === "overlay")
+  ) {
+    startSceneSetup();
   }
 
   if (sharedSnapshot) {
-    applySharedLayers(sharedState, null, context)
-    applySharedMusic(sharedState.music, null, context)
-    applySharedTickerSettings(sharedState.ticker, sharedSnapshot.revision)
-    applySharedControlCommand(sharedSnapshot, context)
-    detachSharedControl?.()
-    detachSharedControl = subscribeSharedState((nextSnapshot) => syncSharedPresentation(nextSnapshot, context))
+    applySharedLayers(sharedState, null, context);
+    applySharedMusic(sharedState.music, null, context);
+    applySharedTickerSettings(sharedState.ticker, sharedSnapshot.revision);
+    applySharedControlCommand(sharedSnapshot, context);
+    detachSharedControl?.();
+    detachSharedControl = subscribeSharedState((nextSnapshot) =>
+      syncSharedPresentation(nextSnapshot, context),
+    );
   }
 }
 
 function applySharedControlCommand(snapshot, context) {
-  const command = snapshot?.state?.command
-  if (!command || command.sequence === lastSharedCommandSequence) return
-  lastSharedCommandSequence = command.sequence
-  if (context.mode !== 'live' && context.mode !== 'overlay') return
-  if (command.type === 'reset' || command.cue === 'reset') {
-    disposeSceneLifecycle(app)
-    resetSceneCue(app)
-    return
+  const command = snapshot?.state?.command;
+  if (!command || command.sequence === lastSharedCommandSequence) return;
+  lastSharedCommandSequence = command.sequence;
+  if (context.mode !== "live" && context.mode !== "overlay") return;
+  if (command.type === "reset" || command.cue === "reset") {
+    disposeSceneLifecycle(app);
+    resetSceneCue(app);
+    return;
   }
-  if (context.slide.id === '36' && /^question-[1-4]$/.test(command.cue)) {
-    const selected = Number(command.cue.split('-')[1])
-    app.querySelectorAll('[data-operator-question-index]').forEach((element) => {
-      const isSelected = Number(element.dataset.operatorQuestionIndex) === selected
-      element.classList.toggle('is-operator-selected', isSelected)
-      element.setAttribute('aria-current', isSelected ? 'true' : 'false')
-    })
-    app.querySelector('.visual-stage')?.setAttribute('data-selected-question', String(selected))
+  if (context.slide.id === "36" && /^question-[1-4]$/.test(command.cue)) {
+    const selected = Number(command.cue.split("-")[1]);
+    app
+      .querySelectorAll("[data-operator-question-index]")
+      .forEach((element) => {
+        const isSelected =
+          Number(element.dataset.operatorQuestionIndex) === selected;
+        element.classList.toggle("is-operator-selected", isSelected);
+        element.setAttribute("aria-current", isSelected ? "true" : "false");
+      });
+    app
+      .querySelector(".visual-stage")
+      ?.setAttribute("data-selected-question", String(selected));
   }
-  if (command.cue === 'entry' || command.cue === LAYER_CUES.full) disposeSceneLifecycle(app)
-  applySceneCue(app, command.cue)
-  if ((command.cue === 'entry' || command.cue === LAYER_CUES.full) && !snapshot.state.animationsPaused) startSceneSetup?.()
-  if (command.cue === 'exit') disposeSceneLifecycle(app)
+  if (command.cue === "entry" || command.cue === LAYER_CUES.full)
+    disposeSceneLifecycle(app);
+  applySceneCue(app, command.cue);
+  if (
+    (command.cue === "entry" || command.cue === LAYER_CUES.full) &&
+    !snapshot.state.animationsPaused
+  )
+    startSceneSetup?.();
+  if (command.cue === "exit") disposeSceneLifecycle(app);
 }
 
 /**
@@ -264,19 +446,25 @@ function applySharedControlCommand(snapshot, context) {
  * screen the factor is exactly 1 and the stage is pixel-for-pixel.
  */
 function bindProgramScale() {
-  detachCanvasScale?.()
-  const stage = app.querySelector('[data-program-stage]')
-  if (!stage) return
+  detachCanvasScale?.();
+  const stage = app.querySelector("[data-program-stage]");
+  if (!stage) return;
   const update = () => {
-    const scale = Math.min(window.innerWidth / 1920, window.innerHeight / 1080)
-    stage.style.setProperty('--program-scale', scale)
+    const scale = Math.min(window.innerWidth / 1920, window.innerHeight / 1080);
+    stage.style.setProperty("--program-scale", scale);
     // Centre whatever letterboxing the display's aspect ratio leaves over.
-    stage.style.setProperty('--program-offset-x', `${Math.max(0, (window.innerWidth - 1920 * scale) / 2)}px`)
-    stage.style.setProperty('--program-offset-y', `${Math.max(0, (window.innerHeight - 1080 * scale) / 2)}px`)
-  }
-  update()
-  window.addEventListener('resize', update)
-  detachCanvasScale = () => window.removeEventListener('resize', update)
+    stage.style.setProperty(
+      "--program-offset-x",
+      `${Math.max(0, (window.innerWidth - 1920 * scale) / 2)}px`,
+    );
+    stage.style.setProperty(
+      "--program-offset-y",
+      `${Math.max(0, (window.innerHeight - 1080 * scale) / 2)}px`,
+    );
+  };
+  update();
+  window.addEventListener("resize", update);
+  detachCanvasScale = () => window.removeEventListener("resize", update);
 }
 
 /** Brings up the presenter runtime once per page and binds it to the DOM. */
@@ -284,22 +472,30 @@ function mountPresenterRuntime(context) {
   if (!presenterRuntime) {
     presenterRuntime = createPresenterRuntime({
       onChange: (state) => {
-        const previous = presenterRuntimeState?.camera
-        presenterRuntimeState = state
+        const previous = presenterRuntimeState?.camera;
+        presenterRuntimeState = state;
         // Device labels only exist once a camera has actually opened, so the
         // first report is unlabelled. Re-report when the open completes.
-        if (state.camera.deviceLabel && state.camera.deviceLabel !== previous?.deviceLabel) reportCameras?.()
+        if (
+          state.camera.deviceLabel &&
+          state.camera.deviceLabel !== previous?.deviceLabel
+        )
+          reportCameras?.();
         // Granting camera access lifts the page's autoplay restriction, so a
         // bed that was blocked at load can usually start the moment the camera
         // comes up — without anyone clicking anything.
-        if (state.camera.status === 'ready' && previous?.status !== 'ready') {
-          musicAudio?.play().catch(() => { /* Still blocked; the gesture listener covers it. */ })
+        if (state.camera.status === "ready" && previous?.status !== "ready") {
+          musicAudio?.play().catch(() => {
+            /* Still blocked; the gesture listener covers it. */
+          });
         }
       },
-    })
-    if (context.syncEnabled) startCameraReporting()
+    });
+    if (context.syncEnabled) startCameraReporting();
   }
-  presenterRuntime.mount(app, context.presenter, { visible: context.layers.presenter })
+  presenterRuntime.mount(app, context.presenter, {
+    visible: context.layers.presenter,
+  });
 }
 
 /**
@@ -312,22 +508,24 @@ function mountPresenterRuntime(context) {
  */
 function startCameraReporting() {
   reportCameras = async () => {
-    const devices = await presenterRuntime.devices()
-    const camera = presenterRuntime.getState().camera
+    const devices = await presenterRuntime.devices();
+    const camera = presenterRuntime.getState().camera;
     await updateSharedState({
       camera: {
         devices,
-        activeId: camera.deviceId || '',
-        activeLabel: camera.deviceLabel || '',
+        activeId: camera.deviceId || "",
+        activeLabel: camera.deviceLabel || "",
         reportedAt: Date.now(),
       },
-    }).catch(() => { /* A reporting failure must never disturb the program. */ })
-  }
-  reportCameras()
+    }).catch(() => {
+      /* A reporting failure must never disturb the program. */
+    });
+  };
+  reportCameras();
   // Labels stay blank until permission is granted, so re-report once the camera
   // has opened, and whenever hardware is plugged in or paired.
-  presenterRuntime.watchCameras(reportCameras)
-  cameraReportTimer = window.setInterval(reportCameras, 15_000)
+  presenterRuntime.watchCameras(reportCameras);
+  cameraReportTimer = window.setInterval(reportCameras, 15_000);
 }
 
 /**
@@ -337,25 +535,29 @@ function startCameraReporting() {
  * page already applied, so re-receiving the same state is harmless.
  */
 async function applyCameraRequest(next) {
-  const request = next.camera
-  if (!presenterRuntime || !request) return
-  if (!request.requestSequence || request.requestSequence === lastCameraRequestSequence) return
-  lastCameraRequestSequence = request.requestSequence
+  const request = next.camera;
+  if (!presenterRuntime || !request) return;
+  if (
+    !request.requestSequence ||
+    request.requestSequence === lastCameraRequestSequence
+  )
+    return;
+  lastCameraRequestSequence = request.requestSequence;
   // Re-requesting the device already on air is the operator's "refresh": the
   // switch is a no-op, but the report below still republishes the device list.
-  const ok = await presenterRuntime.switchCamera(request.requestedId)
-  const camera = presenterRuntime.getState().camera
+  const ok = await presenterRuntime.switchCamera(request.requestedId);
+  const camera = presenterRuntime.getState().camera;
   // Confirm what actually opened, so the controller reflects reality rather
   // than the request — including when the requested device refused.
   updateSharedState({
     camera: {
-      activeId: camera.deviceId || '',
-      activeLabel: camera.deviceLabel || '',
+      activeId: camera.deviceId || "",
+      activeLabel: camera.deviceLabel || "",
       devices: await presenterRuntime.devices(),
       reportedAt: Date.now(),
-      ...(ok ? {} : { requestedId: '' }),
+      ...(ok ? {} : { requestedId: "" }),
     },
-  }).catch(() => {})
+  }).catch(() => {});
 }
 
 /**
@@ -366,79 +568,108 @@ async function applyCameraRequest(next) {
  * stream, so dragging the presenter card would strobe the picture on air.
  */
 function applySharedLayers(next, previous, context) {
-  const layers = next.layers ?? {}
-  context.layers = layers
+  const layers = next.layers ?? {};
+  context.layers = layers;
 
-  app.querySelector('[data-live-layer="underlay"]')?.toggleAttribute('hidden', layers.background === false)
-  app.querySelector('[data-live-layer="foreground"]')?.toggleAttribute('hidden', layers.foreground === false)
-  app.querySelector('[data-background-layer]')?.toggleAttribute('hidden', layers.background === false)
-  app.querySelector('[data-global-live-ticker]')?.toggleAttribute('hidden', layers.ticker === false)
+  app
+    .querySelector('[data-live-layer="underlay"]')
+    ?.toggleAttribute("hidden", layers.background === false);
+  app
+    .querySelector('[data-live-layer="foreground"]')
+    ?.toggleAttribute("hidden", layers.foreground === false);
+  app
+    .querySelector("[data-background-layer]")
+    ?.toggleAttribute("hidden", layers.background === false);
+  app
+    .querySelector("[data-global-live-ticker]")
+    ?.toggleAttribute("hidden", layers.ticker === false);
 
-  const presenter = next.presenter ?? {}
-  context.presenter = presenter
+  const presenter = next.presenter ?? {};
+  context.presenter = presenter;
   // The runtime decides for itself whether a change needs the camera touched;
   // placement and appearance are applied without disturbing the stream (§20).
-  presenterRuntime?.update(presenter, { visible: layers.presenter === true })
-  applyCameraRequest(next)
+  presenterRuntime?.update(presenter, { visible: layers.presenter === true });
+  applyCameraRequest(next);
 }
 
 function musicPlaybackPosition(music) {
-  if (!music?.playing || !music.startedAt) return Math.max(0, Number(music?.position) || 0)
-  return Math.max(0, (Number(music.position) || 0) + (Date.now() - Number(music.startedAt)) / 1000)
+  if (!music?.playing || !music.startedAt)
+    return Math.max(0, Number(music?.position) || 0);
+  return Math.max(
+    0,
+    (Number(music.position) || 0) +
+      (Date.now() - Number(music.startedAt)) / 1000,
+  );
 }
 
 function seekMusic(audio, music) {
-  const position = musicPlaybackPosition(music)
-  const target = audio.loop && Number.isFinite(audio.duration) && audio.duration > 0
-    ? position % audio.duration
-    : position
-  try { audio.currentTime = target } catch { /* Metadata may not be available yet. */ }
+  const position = musicPlaybackPosition(music);
+  const target =
+    audio.loop && Number.isFinite(audio.duration) && audio.duration > 0
+      ? position % audio.duration
+      : position;
+  try {
+    audio.currentTime = target;
+  } catch {
+    /* Metadata may not be available yet. */
+  }
 }
 
 function applySharedMusic(music, previous, context) {
   // One page owns the audio bed. The controller preview and the underlay-only
   // page stay silent so a second open tab can never double the music.
-  const shouldOutputMusic = context.render === 'composite' && !context.controllerPreview
+  const shouldOutputMusic =
+    context.render === "composite" && !context.controllerPreview;
   if (!shouldOutputMusic) {
-    musicAudio?.pause()
-    return
+    musicAudio?.pause();
+    return;
   }
 
   if (!musicAudio) {
-    musicAudio = new Audio()
-    musicAudio.preload = 'auto'
-    musicAudio.loop = true
+    musicAudio = new Audio();
+    musicAudio.preload = "auto";
+    musicAudio.loop = true;
   }
 
-  const trackChanged = music?.track !== previous?.track
-  const timelineChanged = trackChanged
-    || music?.playing !== previous?.playing
-    || music?.position !== previous?.position
-    || music?.startedAt !== previous?.startedAt
+  const trackChanged = music?.track !== previous?.track;
+  const timelineChanged =
+    trackChanged ||
+    music?.playing !== previous?.playing ||
+    music?.position !== previous?.position ||
+    music?.startedAt !== previous?.startedAt;
 
-  musicAudio.volume = Math.min(1, Math.max(0, (Number(music?.volume) || 0) / 100))
-  musicAudio.muted = Boolean(music?.muted)
+  musicAudio.volume = Math.min(
+    1,
+    Math.max(0, (Number(music?.volume) || 0) / 100),
+  );
+  musicAudio.muted = Boolean(music?.muted);
 
   if (!music?.track) {
-    musicAudio.pause()
-    musicAudio.removeAttribute('src')
-    return
+    musicAudio.pause();
+    musicAudio.removeAttribute("src");
+    return;
   }
 
   if (trackChanged || !musicAudio.src) {
-    musicAudio.src = music.track
-    musicAudio.load()
+    musicAudio.src = music.track;
+    musicAudio.load();
   }
   if (timelineChanged) {
-    if (musicAudio.readyState >= HTMLMediaElement.HAVE_METADATA) seekMusic(musicAudio, music)
-    else musicAudio.addEventListener('loadedmetadata', () => seekMusic(musicAudio, music), { once: true })
+    if (musicAudio.readyState >= HTMLMediaElement.HAVE_METADATA)
+      seekMusic(musicAudio, music);
+    else
+      musicAudio.addEventListener(
+        "loadedmetadata",
+        () => seekMusic(musicAudio, music),
+        { once: true },
+      );
   }
 
   if (music.playing) {
-    musicAudio.play().catch(armAudioUnlock)
+    musicAudio.play().catch(armAudioUnlock);
   } else {
-    musicAudio.pause()
-    if (timelineChanged) seekMusic(musicAudio, music)
+    musicAudio.pause();
+    if (timelineChanged) seekMusic(musicAudio, music);
   }
 }
 
@@ -453,189 +684,258 @@ function applySharedMusic(music, previous, context) {
  * sees anything, and nothing is ever drawn over the show.
  */
 function armAudioUnlock() {
-  if (audioUnlockArmed) return
-  audioUnlockArmed = true
-  const events = ['pointerdown', 'keydown', 'touchstart']
+  if (audioUnlockArmed) return;
+  audioUnlockArmed = true;
+  const events = ["pointerdown", "keydown", "touchstart"];
   const unlock = () => {
-    musicAudio?.play().then(() => {
-      events.forEach((name) => window.removeEventListener(name, unlock, true))
-      audioUnlockArmed = false
-    }).catch(() => { /* Still blocked; stay armed for the next gesture. */ })
-  }
+    musicAudio
+      ?.play()
+      .then(() => {
+        events.forEach((name) =>
+          window.removeEventListener(name, unlock, true),
+        );
+        audioUnlockArmed = false;
+      })
+      .catch(() => {
+        /* Still blocked; stay armed for the next gesture. */
+      });
+  };
   // Capture phase, so a gesture is seen even if something stops propagation.
-  events.forEach((name) => window.addEventListener(name, unlock, true))
+  events.forEach((name) => window.addEventListener(name, unlock, true));
 }
 
 function syncSharedPresentation(nextSnapshot, context) {
-  if (!nextSnapshot?.state || nextSnapshot.revision <= (sharedSnapshot?.revision ?? -1)) return
-  const previous = sharedSnapshot?.state
-  sharedSnapshot = nextSnapshot
-  const next = nextSnapshot.state
-  const requiresReload = next.sceneId !== context.slide.id
-    || next.mode !== context.mode
-    || next.backgroundVideo !== previous?.backgroundVideo
-    || next.dataMode !== previous?.dataMode
-    || next.dataRange?.since !== previous?.dataRange?.since
-    || next.dataRange?.until !== previous?.dataRange?.until
-    || (context.slide.id === '36' && next.selectedQuestion !== previous?.selectedQuestion && next.command.sequence === lastSharedCommandSequence)
+  if (
+    !nextSnapshot?.state ||
+    nextSnapshot.revision <= (sharedSnapshot?.revision ?? -1)
+  )
+    return;
+  const previous = sharedSnapshot?.state;
+  sharedSnapshot = nextSnapshot;
+  const next = nextSnapshot.state;
+  const requiresReload =
+    next.sceneId !== context.slide.id ||
+    next.mode !== context.mode ||
+    next.backgroundVideo !== previous?.backgroundVideo ||
+    next.dataMode !== previous?.dataMode ||
+    next.dataRange?.since !== previous?.dataRange?.since ||
+    next.dataRange?.until !== previous?.dataRange?.until ||
+    (context.slide.id === "36" &&
+      next.selectedQuestion !== previous?.selectedQuestion &&
+      next.command.sequence === lastSharedCommandSequence);
   if (requiresReload) {
-    const url = new URL(location.href)
-    url.searchParams.set('scene', next.sceneId)
-    url.searchParams.set('mode', next.mode)
-    url.searchParams.set('bgVideo', String(next.backgroundVideo))
-    url.searchParams.set('question', String(next.selectedQuestion))
-    url.searchParams.set('dataMode', next.dataMode)
-    if (next.dataRange?.since) url.searchParams.set('dataSince', next.dataRange.since)
-    else url.searchParams.delete('dataSince')
-    if (next.dataRange?.until) url.searchParams.set('dataUntil', next.dataRange.until)
-    else url.searchParams.delete('dataUntil')
-    location.replace(url)
-    return
+    const url = new URL(location.href);
+    url.searchParams.set("scene", next.sceneId);
+    url.searchParams.set("mode", next.mode);
+    url.searchParams.set("bgVideo", String(next.backgroundVideo));
+    url.searchParams.set("question", String(next.selectedQuestion));
+    url.searchParams.set("dataMode", next.dataMode);
+    if (next.dataRange?.since)
+      url.searchParams.set("dataSince", next.dataRange.since);
+    else url.searchParams.delete("dataSince");
+    if (next.dataRange?.until)
+      url.searchParams.set("dataUntil", next.dataRange.until);
+    else url.searchParams.delete("dataUntil");
+    location.replace(url);
+    return;
   }
 
-  document.documentElement.classList.toggle('shared-animations-paused', next.animationsPaused)
-  app.querySelector('[data-app-shell]')?.classList.toggle('is-paused', next.animationsPaused)
-  applySharedLayers(next, previous, context)
-  if (next.animationsPaused && !previous?.animationsPaused) disposeSceneLifecycle(app)
-  if (!next.animationsPaused && previous?.animationsPaused && (context.mode === 'live' || context.mode === 'overlay')) startSceneSetup?.()
-  applySharedMusic(next.music, previous?.music, context)
-  applySharedTickerSettings(next.ticker, nextSnapshot.revision)
-  const scene03PresenterName = app.querySelector('[data-scene03-presenter-name]')
-  if (scene03PresenterName && next.scene03PresenterName !== previous?.scene03PresenterName) {
-    scene03PresenterName.textContent = next.scene03PresenterName
+  document.documentElement.classList.toggle(
+    "shared-animations-paused",
+    next.animationsPaused,
+  );
+  app
+    .querySelector("[data-app-shell]")
+    ?.classList.toggle("is-paused", next.animationsPaused);
+  applySharedLayers(next, previous, context);
+  if (next.animationsPaused && !previous?.animationsPaused)
+    disposeSceneLifecycle(app);
+  if (
+    !next.animationsPaused &&
+    previous?.animationsPaused &&
+    (context.mode === "live" || context.mode === "overlay")
+  )
+    startSceneSetup?.();
+  applySharedMusic(next.music, previous?.music, context);
+  applySharedTickerSettings(next.ticker, nextSnapshot.revision);
+  const scene03PresenterName = app.querySelector(
+    "[data-scene03-presenter-name]",
+  );
+  if (
+    scene03PresenterName &&
+    next.scene03PresenterName !== previous?.scene03PresenterName
+  ) {
+    scene03PresenterName.textContent = next.scene03PresenterName;
   }
-  applySharedControlCommand(nextSnapshot, context)
+  applySharedControlCommand(nextSnapshot, context);
 }
 
 function renderApp(context, sceneRenderer) {
-  const { mode, output, render, paused, slide, canRenderLive } = context
-  if (mode === 'reference' && output === 'storyboard') {
+  const { mode, output, render, paused, slide, canRenderLive } = context;
+  if (mode === "reference" && output === "storyboard") {
     app.innerHTML = `
       <main class="app-shell reference-review-app font-sans text-bema-navy" data-app-shell data-testid="app-shell">
-        ${context.showControls ? renderOnCanvasControls(context) : ''}
+        ${context.showControls ? renderOnCanvasControls(context) : ""}
         <section class="reference-review-shell" data-canvas-shell>
           <div class="storyboard-canvas reference-sheet-canvas" data-storyboard-canvas data-testid="storyboard-canvas">
-            ${renderReferenceLayer(slide, { variant: 'sheet' })}
+            ${renderReferenceLayer(slide, { variant: "sheet" })}
           </div>
         </section>
-      </main>`
-    bindCanvasScale(context)
-    return
+      </main>`;
+    bindCanvasScale(context);
+    return;
   }
 
-  const showUnderlay = render !== 'foreground'
-  const showForeground = render !== 'underlay'
-  const underlayMarkup = canRenderLive ? renderUnderlay(sceneRenderer, context) : ''
-  const foregroundMarkup = canRenderLive ? renderMarkup(sceneRenderer.renderForeground?.(context)) : ''
-  const showBackground = mode !== 'reference' && showUnderlay && canRenderLive && context.layers.background
+  const showUnderlay = render !== "foreground";
+  const showForeground = render !== "underlay";
+  const underlayMarkup = canRenderLive
+    ? renderUnderlay(sceneRenderer, context)
+    : "";
+  const foregroundMarkup = canRenderLive
+    ? renderMarkup(sceneRenderer.renderForeground?.(context))
+    : "";
+  const showBackground =
+    mode !== "reference" &&
+    showUnderlay &&
+    canRenderLive &&
+    context.layers.background;
   // Only a page explicitly asked to own the camera renders the presenter, so
   // /presentation, /ticker, and the controller preview never touch it (§16).
-  const showPresenter = showForeground && context.cameraEngine === 'browser'
-  const { backgroundId } = getSceneBackground(Number(slide.id))
-  const shellClasses = ['app-shell', UI.appShell, `output-${output}`, `render-${render}`, `mode-${mode}`]
-  const canvasClasses = ['storyboard-canvas', UI.canvas, `mode-${mode}`, `output-${output}`, `render-${render}`]
-  if (output === 'obs') shellClasses.push('!h-screen !w-screen !max-w-none !p-0')
-  if (mode === 'reference') shellClasses.push('!p-0')
-  if (output === 'obs') canvasClasses.push('!h-[1080px] !grid-rows-[1080px] !rounded-none !border-0 !shadow-none')
-  if (mode === 'reference') canvasClasses.push('!rounded-none !border-0 !bg-transparent !shadow-none')
-  if (context.refOnTop && mode === 'overlay') canvasClasses.push('reference-on-top')
-  if (paused) shellClasses.push('is-paused')
+  const showPresenter = showForeground && context.cameraEngine === "browser";
+  const { backgroundId } = getSceneBackground(Number(slide.id));
+  const shellClasses = [
+    "app-shell",
+    UI.appShell,
+    `output-${output}`,
+    `render-${render}`,
+    `mode-${mode}`,
+  ];
+  const canvasClasses = [
+    "storyboard-canvas",
+    UI.canvas,
+    `mode-${mode}`,
+    `output-${output}`,
+    `render-${render}`,
+  ];
+  if (output === "obs")
+    shellClasses.push("!h-screen !w-screen !max-w-none !p-0");
+  if (mode === "reference") shellClasses.push("!p-0");
+  if (output === "obs")
+    canvasClasses.push(
+      "!h-[1080px] !grid-rows-[1080px] !rounded-none !border-0 !shadow-none",
+    );
+  if (mode === "reference")
+    canvasClasses.push("!rounded-none !border-0 !bg-transparent !shadow-none");
+  if (context.refOnTop && mode === "overlay")
+    canvasClasses.push("reference-on-top");
+  if (paused) shellClasses.push("is-paused");
 
-  const showHeader = output === 'storyboard' && mode !== 'reference'
-  const showSpec = output === 'storyboard' && mode !== 'reference'
-  const showDebug = !context.clean && !context.controllerPreview && mode !== 'reference' && output === 'storyboard'
+  const showHeader = output === "storyboard" && mode !== "reference";
+  const showSpec = output === "storyboard" && mode !== "reference";
+  const showDebug =
+    !context.clean &&
+    !context.controllerPreview &&
+    mode !== "reference" &&
+    output === "storyboard";
 
   const stageMarkup = `
-    <section class="visual-stage ${UI.stage} ${render === 'foreground' || mode === 'reference' ? '!bg-transparent' : ''} output-stage-${output} render-stage-${render}" data-visual-stage data-testid="visual-stage" aria-label="Program visual stage">
-      ${(mode === 'reference' || mode === 'overlay') ? renderReferenceLayer(slide, { opacity: getReferenceOpacity(mode), isVisible: shouldShowReference(mode) }) : ''}
-      ${(mode === 'live' || mode === 'overlay') ? `<div class="live-composition absolute inset-0" data-live-composition style="visibility:${mode === 'overlay' && !debugState.overlayLiveVisible ? 'hidden' : 'visible'}">
-        ${showBackground ? renderBackgroundLayer({ sceneId: slide.id, backgroundId, className: 'stage-background-layer', debug: context.backgroundDebug && !context.clean }) : ''}
-        ${showUnderlay ? `<div class="live-layer underlay-layer absolute inset-0" data-live-layer="underlay" ${context.layers.background ? '' : 'hidden'}>${underlayMarkup}</div>` : ''}
-        ${showForeground ? `<div class="live-layer foreground-layer absolute inset-0" data-live-layer="foreground" ${context.layers.foreground ? '' : 'hidden'}>${foregroundMarkup}</div>` : ''}
-      </div>` : ''}
-      ${(mode === 'live' || mode === 'overlay') && showPresenter ? renderPresenterLayer(context.presenter, { visible: context.layers.presenter }) : ''}
-      ${(mode === 'live' || mode === 'overlay') && showForeground ? renderGlobalTicker(context) : ''}
-    </section>`
+    <section class="visual-stage ${UI.stage} ${render === "foreground" || mode === "reference" ? "!bg-transparent" : ""} output-stage-${output} render-stage-${render}" data-visual-stage data-testid="visual-stage" aria-label="Program visual stage">
+      ${mode === "reference" || mode === "overlay" ? renderReferenceLayer(slide, { opacity: getReferenceOpacity(mode), isVisible: shouldShowReference(mode) }) : ""}
+      ${
+        mode === "live" || mode === "overlay"
+          ? `<div class="live-composition absolute inset-0" data-live-composition style="visibility:${mode === "overlay" && !debugState.overlayLiveVisible ? "hidden" : "visible"}">
+        ${showBackground ? renderBackgroundLayer({ sceneId: slide.id, backgroundId, className: "stage-background-layer", debug: context.backgroundDebug && !context.clean }) : ""}
+        ${showUnderlay ? `<div class="live-layer underlay-layer absolute inset-0" data-live-layer="underlay" ${context.layers.background ? "" : "hidden"}>${underlayMarkup}</div>` : ""}
+        ${showForeground ? `<div class="live-layer foreground-layer absolute inset-0" data-live-layer="foreground" ${context.layers.foreground ? "" : "hidden"}>${foregroundMarkup}</div>` : ""}
+      </div>`
+          : ""
+      }
+      ${(mode === "live" || mode === "overlay") && showPresenter ? renderPresenterLayer(context.presenter, { visible: context.layers.presenter }) : ""}
+      ${(mode === "live" || mode === "overlay") && showForeground ? renderGlobalTicker(context) : ""}
+    </section>`;
 
   // The live program gets its own 1920x1080 wrapper rather than the storyboard's
   // 1920x1580 review canvas with overrides layered on top (§3). One stage, one
   // scale factor, no leftover review geometry to clip or letterbox.
   if (context.isProgramOutput) {
-    document.documentElement.classList.add('program-page')
-    document.body.classList.add('program-page')
+    document.documentElement.classList.add("program-page");
+    document.body.classList.add("program-page");
     app.innerHTML = `
-      <main class="program-output ${paused ? 'is-paused' : ''}" data-app-shell data-program-output data-testid="app-shell">
+      <main class="program-output ${paused ? "is-paused" : ""}" data-app-shell data-program-output data-testid="app-shell">
         <div class="program-stage" data-program-stage data-storyboard-canvas data-testid="storyboard-canvas">
           ${stageMarkup}
         </div>
-      </main>`
-    hydrateSceneCueTargets(context)
-    hydrateLayerAnimationTargets(app)
-    bindProgramScale()
-    if (showBackground) initBackgroundLayer(app)
-    if (showPresenter) mountPresenterRuntime(context)
-    return
+      </main>`;
+    hydrateSceneCueTargets(context);
+    hydrateLayerAnimationTargets(app);
+    bindProgramScale();
+    if (showBackground) initBackgroundLayer(app);
+    if (showPresenter) mountPresenterRuntime(context);
+    return;
   }
 
   app.innerHTML = `
-    <main class="${shellClasses.join(' ')}" data-app-shell data-testid="app-shell">
-      ${showHeader ? renderHeader(context) : ''}
-      <section class="canvas-shell ${UI.canvasShell} ${output === 'obs' ? '!h-screen !w-screen !min-h-svh !pb-0' : ''} output-${output}" data-canvas-shell>
+    <main class="${shellClasses.join(" ")}" data-app-shell data-testid="app-shell">
+      ${showHeader ? renderHeader(context) : ""}
+      <section class="canvas-shell ${UI.canvasShell} ${output === "obs" ? "!h-screen !w-screen !min-h-svh !pb-0" : ""} output-${output}" data-canvas-shell>
         <div class="canvas-scale-frame relative overflow-hidden">
-          <div class="${canvasClasses.join(' ')}" data-storyboard-canvas data-testid="storyboard-canvas">
+          <div class="${canvasClasses.join(" ")}" data-storyboard-canvas data-testid="storyboard-canvas">
             ${stageMarkup}
-            ${context.showControls ? renderOnCanvasControls(context) : ''}
-            ${showSpec ? renderSpecSheet(slide, context) : ''}
-            ${showDebug ? renderDebugOverlay(context) : ''}
+            ${context.showControls ? renderOnCanvasControls(context) : ""}
+            ${showSpec ? renderSpecSheet(slide, context) : ""}
+            ${showDebug ? renderDebugOverlay(context) : ""}
           </div>
         </div>
       </section>
-    </main>`
+    </main>`;
 
-  hydrateSceneCueTargets(context)
-  hydrateLayerAnimationTargets(app)
-  bindCanvasScale(context)
-  bindDebugTools(context)
-  if (showBackground) initBackgroundLayer(app)
-  if (showPresenter) mountPresenterRuntime(context)
+  hydrateSceneCueTargets(context);
+  hydrateLayerAnimationTargets(app);
+  bindCanvasScale(context);
+  bindDebugTools(context);
+  if (showBackground) initBackgroundLayer(app);
+  if (showPresenter) mountPresenterRuntime(context);
 }
 
 function hydrateSceneCueTargets(context) {
-  const config = sceneControlById[context.slide.id]
-  const targets = SCENE_CUE_TARGETS[context.slide.id] ?? {}
+  const config = sceneControlById[context.slide.id];
+  const targets = SCENE_CUE_TARGETS[context.slide.id] ?? {};
   config?.duringCues.forEach((cue) => {
-    if (app.querySelector(`[data-control-cue="${CSS.escape(cue.id)}"]`)) return
-    const target = targets[cue.id]
-    if (!target) return
-    const element = app.querySelectorAll(target.selector)[target.index]
-    if (element) element.dataset.controlCue = cue.id
-  })
+    if (app.querySelector(`[data-control-cue="${CSS.escape(cue.id)}"]`)) return;
+    const target = targets[cue.id];
+    if (!target) return;
+    const element = app.querySelectorAll(target.selector)[target.index];
+    if (element) element.dataset.controlCue = cue.id;
+  });
 }
 
 function renderOnCanvasControls(context) {
-  const config = sceneControlById[context.slide.id]
+  const config = sceneControlById[context.slide.id];
   const cueButtons = [
     `<button type="button" data-reset-scene class="${UI.controlButton} !min-w-[96px]">Reset</button>`,
-    `<button type="button" data-trigger-cue="${config?.entryCue.id ?? 'entry'}" class="${UI.controlButton} !min-w-[110px]">Entry · ${config?.entryCue.label ?? 'Entry'}</button>`,
+    `<button type="button" data-trigger-cue="${config?.entryCue.id ?? "entry"}" class="${UI.controlButton} !min-w-[110px]">Entry · ${config?.entryCue.label ?? "Entry"}</button>`,
     `<button type="button" data-trigger-cue="${LAYER_CUES.background}" class="${UI.controlButton} !min-w-fit">Background In</button>`,
     `<button type="button" data-trigger-cue="${LAYER_CUES.foreground}" class="${UI.controlButton} !min-w-fit">Foreground In</button>`,
     `<button type="button" data-trigger-cue="${LAYER_CUES.footer}" class="${UI.controlButton} !min-w-fit">Footer In</button>`,
     `<button type="button" data-trigger-cue="${LAYER_CUES.full}" class="${UI.controlButton} !min-w-fit !border-cyan-400/60 !bg-cyan-950/90 !text-cyan-100">Play Full Sequence</button>`,
-    ...(config?.duringCues ?? []).map((cue) => `<button type="button" data-trigger-cue="${cue.id}" class="${UI.controlButton} !min-w-fit">${cue.label}</button>`),
-    `<button type="button" data-trigger-cue="${config?.exitCue.id ?? 'exit'}" class="${UI.controlButton} !min-w-[110px] !border-rose-400/50 !bg-rose-950/90 !text-rose-200">Exit · ${config?.exitCue.label ?? 'Exit'}</button>`,
-  ].join('')
+    ...(config?.duringCues ?? []).map(
+      (cue) =>
+        `<button type="button" data-trigger-cue="${cue.id}" class="${UI.controlButton} !min-w-fit">${cue.label}</button>`,
+    ),
+    `<button type="button" data-trigger-cue="${config?.exitCue.id ?? "exit"}" class="${UI.controlButton} !min-w-[110px] !border-rose-400/50 !bg-rose-950/90 !text-rose-200">Exit · ${config?.exitCue.label ?? "Exit"}</button>`,
+  ].join("");
   return `
-    <button type="button" class="presentation-controls-toggle ${UI.controlToggle}" data-toggle-presentation-controls aria-pressed="${context.controlsVisible}" aria-label="${context.controlsVisible ? 'Hide' : 'Show'} presentation controls">
-      <span aria-hidden="true">${context.controlsVisible ? '×' : '☰'}</span>
-      ${context.controlsVisible ? 'Hide Controls' : 'Show Controls'}
+    <button type="button" class="presentation-controls-toggle ${UI.controlToggle}" data-toggle-presentation-controls aria-pressed="${context.controlsVisible}" aria-label="${context.controlsVisible ? "Hide" : "Show"} presentation controls">
+      <span aria-hidden="true">${context.controlsVisible ? "×" : "☰"}</span>
+      ${context.controlsVisible ? "Hide Controls" : "Show Controls"}
     </button>
-    <nav class="presentation-controls ${UI.controls} ${context.controlsVisible ? '' : 'is-hidden invisible translate-y-6 opacity-0'}" aria-label="Presentation controls">
+    <nav class="presentation-controls ${UI.controls} ${context.controlsVisible ? "" : "is-hidden invisible translate-y-6 opacity-0"}" aria-label="Presentation controls">
       <div class="presentation-mode-controls mb-2 ml-auto flex justify-end gap-2">
-        <button type="button" data-presentation-mode="reference" class="${UI.controlButton} ${context.mode === 'reference' ? `is-active ${UI.controlButtonActive}` : ''}">Reference</button>
-        <button type="button" data-presentation-mode="overlay" class="${UI.controlButton} ${context.mode === 'overlay' ? `is-active ${UI.controlButtonActive}` : ''}">Overlay</button>
-        <button type="button" data-presentation-mode="live" class="${UI.controlButton} ${context.mode === 'live' ? `is-active ${UI.controlButtonActive}` : ''}">Live</button>
+        <button type="button" data-presentation-mode="reference" class="${UI.controlButton} ${context.mode === "reference" ? `is-active ${UI.controlButtonActive}` : ""}">Reference</button>
+        <button type="button" data-presentation-mode="overlay" class="${UI.controlButton} ${context.mode === "overlay" ? `is-active ${UI.controlButtonActive}` : ""}">Overlay</button>
+        <button type="button" data-presentation-mode="live" class="${UI.controlButton} ${context.mode === "live" ? `is-active ${UI.controlButtonActive}` : ""}">Live</button>
       </div>
-      ${context.mode === 'overlay' ? renderOverlayControls() : ''}
+      ${context.mode === "overlay" ? renderOverlayControls() : ""}
       ${renderTickerControls()}
       <div class="presentation-cue-panel mb-2 flex max-h-[104px] items-center gap-2 overflow-x-auto rounded-[13px] border border-indigo-200/30 bg-slate-950/95 p-2 shadow-2xl backdrop-blur-xl" data-scene-cue-panel data-scene="${context.slide.id}">
         <span class="shrink-0 px-2 text-[10px] font-black uppercase tracking-[.15em] text-indigo-300">Scene ${context.slide.id} cues</span>
@@ -645,275 +945,435 @@ function renderOnCanvasControls(context) {
         <button type="button" data-previous-scene class="${UI.sceneButton} !w-[74px] !shrink-0" aria-label="Previous scene">← Previous</button>
         <span class="presentation-current-scene flex w-[250px] min-w-[250px] items-center gap-2.5 overflow-hidden px-2.5"><strong class="grid size-[34px] shrink-0 place-items-center rounded-lg bg-violet-600 text-[13px] text-white">${context.slide.id}</strong><small class="truncate text-[11px] font-bold text-indigo-200/80">${config?.title ?? context.slide.title}</small></span>
         <div class="presentation-scene-buttons grid min-w-0 flex-1 grid-cols-[repeat(39,minmax(0,1fr))] gap-[3px]">
-          ${context.allSlides.map((item) => `<button type="button" data-presentation-scene="${item.id}" class="${UI.sceneButton} ${item.id === context.slide.id ? `is-active ${UI.sceneButtonActive}` : ''}" title="Scene ${item.id}: ${item.title}">${item.id}</button>`).join('')}
+          ${context.allSlides.map((item) => `<button type="button" data-presentation-scene="${item.id}" class="${UI.sceneButton} ${item.id === context.slide.id ? `is-active ${UI.sceneButtonActive}` : ""}" title="Scene ${item.id}: ${item.title}">${item.id}</button>`).join("")}
         </div>
         <button type="button" data-next-scene class="${UI.sceneButton} !w-[62px] !shrink-0" aria-label="Next scene">Next →</button>
       </div>
-    </nav>`
+    </nav>`;
 }
 
 function renderOverlayControls() {
-  const view = debugState.overlayReferenceVisible && debugState.overlayLiveVisible
-    ? 'both'
-    : debugState.overlayReferenceVisible ? 'reference' : 'live'
+  const view =
+    debugState.overlayReferenceVisible && debugState.overlayLiveVisible
+      ? "both"
+      : debugState.overlayReferenceVisible
+        ? "reference"
+        : "live";
   return `<div class="comparison-controls mb-2 ml-auto flex w-fit items-center gap-2 rounded-[13px] border border-indigo-200/30 bg-slate-950/95 p-2 shadow-2xl backdrop-blur-xl" data-comparison-controls>
     <label class="flex items-center gap-2 px-2 text-xs font-bold"><span>Reference opacity</span><input class="w-[180px] accent-bema-cyan" data-reference-opacity type="range" min="0" max="1" step="0.05" value="${debugState.referenceOpacity}"><output data-reference-opacity-output>${Math.round(debugState.referenceOpacity * 100)}%</output></label>
-    ${['reference', 'both', 'live'].map((value) => `<button type="button" data-overlay-view="${value}" class="${UI.controlButton} !h-[34px] !min-w-[92px] !px-3 !text-xs ${view === value ? `is-active ${UI.controlButtonActive}` : ''}">${value === 'reference' ? 'Reference only' : value === 'live' ? 'Live only' : 'Both'}</button>`).join('')}
-    <button type="button" data-toggle-reference-order class="${UI.controlButton} !h-[34px] !min-w-[128px] !px-3 !text-xs">${debugState.overlayReferenceOnTop ? 'Reference on top' : 'Live on top'}</button>
-  </div>`
+    ${["reference", "both", "live"].map((value) => `<button type="button" data-overlay-view="${value}" class="${UI.controlButton} !h-[34px] !min-w-[92px] !px-3 !text-xs ${view === value ? `is-active ${UI.controlButtonActive}` : ""}">${value === "reference" ? "Reference only" : value === "live" ? "Live only" : "Both"}</button>`).join("")}
+    <button type="button" data-toggle-reference-order class="${UI.controlButton} !h-[34px] !min-w-[128px] !px-3 !text-xs">${debugState.overlayReferenceOnTop ? "Reference on top" : "Live on top"}</button>
+  </div>`;
 }
 
 function bindOnCanvasControls(context) {
-  if (!context.showControls) return
-  bindTickerControls(app, context.url)
-  const controls = app.querySelector('.presentation-controls')
-  const toggle = app.querySelector('[data-toggle-presentation-controls]')
-  toggle?.addEventListener('click', () => {
-    const willShow = controls?.classList.contains('is-hidden') ?? true
-    controls?.classList.toggle('is-hidden', !willShow)
-    controls?.classList.toggle('invisible', !willShow)
-    controls?.classList.toggle('translate-y-6', !willShow)
-    controls?.classList.toggle('opacity-0', !willShow)
-    toggle.setAttribute('aria-pressed', String(willShow))
-    toggle.setAttribute('aria-label', `${willShow ? 'Hide' : 'Show'} presentation controls`)
-    toggle.innerHTML = `<span aria-hidden="true">${willShow ? '×' : '☰'}</span>${willShow ? 'Hide Controls' : 'Show Controls'}`
-    const url = new URL(location.href)
-    if (willShow) url.searchParams.delete('controls')
-    else url.searchParams.set('controls', 'false')
-    history.replaceState(null, '', url)
-  })
-  app.querySelectorAll('[data-presentation-scene]').forEach((button) => {
-    button.addEventListener('click', () => navigatePresentation(button.dataset.presentationScene, context.mode))
-  })
-  app.querySelectorAll('[data-presentation-mode]').forEach((button) => {
-    button.addEventListener('click', () => navigatePresentation(context.slide.id, button.dataset.presentationMode))
-  })
-  app.querySelector('[data-previous-scene]')?.addEventListener('click', () => navigateRelativeScene(context, -1))
-  app.querySelector('[data-next-scene]')?.addEventListener('click', () => navigateRelativeScene(context, 1))
-  app.querySelector('[data-reset-scene]')?.addEventListener('click', () => {
-    disposeSceneLifecycle(app)
-    resetSceneCue(app)
-  })
-  app.querySelectorAll('[data-trigger-cue]').forEach((button) => {
-    button.addEventListener('click', () => {
-      const cue = button.dataset.triggerCue
-      if (context.mode === 'reference') {
-        const url = new URL(location.href)
-        url.searchParams.set('mode', 'live')
-        url.searchParams.set('cue', cue)
-        location.assign(url)
-        return
+  if (!context.showControls) return;
+  bindTickerControls(app, context.url);
+  const controls = app.querySelector(".presentation-controls");
+  const toggle = app.querySelector("[data-toggle-presentation-controls]");
+  toggle?.addEventListener("click", () => {
+    const willShow = controls?.classList.contains("is-hidden") ?? true;
+    controls?.classList.toggle("is-hidden", !willShow);
+    controls?.classList.toggle("invisible", !willShow);
+    controls?.classList.toggle("translate-y-6", !willShow);
+    controls?.classList.toggle("opacity-0", !willShow);
+    toggle.setAttribute("aria-pressed", String(willShow));
+    toggle.setAttribute(
+      "aria-label",
+      `${willShow ? "Hide" : "Show"} presentation controls`,
+    );
+    toggle.innerHTML = `<span aria-hidden="true">${willShow ? "×" : "☰"}</span>${willShow ? "Hide Controls" : "Show Controls"}`;
+    const url = new URL(location.href);
+    if (willShow) url.searchParams.delete("controls");
+    else url.searchParams.set("controls", "false");
+    history.replaceState(null, "", url);
+  });
+  app.querySelectorAll("[data-presentation-scene]").forEach((button) => {
+    button.addEventListener("click", () =>
+      navigatePresentation(button.dataset.presentationScene, context.mode),
+    );
+  });
+  app.querySelectorAll("[data-presentation-mode]").forEach((button) => {
+    button.addEventListener("click", () =>
+      navigatePresentation(context.slide.id, button.dataset.presentationMode),
+    );
+  });
+  app
+    .querySelector("[data-previous-scene]")
+    ?.addEventListener("click", () => navigateRelativeScene(context, -1));
+  app
+    .querySelector("[data-next-scene]")
+    ?.addEventListener("click", () => navigateRelativeScene(context, 1));
+  app.querySelector("[data-reset-scene]")?.addEventListener("click", () => {
+    disposeSceneLifecycle(app);
+    resetSceneCue(app);
+  });
+  app.querySelectorAll("[data-trigger-cue]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const cue = button.dataset.triggerCue;
+      if (context.mode === "reference") {
+        const url = new URL(location.href);
+        url.searchParams.set("mode", "live");
+        url.searchParams.set("cue", cue);
+        location.assign(url);
+        return;
       }
-      if (context.slide.id === '36' && /^question-[1-4]$/.test(cue)) {
-        const selected = Number(cue.split('-')[1])
-        try { localStorage.setItem('bemahub.obs.scene36.selectedQuestion', String(selected)) } catch { /* Storage can be disabled in OBS. */ }
-        app.querySelectorAll('[data-operator-question-index]').forEach((element) => {
-          const isSelected = Number(element.dataset.operatorQuestionIndex) === selected
-          element.classList.toggle('is-operator-selected', isSelected)
-          element.setAttribute('aria-current', isSelected ? 'true' : 'false')
-        })
-        app.querySelector('.visual-stage')?.setAttribute('data-selected-question', String(selected))
+      if (context.slide.id === "36" && /^question-[1-4]$/.test(cue)) {
+        const selected = Number(cue.split("-")[1]);
+        try {
+          localStorage.setItem(
+            "bemahub.obs.scene36.selectedQuestion",
+            String(selected),
+          );
+        } catch {
+          /* Storage can be disabled in OBS. */
+        }
+        app
+          .querySelectorAll("[data-operator-question-index]")
+          .forEach((element) => {
+            const isSelected =
+              Number(element.dataset.operatorQuestionIndex) === selected;
+            element.classList.toggle("is-operator-selected", isSelected);
+            element.setAttribute("aria-current", isSelected ? "true" : "false");
+          });
+        app
+          .querySelector(".visual-stage")
+          ?.setAttribute("data-selected-question", String(selected));
       }
-      if (cue === 'entry' || cue === LAYER_CUES.full) {
-        disposeSceneLifecycle(app)
+      if (cue === "entry" || cue === LAYER_CUES.full) {
+        disposeSceneLifecycle(app);
       }
-      applySceneCue(app, cue)
-      if ((cue === 'entry' || cue === LAYER_CUES.full) && !context.paused) startSceneSetup?.()
-      if (cue === 'exit') {
-        disposeSceneLifecycle(app)
+      applySceneCue(app, cue);
+      if ((cue === "entry" || cue === LAYER_CUES.full) && !context.paused)
+        startSceneSetup?.();
+      if (cue === "exit") {
+        disposeSceneLifecycle(app);
       }
-    })
-  })
-  app.querySelectorAll('[data-overlay-view]').forEach((button) => {
-    button.addEventListener('click', () => {
-      const view = button.dataset.overlayView
-      debugState.overlayReferenceVisible = view !== 'live'
-      debugState.overlayLiveVisible = view !== 'reference'
-      syncComparison(context.mode)
-      app.querySelectorAll('[data-overlay-view]').forEach((item) => item.classList.toggle('is-active', item === button))
-      const url = new URL(location.href)
-      url.searchParams.set('overlayView', view)
-      history.replaceState(null, '', url)
-    })
-  })
-  app.querySelector('[data-toggle-reference-order]')?.addEventListener('click', (event) => {
-    debugState.overlayReferenceOnTop = !debugState.overlayReferenceOnTop
-    event.currentTarget.textContent = debugState.overlayReferenceOnTop ? 'Reference on top' : 'Live on top'
-    syncComparison(context.mode)
-    const url = new URL(location.href)
-    url.searchParams.set('refOnTop', String(debugState.overlayReferenceOnTop))
-    history.replaceState(null, '', url)
-  })
-  app.querySelector('.comparison-controls [data-reference-opacity]')?.addEventListener('input', (event) => {
-    debugState.referenceOpacity = Number(event.target.value)
-    app.querySelectorAll('[data-reference-opacity]').forEach((item) => { item.value = String(debugState.referenceOpacity) })
-    app.querySelectorAll('[data-reference-opacity-output]').forEach((item) => { item.textContent = `${Math.round(debugState.referenceOpacity * 100)}%` })
-    syncComparison(context.mode)
-    const url = new URL(location.href)
-    url.searchParams.set('refOpacity', String(debugState.referenceOpacity))
-    history.replaceState(null, '', url)
-  })
-  syncComparison(context.mode)
+    });
+  });
+  app.querySelectorAll("[data-overlay-view]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const view = button.dataset.overlayView;
+      debugState.overlayReferenceVisible = view !== "live";
+      debugState.overlayLiveVisible = view !== "reference";
+      syncComparison(context.mode);
+      app
+        .querySelectorAll("[data-overlay-view]")
+        .forEach((item) => item.classList.toggle("is-active", item === button));
+      const url = new URL(location.href);
+      url.searchParams.set("overlayView", view);
+      history.replaceState(null, "", url);
+    });
+  });
+  app
+    .querySelector("[data-toggle-reference-order]")
+    ?.addEventListener("click", (event) => {
+      debugState.overlayReferenceOnTop = !debugState.overlayReferenceOnTop;
+      event.currentTarget.textContent = debugState.overlayReferenceOnTop
+        ? "Reference on top"
+        : "Live on top";
+      syncComparison(context.mode);
+      const url = new URL(location.href);
+      url.searchParams.set(
+        "refOnTop",
+        String(debugState.overlayReferenceOnTop),
+      );
+      history.replaceState(null, "", url);
+    });
+  app
+    .querySelector(".comparison-controls [data-reference-opacity]")
+    ?.addEventListener("input", (event) => {
+      debugState.referenceOpacity = Number(event.target.value);
+      app.querySelectorAll("[data-reference-opacity]").forEach((item) => {
+        item.value = String(debugState.referenceOpacity);
+      });
+      app
+        .querySelectorAll("[data-reference-opacity-output]")
+        .forEach((item) => {
+          item.textContent = `${Math.round(debugState.referenceOpacity * 100)}%`;
+        });
+      syncComparison(context.mode);
+      const url = new URL(location.href);
+      url.searchParams.set("refOpacity", String(debugState.referenceOpacity));
+      history.replaceState(null, "", url);
+    });
+  syncComparison(context.mode);
 }
 
 function navigateRelativeScene(context, offset) {
-  const index = context.allSlides.findIndex((item) => item.id === context.slide.id)
-  const next = context.allSlides[(index + offset + context.allSlides.length) % context.allSlides.length]
-  navigatePresentation(next.id, context.mode)
+  const index = context.allSlides.findIndex(
+    (item) => item.id === context.slide.id,
+  );
+  const next =
+    context.allSlides[
+      (index + offset + context.allSlides.length) % context.allSlides.length
+    ];
+  navigatePresentation(next.id, context.mode);
 }
 
 function renderHeader({ slide, mode, output, render }) {
-  const pills = (values, active) => values.map((value) => `<span class="mode-pill ${UI.modePill} ${value === active ? `is-active ${UI.modePillActive}` : ''}">${value}</span>`).join('')
-  return `<header class="app-header ${UI.header}"><div><p class="eyebrow ${UI.eyebrow}">BemaHub Open Enrollment OBS</p><h1 class="font-display text-[56px] font-black leading-[.95] tracking-[-.05em]">Scene ${slide.id}: ${slide.title}</h1></div><div class="mode-pills ${UI.modeGroup}">${pills(['reference', 'overlay', 'live'], mode)}</div><div class="mode-pills ${UI.modeGroup}">${pills(['storyboard', 'obs'], output)}</div><div class="mode-pills ${UI.modeGroup}">${pills(['underlay', 'foreground', 'composite'], render)}</div></header>`
+  const pills = (values, active) =>
+    values
+      .map(
+        (value) =>
+          `<span class="mode-pill ${UI.modePill} ${value === active ? `is-active ${UI.modePillActive}` : ""}">${value}</span>`,
+      )
+      .join("");
+  return `<header class="app-header ${UI.header}"><div><p class="eyebrow ${UI.eyebrow}">BemaHub Open Enrollment OBS</p><h1 class="font-display text-[56px] font-black leading-[.95] tracking-[-.05em]">Scene ${slide.id}: ${slide.title}</h1></div><div class="mode-pills ${UI.modeGroup}">${pills(["reference", "overlay", "live"], mode)}</div><div class="mode-pills ${UI.modeGroup}">${pills(["storyboard", "obs"], output)}</div><div class="mode-pills ${UI.modeGroup}">${pills(["underlay", "foreground", "composite"], render)}</div></header>`;
 }
 
 function renderUnderlay(renderer, context) {
-  return renderMarkup(renderer.renderUnderlay?.(context) ?? renderer.render?.(context))
+  return renderMarkup(
+    renderer.renderUnderlay?.(context) ?? renderer.render?.(context),
+  );
 }
 
 function renderMarkup(value) {
-  if (value == null || value === false) return ''
-  if (!isValidElement(value)) return String(value)
-  const markup = renderToStaticMarkup(value)
-  const wrapper = '<div data-react-scene-markup="true">'
-  return markup.startsWith(wrapper) && markup.endsWith('</div>')
+  if (value == null || value === false) return "";
+  if (!isValidElement(value)) return String(value);
+  const markup = renderToStaticMarkup(value);
+  const wrapper = '<div data-react-scene-markup="true">';
+  return markup.startsWith(wrapper) && markup.endsWith("</div>")
     ? markup.slice(wrapper.length, -6)
-    : markup
+    : markup;
 }
 
 function renderDebugOverlay(context) {
-  return `<div class="debug-guides pointer-events-none absolute inset-0 z-50" aria-hidden="true"><div class="grid-overlay absolute inset-0 opacity-0"></div><div class="safe-zone stage-safe-zone absolute inset-[5%] opacity-0"><span>5% Safe Area</span></div></div><aside class="debug-overlay absolute right-5 top-[150px] z-[70] w-[340px] rounded-2xl border border-indigo-200/30 bg-slate-950/90 p-4 font-sans text-indigo-50 shadow-2xl backdrop-blur-xl transition"><div class="debug-summary grid grid-cols-4 gap-2 text-xs">${[['Scene', context.slide.id], ['Mode', context.mode], ['Output', context.output], ['Render', context.render]].map(([label, value]) => `<p class="grid gap-1"><span class="text-[9px] font-bold uppercase tracking-wider text-indigo-300/60">${label}</span><strong class="truncate capitalize">${value}</strong></p>`).join('')}</div><label class="debug-control mt-4 grid gap-2 text-xs font-bold"><span>Reference Opacity</span><input class="accent-bema-cyan" data-reference-opacity type="range" min="0" max="1" step="0.05" value="${getReferenceOpacity(context.mode)}" ${context.mode === 'live' ? 'disabled' : ''}></label><div class="debug-actions mt-3 flex gap-2"><button class="rounded-lg border border-indigo-200/30 bg-indigo-950/80 px-3 py-2 text-xs font-bold hover:border-bema-cyan" data-toggle-grid>Grid</button><button class="rounded-lg border border-indigo-200/30 bg-indigo-950/80 px-3 py-2 text-xs font-bold hover:border-bema-cyan" data-toggle-safe-zones>Safe zones</button></div><p class="debug-shortcuts mt-3 text-[10px] text-indigo-200/60">← → scenes · ↑ ↓ layers · G grid · R reference · T layer · [ ] opacity · D debug</p></aside>`
+  return `<div class="debug-guides pointer-events-none absolute inset-0 z-50" aria-hidden="true"><div class="grid-overlay absolute inset-0 opacity-0"></div><div class="safe-zone stage-safe-zone absolute inset-[5%] opacity-0"><span>5% Safe Area</span></div></div><aside class="debug-overlay absolute right-5 top-[150px] z-[70] w-[340px] rounded-2xl border border-indigo-200/30 bg-slate-950/90 p-4 font-sans text-indigo-50 shadow-2xl backdrop-blur-xl transition"><div class="debug-summary grid grid-cols-4 gap-2 text-xs">${[
+    ["Scene", context.slide.id],
+    ["Mode", context.mode],
+    ["Output", context.output],
+    ["Render", context.render],
+  ]
+    .map(
+      ([label, value]) =>
+        `<p class="grid gap-1"><span class="text-[9px] font-bold uppercase tracking-wider text-indigo-300/60">${label}</span><strong class="truncate capitalize">${value}</strong></p>`,
+    )
+    .join(
+      "",
+    )}</div><label class="debug-control mt-4 grid gap-2 text-xs font-bold"><span>Reference Opacity</span><input class="accent-bema-cyan" data-reference-opacity type="range" min="0" max="1" step="0.05" value="${getReferenceOpacity(context.mode)}" ${context.mode === "live" ? "disabled" : ""}></label><div class="debug-actions mt-3 flex gap-2"><button class="rounded-lg border border-indigo-200/30 bg-indigo-950/80 px-3 py-2 text-xs font-bold hover:border-bema-cyan" data-toggle-grid>Grid</button><button class="rounded-lg border border-indigo-200/30 bg-indigo-950/80 px-3 py-2 text-xs font-bold hover:border-bema-cyan" data-toggle-safe-zones>Safe zones</button></div><p class="debug-shortcuts mt-3 text-[10px] text-indigo-200/60">← → scenes · ↑ ↓ layers · G grid · R reference · T layer · [ ] opacity · D debug</p></aside>`;
 }
 
 function bindCanvasScale(context) {
-  detachCanvasScale?.()
-  if (context.mode === 'reference' && context.output === 'storyboard') {
-    detachCanvasScale = undefined
-    return
+  detachCanvasScale?.();
+  if (context.mode === "reference" && context.output === "storyboard") {
+    detachCanvasScale = undefined;
+    return;
   }
-  const shell = app.querySelector('.canvas-shell')
-  const frame = app.querySelector('.canvas-scale-frame')
-  const canvas = app.querySelector('.storyboard-canvas')
-  if (!shell || !frame || !canvas) return
-  const baseHeight = context.output === 'storyboard' ? 1580 : 1080
+  const shell = app.querySelector(".canvas-shell");
+  const frame = app.querySelector(".canvas-scale-frame");
+  const canvas = app.querySelector(".storyboard-canvas");
+  if (!shell || !frame || !canvas) return;
+  const baseHeight = context.output === "storyboard" ? 1580 : 1080;
   const update = () => {
-    const scale = Math.min(Math.max(shell.clientWidth, 320) / 1920, Math.max(window.innerHeight - shell.getBoundingClientRect().top - (context.output === 'storyboard' ? 24 : 0), 320) / baseHeight)
-    frame.style.width = `${1920 * scale}px`
-    frame.style.height = `${baseHeight * scale}px`
-    canvas.style.setProperty('--canvas-scale', scale)
-  }
-  update()
-  window.addEventListener('resize', update)
-  detachCanvasScale = () => window.removeEventListener('resize', update)
+    const scale = Math.min(
+      Math.max(shell.clientWidth, 320) / 1920,
+      Math.max(
+        window.innerHeight -
+          shell.getBoundingClientRect().top -
+          (context.output === "storyboard" ? 24 : 0),
+        320,
+      ) / baseHeight,
+    );
+    frame.style.width = `${1920 * scale}px`;
+    frame.style.height = `${baseHeight * scale}px`;
+    canvas.style.setProperty("--canvas-scale", scale);
+  };
+  update();
+  window.addEventListener("resize", update);
+  detachCanvasScale = () => window.removeEventListener("resize", update);
 }
 
 function bindPresentationNavigation(context) {
-  detachNavigation?.()
+  detachNavigation?.();
   const onKey = (event) => {
-    if (event.metaKey || event.ctrlKey || event.altKey || event.target?.matches?.('input, textarea, select, button, [contenteditable]')) return
-    const index = context.allSlides.findIndex((item) => item.id === context.slide.id)
-    if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
-      event.preventDefault()
-      const offset = event.key === 'ArrowLeft' ? -1 : 1
-      const next = context.allSlides[(index + offset + context.allSlides.length) % context.allSlides.length]
-      navigatePresentation(next.id, context.mode)
-    } else if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
-      event.preventDefault()
-      const current = context.output === 'storyboard' ? 'storyboard' : context.render
-      const index = OUTPUT_NAVIGATION_ORDER.indexOf(current)
-      const offset = event.key === 'ArrowUp' ? -1 : 1
-      const next = OUTPUT_NAVIGATION_ORDER[(index + offset + OUTPUT_NAVIGATION_ORDER.length) % OUTPUT_NAVIGATION_ORDER.length]
-      const url = new URL(location.href)
-      if (next === 'storyboard') { url.searchParams.set('output', 'storyboard'); url.searchParams.set('render', 'composite') } else { url.searchParams.set('output', 'obs'); url.searchParams.set('render', next) }
-      location.assign(url)
+    if (
+      event.metaKey ||
+      event.ctrlKey ||
+      event.altKey ||
+      event.target?.matches?.(
+        "input, textarea, select, button, [contenteditable]",
+      )
+    )
+      return;
+    const index = context.allSlides.findIndex(
+      (item) => item.id === context.slide.id,
+    );
+    if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+      event.preventDefault();
+      const offset = event.key === "ArrowLeft" ? -1 : 1;
+      const next =
+        context.allSlides[
+          (index + offset + context.allSlides.length) % context.allSlides.length
+        ];
+      navigatePresentation(next.id, context.mode);
+    } else if (event.key === "ArrowUp" || event.key === "ArrowDown") {
+      event.preventDefault();
+      const current =
+        context.output === "storyboard" ? "storyboard" : context.render;
+      const index = OUTPUT_NAVIGATION_ORDER.indexOf(current);
+      const offset = event.key === "ArrowUp" ? -1 : 1;
+      const next =
+        OUTPUT_NAVIGATION_ORDER[
+          (index + offset + OUTPUT_NAVIGATION_ORDER.length) %
+            OUTPUT_NAVIGATION_ORDER.length
+        ];
+      const url = new URL(location.href);
+      if (next === "storyboard") {
+        url.searchParams.set("output", "storyboard");
+        url.searchParams.set("render", "composite");
+      } else {
+        url.searchParams.set("output", "obs");
+        url.searchParams.set("render", next);
+      }
+      location.assign(url);
     }
-  }
-  window.addEventListener('keydown', onKey)
-  detachNavigation = () => window.removeEventListener('keydown', onKey)
+  };
+  window.addEventListener("keydown", onKey);
+  detachNavigation = () => window.removeEventListener("keydown", onKey);
 }
 
 function bindDebugTools(context) {
-  detachDebugTools?.()
-  if (context.clean || context.controllerPreview) return
-  const root = app.querySelector('.storyboard-canvas')
-  const overlay = app.querySelector('.debug-overlay')
-  const guides = app.querySelector('.debug-guides')
-  const opacityControls = app.querySelectorAll('[data-reference-opacity]')
-  if (!root || !overlay || !guides) return
+  detachDebugTools?.();
+  if (context.clean || context.controllerPreview) return;
+  const root = app.querySelector(".storyboard-canvas");
+  const overlay = app.querySelector(".debug-overlay");
+  const guides = app.querySelector(".debug-guides");
+  const opacityControls = app.querySelectorAll("[data-reference-opacity]");
+  if (!root || !overlay || !guides) return;
   const apply = () => {
-    guides.classList.toggle('show-grid', debugState.gridVisible)
-    guides.classList.toggle('show-safe-zones', debugState.safeZonesVisible)
-    overlay.classList.toggle('is-hidden', !debugState.controlsVisible)
-    overlay.classList.toggle('invisible', !debugState.controlsVisible)
-    overlay.classList.toggle('opacity-0', !debugState.controlsVisible)
-    root.classList.toggle('reference-on-top', debugState.overlayReferenceOnTop)
-    syncComparison(context.mode)
-  }
+    guides.classList.toggle("show-grid", debugState.gridVisible);
+    guides.classList.toggle("show-safe-zones", debugState.safeZonesVisible);
+    overlay.classList.toggle("is-hidden", !debugState.controlsVisible);
+    overlay.classList.toggle("invisible", !debugState.controlsVisible);
+    overlay.classList.toggle("opacity-0", !debugState.controlsVisible);
+    root.classList.toggle("reference-on-top", debugState.overlayReferenceOnTop);
+    syncComparison(context.mode);
+  };
   const onKey = (event) => {
-    if (event.target instanceof HTMLInputElement) return
-    if (/^g$/i.test(event.key)) debugState.gridVisible = !debugState.gridVisible
-    else if (/^d$/i.test(event.key)) debugState.controlsVisible = !debugState.controlsVisible
-    else if (/^r$/i.test(event.key) && context.mode === 'overlay') debugState.overlayReferenceVisible = !debugState.overlayReferenceVisible
-    else if (/^t$/i.test(event.key) && context.mode === 'overlay') debugState.overlayReferenceOnTop = !debugState.overlayReferenceOnTop
-    else if (event.key === '[') debugState.referenceOpacity = Math.max(0, debugState.referenceOpacity - 0.05)
-    else if (event.key === ']') debugState.referenceOpacity = Math.min(1, debugState.referenceOpacity + 0.05)
-    else return
-    apply()
-  }
-  opacityControls.forEach((control) => control.addEventListener('input', (event) => {
-    debugState.referenceOpacity = Number(event.target.value)
-    opacityControls.forEach((item) => { item.value = String(debugState.referenceOpacity) })
-    app.querySelectorAll('[data-reference-opacity-output]').forEach((item) => { item.textContent = `${Math.round(debugState.referenceOpacity * 100)}%` })
-    apply()
-    const url = new URL(location.href)
-    url.searchParams.set('refOpacity', String(debugState.referenceOpacity))
-    history.replaceState(null, '', url)
-  }))
-  app.querySelector('[data-toggle-grid]')?.addEventListener('click', () => { debugState.gridVisible = !debugState.gridVisible; apply() })
-  app.querySelector('[data-toggle-safe-zones]')?.addEventListener('click', () => { debugState.safeZonesVisible = !debugState.safeZonesVisible; apply() })
-  window.addEventListener('keydown', onKey)
-  detachDebugTools = () => window.removeEventListener('keydown', onKey)
-  apply()
+    if (event.target instanceof HTMLInputElement) return;
+    if (/^g$/i.test(event.key))
+      debugState.gridVisible = !debugState.gridVisible;
+    else if (/^d$/i.test(event.key))
+      debugState.controlsVisible = !debugState.controlsVisible;
+    else if (/^r$/i.test(event.key) && context.mode === "overlay")
+      debugState.overlayReferenceVisible = !debugState.overlayReferenceVisible;
+    else if (/^t$/i.test(event.key) && context.mode === "overlay")
+      debugState.overlayReferenceOnTop = !debugState.overlayReferenceOnTop;
+    else if (event.key === "[")
+      debugState.referenceOpacity = Math.max(
+        0,
+        debugState.referenceOpacity - 0.05,
+      );
+    else if (event.key === "]")
+      debugState.referenceOpacity = Math.min(
+        1,
+        debugState.referenceOpacity + 0.05,
+      );
+    else return;
+    apply();
+  };
+  opacityControls.forEach((control) =>
+    control.addEventListener("input", (event) => {
+      debugState.referenceOpacity = Number(event.target.value);
+      opacityControls.forEach((item) => {
+        item.value = String(debugState.referenceOpacity);
+      });
+      app
+        .querySelectorAll("[data-reference-opacity-output]")
+        .forEach((item) => {
+          item.textContent = `${Math.round(debugState.referenceOpacity * 100)}%`;
+        });
+      apply();
+      const url = new URL(location.href);
+      url.searchParams.set("refOpacity", String(debugState.referenceOpacity));
+      history.replaceState(null, "", url);
+    }),
+  );
+  app.querySelector("[data-toggle-grid]")?.addEventListener("click", () => {
+    debugState.gridVisible = !debugState.gridVisible;
+    apply();
+  });
+  app
+    .querySelector("[data-toggle-safe-zones]")
+    ?.addEventListener("click", () => {
+      debugState.safeZonesVisible = !debugState.safeZonesVisible;
+      apply();
+    });
+  window.addEventListener("keydown", onKey);
+  detachDebugTools = () => window.removeEventListener("keydown", onKey);
+  apply();
 }
 
-function navigatePresentation(scene, mode, { cue = '' } = {}) {
-  const url = new URL(location.href)
-  const nextScene = normalizeSceneId(scene)
-  const nextMode = VALID_MODES.has(mode) ? mode : 'live'
-  if (url.searchParams.get('scene') === nextScene && url.searchParams.get('mode') === nextMode) return
-  url.searchParams.set('scene', nextScene)
-  url.searchParams.set('mode', nextMode)
-  if (cue) url.searchParams.set('cue', cue)
-  else url.searchParams.delete('cue')
-  location.assign(url)
+function navigatePresentation(scene, mode, { cue = "" } = {}) {
+  const url = new URL(location.href);
+  const nextScene = normalizeSceneId(scene);
+  const nextMode = VALID_MODES.has(mode) ? mode : "live";
+  if (
+    url.searchParams.get("scene") === nextScene &&
+    url.searchParams.get("mode") === nextMode
+  )
+    return;
+  url.searchParams.set("scene", nextScene);
+  url.searchParams.set("mode", nextMode);
+  if (cue) url.searchParams.set("cue", cue);
+  else url.searchParams.delete("cue");
+  location.assign(url);
 }
 
 function syncComparison(mode) {
-  const layer = app.querySelector('.reference-composition-layer')
-  const live = app.querySelector('[data-live-composition]')
+  const layer = app.querySelector(".reference-composition-layer");
+  const live = app.querySelector("[data-live-composition]");
   if (layer) {
-    layer.style.visibility = shouldShowReference(mode) ? 'visible' : 'hidden'
-    layer.style.opacity = String(getReferenceOpacity(mode))
-    layer.classList.toggle('reference-on-top', debugState.overlayReferenceOnTop)
+    layer.style.visibility = shouldShowReference(mode) ? "visible" : "hidden";
+    layer.style.opacity = String(getReferenceOpacity(mode));
+    layer.classList.toggle(
+      "reference-on-top",
+      debugState.overlayReferenceOnTop,
+    );
   }
-  if (live) live.style.visibility = mode === 'overlay' && !debugState.overlayLiveVisible ? 'hidden' : 'visible'
+  if (live)
+    live.style.visibility =
+      mode === "overlay" && !debugState.overlayLiveVisible
+        ? "hidden"
+        : "visible";
 }
 
-function shouldShowReference(mode) { return mode === 'reference' || (mode === 'overlay' && debugState.overlayReferenceVisible) }
-function getReferenceOpacity(mode) { return mode === 'reference' ? 1 : debugState.referenceOpacity }
+function shouldShowReference(mode) {
+  return (
+    mode === "reference" ||
+    (mode === "overlay" && debugState.overlayReferenceVisible)
+  );
+}
+function getReferenceOpacity(mode) {
+  return mode === "reference" ? 1 : debugState.referenceOpacity;
+}
 function parseOpacity(value) {
-  if (value == null || value === '') return 0.7
-  const number = Number(value)
-  return Number.isFinite(number) ? Math.min(1, Math.max(0, number)) : 0.7
+  if (value == null || value === "") return 0.7;
+  const number = Number(value);
+  return Number.isFinite(number) ? Math.min(1, Math.max(0, number)) : 0.7;
 }
 function getSelectedQuestion(params) {
-  const requested = Number(params.get('question'))
-  if (requested >= 1 && requested <= 4) return requested
+  const requested = Number(params.get("question"));
+  if (requested >= 1 && requested <= 4) return requested;
   try {
-    const saved = Number(localStorage.getItem('bemahub.obs.scene36.selectedQuestion'))
-    if (saved >= 1 && saved <= 4) return saved
-  } catch { /* Storage can be disabled in OBS. */ }
-  return 1
+    const saved = Number(
+      localStorage.getItem("bemahub.obs.scene36.selectedQuestion"),
+    );
+    if (saved >= 1 && saved <= 4) return saved;
+  } catch {
+    /* Storage can be disabled in OBS. */
+  }
+  return 1;
 }
-function normalizeSceneId(value) { const digits = String(value ?? '').replace(/\D/g, ''); const number = Number(digits); return number >= 1 && number <= 39 ? String(number).padStart(2, '0') : DEFAULT_SCENE }
-function showBootError(error) { console.error(error); app.innerHTML = `<section class="app-shell"><div class="error-card"><p class="eyebrow">Scene Engine Error</p><h1>Presentation app failed to load.</h1><p>${error.message}</p></div></section>` }
+function normalizeSceneId(value) {
+  const digits = String(value ?? "").replace(/\D/g, "");
+  const number = Number(digits);
+  return number >= 1 && number <= 39
+    ? String(number).padStart(2, "0")
+    : DEFAULT_SCENE;
+}
+function showBootError(error) {
+  console.error(error);
+  app.innerHTML = `<section class="app-shell"><div class="error-card"><p class="eyebrow">Scene Engine Error</p><h1>Presentation app failed to load.</h1><p>${error.message}</p></div></section>`;
+}
